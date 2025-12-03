@@ -1,5 +1,9 @@
 import React from 'react';
 import ServiceCardWithAdd from '../../../components/common/ServiceCardWithAdd';
+import drillHangImage from '../../../assets/images/pages/Home/HomeRepairSection/drill&hang.jpg';
+import tapRepairImage from '../../../assets/images/pages/Home/HomeRepairSection/tap-repair.jpg';
+import fanRepairImage from '../../../assets/images/pages/Home/HomeRepairSection/fan-repair.jpg';
+import switchSocketImage from '../../../assets/images/pages/Home/HomeRepairSection/switch socket installation.jpg';
 
 const HomeRepairSection = ({ services, onSeeAllClick, onServiceClick, onAddClick }) => {
   // Default home repair services if none provided
@@ -10,7 +14,7 @@ const HomeRepairSection = ({ services, onSeeAllClick, onServiceClick, onAddClick
       rating: '4.85',
       reviews: '99K',
       price: '49',
-      image: null,
+      image: drillHangImage,
     },
     {
       id: 2,
@@ -18,7 +22,7 @@ const HomeRepairSection = ({ services, onSeeAllClick, onServiceClick, onAddClick
       rating: '4.80',
       reviews: '119K',
       price: '49',
-      image: null,
+      image: tapRepairImage,
     },
     {
       id: 3,
@@ -26,7 +30,7 @@ const HomeRepairSection = ({ services, onSeeAllClick, onServiceClick, onAddClick
       rating: '4.81',
       reviews: '9K',
       price: '109',
-      image: null,
+      image: fanRepairImage,
     },
     {
       id: 4,
@@ -34,7 +38,7 @@ const HomeRepairSection = ({ services, onSeeAllClick, onServiceClick, onAddClick
       rating: '4.79',
       reviews: '45K',
       price: '99',
-      image: null,
+      image: switchSocketImage,
     },
   ];
 

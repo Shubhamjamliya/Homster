@@ -14,6 +14,13 @@ import ServiceCategorySection from './components/ServiceCategorySection';
 import HomeRepairSection from './components/HomeRepairSection';
 import NativeProductWithRefer from './components/NativeProductWithRefer';
 import ACApplianceModal from './components/ACApplianceModal';
+import acRepairImage from '../../assets/images/pages/Home/ServiceCategorySection/ApplianceServices/ac-repair.jpg';
+import washingMachineRepairImage from '../../assets/images/pages/Home/ServiceCategorySection/ApplianceServices/washing-machine-repair].jpg';
+import waterHeaterRepairImage from '../../assets/images/pages/Home/ServiceCategorySection/ApplianceServices/water heater repair.jpg';
+import refrigeratorRepairImage from '../../assets/images/pages/Home/ServiceCategorySection/ApplianceServices/refigrator-repair.jpg';
+import homeWiringInstallationImage from '../../assets/images/pages/Home/ServiceCategorySection/ElectricalServices/home-wiring.jpg';
+import panelUpgradeRepairImage from '../../assets/images/pages/Home/ServiceCategorySection/ElectricalServices/electrical-panel-upgrade.jpg';
+import smartHomeSetupImage from '../../assets/images/pages/Home/ServiceCategorySection/ElectricalServices/smart home setup.jpg';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -80,17 +87,17 @@ const Home = () => {
     {
       id: 1,
       title: 'Home Wiring Installation',
-      image: null,
+      image: homeWiringInstallationImage,
     },
     {
       id: 2,
       title: 'Panel Upgrade & Repair',
-      image: null,
+      image: panelUpgradeRepairImage,
     },
     {
       id: 3,
       title: 'Smart Home Setup',
-      image: null,
+      image: smartHomeSetupImage,
     },
   ];
 
@@ -98,22 +105,22 @@ const Home = () => {
     {
       id: 1,
       title: 'AC Service and Repair',
-      image: null,
+      image: acRepairImage,
     },
     {
       id: 2,
       title: 'Washing Machine Repair',
-      image: null,
+      image: washingMachineRepairImage,
     },
     {
       id: 3,
       title: 'Water Heater Repair',
-      image: null,
+      image: waterHeaterRepairImage,
     },
     {
       id: 4,
       title: 'Refrigerator Repair',
-      image: null,
+      image: refrigeratorRepairImage,
     },
   ];
 
@@ -136,61 +143,61 @@ const Home = () => {
         onLocationClick={handleLocationClick}
         onCartClick={handleCartClick}
       />
-      
+
       <main className="pt-1">
-        <SearchBar 
+        <SearchBar
           onSearch={handleSearch}
           placeholder="Search for 'Electrical Services'"
         />
-        
-        <ServiceCategories 
+
+        <ServiceCategories
           onCategoryClick={handleCategoryClick}
         />
-        
-        <PromoCarousel 
+
+        <PromoCarousel
           onPromoClick={handlePromoClick}
         />
-        
-        <CuratedServices 
+
+        <CuratedServices
           onServiceClick={handleServiceClick}
         />
-        
-        <NewAndNoteworthy 
+
+        <NewAndNoteworthy
           onServiceClick={handleServiceClick}
         />
-        
-        <MostBookedServices 
+
+        <MostBookedServices
           onServiceClick={handleServiceClick}
         />
-        
-        <CelebratingProfessionals 
+
+        <CelebratingProfessionals
           onProfessionalClick={handleProfessionalClick}
         />
-        
-        <NativeProduct 
+
+        <NativeProduct
           onBuyClick={handleBuyClick}
         />
-        
+
         <ServiceCategorySection
           title="Electrical Installation & Repair"
           services={electricalServices}
           onSeeAllClick={() => handleSeeAllClick('electrical')}
           onServiceClick={handleServiceClick}
         />
-        
+
         <ServiceCategorySection
           title="Appliance repair & service"
           services={applianceServices}
           onSeeAllClick={() => handleSeeAllClick('appliance')}
           onServiceClick={handleServiceClick}
         />
-        
+
         <HomeRepairSection
           onSeeAllClick={() => handleSeeAllClick('home-repair')}
           onServiceClick={handleServiceClick}
           onAddClick={handleAddClick}
         />
-        
+
         <NativeProductWithRefer
           onBuyClick={handleBuyClick}
           onReferClick={handleReferClick}

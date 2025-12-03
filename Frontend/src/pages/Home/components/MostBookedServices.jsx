@@ -1,5 +1,9 @@
 import React from 'react';
 import DetailedServiceCard from '../../../components/common/DetailedServiceCard';
+import homeWiringImage from '../../../assets/images/pages/Home/MostBookedServices/home-wiring.jpg';
+import acServiceImage from '../../../assets/images/pages/Home/MostBookedServices/ac-services-repair.jpg';
+import electricalPanelImage from '../../../assets/images/pages/Home/MostBookedServices/electrical-panel-installation.jpg';
+import smartSwitchImage from '../../../assets/images/pages/Home/MostBookedServices/smart-switch.jpg';
 
 const MostBookedServices = ({ services, onServiceClick }) => {
   // Default electrical services if none provided
@@ -12,7 +16,7 @@ const MostBookedServices = ({ services, onServiceClick }) => {
       price: '1,381',
       originalPrice: '1,667',
       discount: '11%',
-      image: null,
+      image: homeWiringImage,
     },
     {
       id: 2,
@@ -20,7 +24,7 @@ const MostBookedServices = ({ services, onServiceClick }) => {
       rating: '4.85',
       reviews: '99K',
       price: '49',
-      image: null,
+      image: acServiceImage,
     },
     {
       id: 3,
@@ -30,7 +34,7 @@ const MostBookedServices = ({ services, onServiceClick }) => {
       price: '2,500',
       originalPrice: '3,000',
       discount: '17%',
-      image: null,
+      image: electricalPanelImage,
     },
     {
       id: 4,
@@ -38,7 +42,7 @@ const MostBookedServices = ({ services, onServiceClick }) => {
       rating: '4.88',
       reviews: '45K',
       price: '299',
-      image: null,
+      image: smartSwitchImage,
     },
   ];
 

@@ -1,5 +1,8 @@
 import React from 'react';
 import PromoCard from '../../../components/common/PromoCard';
+import promotion1 from '../../../assets/images/pages/Home/promo-carousel/promotion1.jpg';
+import promotion2 from '../../../assets/images/pages/Home/promo-carousel/promotion2.jpg';
+import promiton3 from '../../../assets/images/pages/Home/promo-carousel/promiton3.jpg';
 
 const PromoCarousel = ({ promos, onPromoClick }) => {
   // Default promotional cards if none provided
@@ -10,6 +13,7 @@ const PromoCarousel = ({ promos, onPromoClick }) => {
       subtitle: 'Wedding-ready packages upto 25% off',
       buttonText: 'Book now',
       className: 'from-purple-600 to-purple-800',
+      image: promotion1,
     },
     {
       id: 2,
@@ -17,6 +21,7 @@ const PromoCarousel = ({ promos, onPromoClick }) => {
       subtitle: 'Smart Home Installation - Get 20% off',
       buttonText: 'Explore',
       className: 'from-blue-600 to-blue-800',
+      image: promotion2,
     },
     {
       id: 3,
@@ -24,6 +29,7 @@ const PromoCarousel = ({ promos, onPromoClick }) => {
       subtitle: '24/7 Emergency Electrical Services',
       buttonText: 'Call Now',
       className: 'from-orange-600 to-orange-800',
+      image: promiton3,
     },
   ];
 

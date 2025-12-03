@@ -1,5 +1,9 @@
 import React from 'react';
 import SimpleServiceCard from '../../../components/common/SimpleServiceCard';
+import smartHomeAutomationImage from '../../../assets/images/pages/Home/NewAndNoteworthy/smart-home-automation.jpg';
+import electricalPanelUpgradeImage from '../../../assets/images/pages/Home/NewAndNoteworthy/electrical-panel-upgrade.jpg';
+import ledLightingImage from '../../../assets/images/pages/Home/NewAndNoteworthy/led-lightning-installation.jpg';
+import acServiceImage from '../../../assets/images/pages/Home/NewAndNoteworthy/ac-services-repair.jpg';
 
 const NewAndNoteworthy = ({ services, onServiceClick }) => {
   // Default electrical services if none provided
@@ -7,22 +11,22 @@ const NewAndNoteworthy = ({ services, onServiceClick }) => {
     {
       id: 1,
       title: 'Smart Home Automation',
-      image: null,
+      image: smartHomeAutomationImage,
     },
     {
       id: 2,
       title: 'Electrical Panel Upgrade',
-      image: null,
+      image: electricalPanelUpgradeImage,
     },
     {
       id: 3,
       title: 'LED Lighting Installation',
-      image: null,
+      image: ledLightingImage,
     },
     {
       id: 4,
       title: 'AC Service and Repair',
-      image: null,
+      image: acServiceImage,
     },
   ];
 
