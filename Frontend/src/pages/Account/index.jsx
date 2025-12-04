@@ -26,7 +26,7 @@ const Account = () => {
     { id: 5, label: 'Manage addresses', icon: FiMapPin },
     { id: 6, label: 'Manage payment methods', icon: FiCreditCard },
     { id: 7, label: 'Settings', icon: FiSettings },
-    { id: 8, label: 'About UC', icon: null, customIcon: 'UC' },
+    { id: 8, label: 'About Appzeto', icon: null, customIcon: 'Appzeto' },
   ];
 
   const handleCardClick = (cardType) => {

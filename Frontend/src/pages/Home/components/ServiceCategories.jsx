@@ -1,38 +1,36 @@
 import React from 'react';
-import { 
-  MdElectricalServices, 
-  MdCable, 
-  MdBuild, 
-  MdAcUnit, 
-  MdEmergency,
-  MdHome 
-} from 'react-icons/md';
 import CategoryCard from '../../../components/common/CategoryCard';
+import womensSalonIcon from '../../../assets/images/icons/services/womens-salon-spa-icon.png';
+import massageMenIcon from '../../../assets/images/icons/services/massage-men-icon.png';
+import cleaningIcon from '../../../assets/images/icons/services/cleaning-icon.png';
+import electricianPlumberIcon from '../../../assets/images/icons/services/electrician-plumber-carpenter-icon.png';
+import acApplianceRepairIcon from '../../../assets/images/icons/services/ac-appliance-repair-icon.png';
+import nativeWaterPurifierIcon from '../../../assets/images/icons/services/water-purifier-icon.png';
 
 const ServiceCategories = ({ categories, onCategoryClick }) => {
-  // Default electrical service categories if none provided
+  // Urban Company service categories
   const defaultCategories = [
-    { id: 1, title: 'Electrical Installation', icon: MdElectricalServices },
-    { id: 2, title: 'Wiring & Rewiring', icon: MdCable },
-    { id: 3, title: 'Appliance Repair', icon: MdBuild },
-    { id: 4, title: 'AC & Appliance Repair', icon: MdAcUnit },
-    { id: 5, title: 'Emergency Services', icon: MdEmergency },
-    { id: 6, title: 'Smart Home Setup', icon: MdHome },
+    { id: 1, title: "Women's Salon & Spa", icon: womensSalonIcon },
+    { id: 2, title: 'Massage for Men', icon: massageMenIcon },
+    { id: 3, title: 'Cleaning', icon: cleaningIcon },
+    { id: 4, title: 'Electrician, Plumber & Carpenter', icon: electricianPlumberIcon },
+    { id: 5, title: 'AC & Appliance Repair', icon: acApplianceRepairIcon },
+    { id: 6, title: 'Native Water Purifier', icon: nativeWaterPurifierIcon, hasSaleBadge: true },
   ];
 
   const serviceCategories = categories || defaultCategories;
 
   return (
     <div className="px-4 mb-6">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2">
         {serviceCategories.map((category) => {
-          const IconComponent = category.icon;
           return (
             <CategoryCard
               key={category.id}
               title={category.title}
-              icon={<IconComponent className="w-8 h-8 text-gray-600" />}
+              icon={<img src={category.icon} alt={category.title} className="w-10 h-10 object-contain" />}
               onClick={() => onCategoryClick?.(category)}
+              hasSaleBadge={category.hasSaleBadge}
             />
           );
         })}

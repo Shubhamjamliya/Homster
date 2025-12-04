@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiX } from 'react-icons/fi';
-import { MdAcUnit, MdLocalLaundryService, MdWaterDrop, MdWater, MdMicrowave, MdKitchen } from 'react-icons/md';
-import { FaShoppingBag } from 'react-icons/fa';
+import acIcon from '../../../assets/images/icons/services/ac-icon.png';
+import washingMachineIcon from '../../../assets/images/icons/services/washing-machine-icon.png';
+import geyserIcon from '../../../assets/images/icons/services/geyser-icon.png';
+import waterPurifierIcon from '../../../assets/images/icons/services/water-purifier-icon.png';
+import refrigeratorIcon from '../../../assets/images/icons/services/refrigerator-icon.png';
+import microwaveIcon from '../../../assets/images/icons/services/microwave-icon.png';
+import shoppingBagIcon from '../../../assets/images/icons/services/water-purifier-icon.png'; // Using water-purifier as placeholder for shopping bag
 
 const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
   const navigate = useNavigate();
@@ -25,15 +30,15 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
   if (!isOpen && !isClosing) return null;
 
   const homeAppliances = [
-    { id: 1, title: 'AC', icon: MdAcUnit },
-    { id: 2, title: 'Washing Machine Repair', icon: MdLocalLaundryService },
-    { id: 3, title: 'Geyser Repair', icon: MdWaterDrop },
+    { id: 1, title: 'AC', icon: acIcon },
+    { id: 2, title: 'Washing Machine Repair', icon: washingMachineIcon },
+    { id: 3, title: 'Geyser Repair', icon: geyserIcon },
   ];
 
   const kitchenAppliances = [
-    { id: 1, title: 'Water Purifier Repair', icon: MdWater },
-    { id: 2, title: 'Refrigerator Repair', icon: MdKitchen },
-    { id: 3, title: 'Microwave Repair', icon: MdMicrowave },
+    { id: 1, title: 'Water Purifier Repair', icon: waterPurifierIcon },
+    { id: 2, title: 'Refrigerator Repair', icon: refrigeratorIcon },
+    { id: 3, title: 'Microwave Repair', icon: microwaveIcon },
   ];
 
   const handleServiceClick = (service) => {
@@ -93,7 +98,6 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
             <h2 className="text-base font-semibold text-black mb-4">Home appliances</h2>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               {homeAppliances.map((appliance) => {
-                const IconComponent = appliance.icon;
                 return (
                   <div
                     key={appliance.id}
@@ -101,7 +105,7 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
                     className="min-w-[120px] flex flex-col items-center cursor-pointer active:scale-95 transition-transform"
                   >
                     <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mb-2">
-                      <IconComponent className="w-8 h-8 text-gray-700" />
+                      <img src={appliance.icon} alt={appliance.title} className="w-8 h-8 object-contain" />
                     </div>
                     <p className="text-xs text-black text-center font-normal">{appliance.title}</p>
                   </div>
@@ -115,7 +119,6 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
             <h2 className="text-base font-semibold text-black mb-4">Kitchen appliances</h2>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               {kitchenAppliances.map((appliance) => {
-                const IconComponent = appliance.icon;
                 return (
                   <div
                     key={appliance.id}
@@ -123,7 +126,7 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
                     className="min-w-[120px] flex flex-col items-center cursor-pointer active:scale-95 transition-transform"
                   >
                     <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mb-2">
-                      <IconComponent className="w-8 h-8 text-gray-700" />
+                      <img src={appliance.icon} alt={appliance.title} className="w-8 h-8 object-contain" />
                     </div>
                     <p className="text-xs text-black text-center font-normal">{appliance.title}</p>
                   </div>
@@ -141,7 +144,7 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
                 className="min-w-[120px] flex flex-col items-center cursor-pointer active:scale-95 transition-transform"
               >
                 <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mb-2 relative">
-                  <FaShoppingBag className="w-8 h-8 text-gray-700" />
+                  <img src={shoppingBagIcon} alt="Shopping Bag" className="w-8 h-8 object-contain" />
                   {/* Sale Badge */}
                   <div className="absolute -top-1 -left-1 bg-green-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
                     Sale

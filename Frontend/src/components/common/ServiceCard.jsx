@@ -1,12 +1,18 @@
 import React from 'react';
 
-const ServiceCard = ({ image, title, onClick }) => {
+const ServiceCard = ({ image, title, onClick, gif }) => {
   return (
     <div 
-      className="relative min-w-[280px] h-64 rounded-xl overflow-hidden cursor-pointer active:scale-98 transition-transform"
+      className="relative min-w-[160px] h-80 rounded-xl overflow-hidden cursor-pointer active:scale-98 transition-transform"
       onClick={onClick}
     >
-      {image ? (
+      {gif ? (
+        <img 
+          src={gif} 
+          alt={title} 
+          className="w-full h-full object-cover"
+        />
+      ) : image ? (
         <img 
           src={image} 
           alt={title} 

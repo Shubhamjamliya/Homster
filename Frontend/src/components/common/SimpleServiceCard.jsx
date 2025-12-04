@@ -3,17 +3,17 @@ import React from 'react';
 const SimpleServiceCard = ({ image, title, onClick }) => {
   return (
     <div 
-      className="min-w-[200px] bg-white rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-98 transition-transform"
+      className="min-w-[160px] bg-white rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-98 transition-transform"
       onClick={onClick}
     >
       {image ? (
         <img 
           src={image} 
           alt={title} 
-          className="w-full h-32 object-cover"
+          className="w-full h-28 object-cover"
         />
       ) : (
-        <div className="w-full h-32 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+        <div className="w-full h-28 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
           <svg 
             className="w-12 h-12 text-gray-400" 
             fill="none" 
@@ -29,8 +29,8 @@ const SimpleServiceCard = ({ image, title, onClick }) => {
           </svg>
         </div>
       )}
-      <div className="p-3">
-        <h3 className="text-sm font-medium text-black leading-tight">{title}</h3>
+      <div className="p-2">
+        <h3 className="text-xs font-medium text-black leading-tight">{title}</h3>
       </div>
     </div>
   );

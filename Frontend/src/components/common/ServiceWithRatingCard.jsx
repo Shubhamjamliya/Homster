@@ -1,7 +1,7 @@
 import React from 'react';
 import { AiFillStar } from 'react-icons/ai';
 
-const DetailedServiceCard = ({ image, title, rating, reviews, price, originalPrice, discount, onClick }) => {
+const ServiceWithRatingCard = ({ image, title, rating, reviews, price, originalPrice, discount, onClick }) => {
   return (
     <div 
       className="min-w-[200px] bg-white rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-98 transition-transform"
@@ -59,5 +59,5 @@ const DetailedServiceCard = ({ image, title, rating, reviews, price, originalPri
   );
 };
 
-export default DetailedServiceCard;
+export default ServiceWithRatingCard;
 

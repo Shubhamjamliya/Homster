@@ -7,7 +7,7 @@ const BottomNav = () => {
   const location = useLocation();
 
   const navItems = [
-    { id: 'home', label: 'UC', icon: FiHome, path: '/' },
+    { id: 'home', label: 'Appzeto', icon: FiHome, path: '/' },
     { id: 'rewards', label: 'Rewards', icon: FiGift, path: '/rewards' },
     { id: 'native', label: 'Native', icon: FiShoppingBag, path: '/native' },
     { id: 'account', label: 'Account', icon: FiUser, path: '/account' },
@@ -38,9 +38,7 @@ const BottomNav = () => {
               onClick={() => handleTabClick(item.path)}
               className={`flex flex-col items-center justify-center gap-1 py-2 px-4 transition-colors ${
                 activeTab === item.id
-                  ? activeTab === 'native' 
-                    ? 'text-black' 
-                    : 'text-purple-600'
+                  ? 'text-black'
                   : 'text-gray-500'
               }`}
             >

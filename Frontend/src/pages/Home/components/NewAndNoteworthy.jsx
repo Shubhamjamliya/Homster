@@ -1,32 +1,32 @@
 import React from 'react';
 import SimpleServiceCard from '../../../components/common/SimpleServiceCard';
-import smartHomeAutomationImage from '../../../assets/images/pages/Home/NewAndNoteworthy/smart-home-automation.jpg';
-import electricalPanelUpgradeImage from '../../../assets/images/pages/Home/NewAndNoteworthy/electrical-panel-upgrade.jpg';
-import ledLightingImage from '../../../assets/images/pages/Home/NewAndNoteworthy/led-lightning-installation.jpg';
-import acServiceImage from '../../../assets/images/pages/Home/NewAndNoteworthy/ac-services-repair.jpg';
+import waterPurifierImage from '../../../assets/images/pages/Home/NewAndNoteworthy/water-purifiers.png';
+import bathroomCleaningImage from '../../../assets/images/pages/Home/NewAndNoteworthy/bathroom-cleaning.png';
+import hairStudioImage from '../../../assets/images/pages/Home/NewAndNoteworthy/hair-studio.png';
+import acRepairImage from '../../../assets/images/pages/Home/NewAndNoteworthy/ac-repair.png';
 
 const NewAndNoteworthy = ({ services, onServiceClick }) => {
   // Default electrical services if none provided
   const defaultServices = [
     {
       id: 1,
-      title: 'Smart Home Automation',
-      image: smartHomeAutomationImage,
+      title: 'Native Water Purifier',
+      image: waterPurifierImage,
     },
     {
       id: 2,
-      title: 'Electrical Panel Upgrade',
-      image: electricalPanelUpgradeImage,
+      title: 'Bathroom & Kitchen Cleaning',
+      image: bathroomCleaningImage,
     },
     {
       id: 3,
-      title: 'LED Lighting Installation',
-      image: ledLightingImage,
+      title: 'Hair Studio for Women',
+      image: hairStudioImage,
     },
     {
       id: 4,
       title: 'AC Service and Repair',
-      image: acServiceImage,
+      image: acRepairImage,
     },
   ];
 
@@ -41,7 +41,7 @@ const NewAndNoteworthy = ({ services, onServiceClick }) => {
       </div>
 
       {/* Horizontal Scrollable Service Cards */}
-      <div className="flex gap-4 overflow-x-auto px-4 pb-2 scrollbar-hide">
+      <div className="flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
         {serviceList.map((service) => (
           <SimpleServiceCard
             key={service.id}
