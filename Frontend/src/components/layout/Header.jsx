@@ -5,10 +5,31 @@ import CartIcon from '../common/CartIcon';
 
 const Header = ({ location, cartCount, onLocationClick, onCartClick }) => {
   return (
-    <header className="bg-white min-h-[72px] flex items-center">
-      <div className="px-4 w-full">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2 flex-1 min-w-0 ml-2">
+    <header className="bg-white">
+      <div className="w-full">
+        {/* Top Row: Logo (Left) and Cart (Right) */}
+        <div className="px-4 py-3 flex items-center justify-between">
+          {/* Left: Logo */}
+          <div>
+            <img 
+              src="/Appzeto-logo.png" 
+              alt="Appzeto" 
+              className="h-8 w-auto object-contain"
+            />
+          </div>
+
+          {/* Right: Cart */}
+          <div>
+            <CartIcon 
+              itemCount={cartCount} 
+              onClick={onCartClick}
+            />
+          </div>
+        </div>
+
+        {/* Bottom Row: Location Only */}
+        <div className="px-4 pb-3">
+          <div className="flex items-center">
             <div className="flex flex-col items-start cursor-pointer" onClick={onLocationClick}>
               <div className="flex items-center gap-1 mb-0.5">
                 <HiLocationMarker className="w-4 h-4 text-black" />
@@ -19,12 +40,6 @@ const Header = ({ location, cartCount, onLocationClick, onCartClick }) => {
                 onLocationClick={onLocationClick}
               />
             </div>
-          </div>
-          <div className="mr-2">
-            <CartIcon 
-              itemCount={cartCount} 
-              onClick={onCartClick}
-            />
           </div>
         </div>
       </div>

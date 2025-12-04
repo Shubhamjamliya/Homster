@@ -38,11 +38,13 @@ const BottomNav = () => {
               onClick={() => handleTabClick(item.path)}
               className={`flex flex-col items-center justify-center gap-1 py-2 px-4 transition-colors ${
                 activeTab === item.id
-                  ? 'text-black'
+                  ? item.id === 'home' ? 'text-blue-600' : 'text-black'
                   : 'text-gray-500'
               }`}
             >
-              <IconComponent className="w-6 h-6" />
+              <IconComponent className={`w-6 h-6 ${
+                activeTab === item.id && item.id === 'home' ? 'text-blue-600' : ''
+              }`} />
               <span className="text-xs font-medium">{item.label}</span>
             </button>
           );
