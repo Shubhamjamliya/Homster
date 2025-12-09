@@ -1,0 +1,202 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiArrowLeft, FiBell, FiMail, FiPhone, FiMessageCircle, FiShield, FiChevronRight } from 'react-icons/fi';
+import { FaWhatsapp } from 'react-icons/fa';
+import BottomNav from '../../components/layout/BottomNav';
+
+const Settings = () => {
+  const navigate = useNavigate();
+  
+  // State for notification toggles
+  const [notifications, setNotifications] = useState({
+    whatsapp: true,
+    push: true,
+    email: true,
+    sms: true,
+    voiceCalls: true,
+  });
+
+  const handleToggle = (key) => {
+    setNotifications(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const handlePrivacyClick = () => {
+    // Navigate to privacy page (can be implemented later)
+    // navigate('/privacy');
+  };
+
+  return (
+    <div className="min-h-screen bg-white pb-20">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-30">
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <FiArrowLeft className="w-5 h-5 text-black" />
+            </button>
+            <h1 className="text-xl font-bold text-black">Settings</h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="px-4 py-4">
+        {/* Order Related Messages Section */}
+        <div className="mb-6">
+          <h2 className="text-base font-bold text-black mb-2">Order related messages</h2>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Order related messages can't be turned off as they are important for service experience.
+          </p>
+        </div>
+
+        {/* Notifications & Reminders Section */}
+        <div className="mb-6">
+          <h2 className="text-base font-bold text-black mb-4">Notifications & reminders</h2>
+          
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            {/* WhatsApp */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(37, 211, 102, 0.1)' }}>
+                  <FaWhatsapp className="w-5 h-5" style={{ color: '#25D366' }} />
+                </div>
+                <span className="text-sm font-medium text-black">WhatsApp</span>
+              </div>
+              <button
+                onClick={() => handleToggle('whatsapp')}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                  notifications.whatsapp ? 'bg-green-700' : 'bg-gray-300'
+                }`}
+                style={notifications.whatsapp ? { backgroundColor: '#15803d' } : {}}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
+                    notifications.whatsapp ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Push Notifications */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+                  <FiBell className="w-5 h-5" style={{ color: '#00a6a6' }} />
+                </div>
+                <span className="text-sm font-medium text-black">Push Notifications</span>
+              </div>
+              <button
+                onClick={() => handleToggle('push')}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                  notifications.push ? 'bg-green-700' : 'bg-gray-300'
+                }`}
+                style={notifications.push ? { backgroundColor: '#15803d' } : {}}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
+                    notifications.push ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Email */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+                  <FiMail className="w-5 h-5" style={{ color: '#00a6a6' }} />
+                </div>
+                <span className="text-sm font-medium text-black">Email</span>
+              </div>
+              <button
+                onClick={() => handleToggle('email')}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                  notifications.email ? 'bg-green-700' : 'bg-gray-300'
+                }`}
+                style={notifications.email ? { backgroundColor: '#15803d' } : {}}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
+                    notifications.email ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* SMS */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+                  <FiMessageCircle className="w-5 h-5" style={{ color: '#00a6a6' }} />
+                </div>
+                <span className="text-sm font-medium text-black">SMS</span>
+              </div>
+              <button
+                onClick={() => handleToggle('sms')}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                  notifications.sms ? 'bg-green-700' : 'bg-gray-300'
+                }`}
+                style={notifications.sms ? { backgroundColor: '#15803d' } : {}}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
+                    notifications.sms ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Voice calls */}
+            <div className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+                  <FiPhone className="w-5 h-5" style={{ color: '#00a6a6' }} />
+                </div>
+                <span className="text-sm font-medium text-black">Voice calls</span>
+              </div>
+              <button
+                onClick={() => handleToggle('voiceCalls')}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                  notifications.voiceCalls ? 'bg-green-700' : 'bg-gray-300'
+                }`}
+                style={notifications.voiceCalls ? { backgroundColor: '#15803d' } : {}}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
+                    notifications.voiceCalls ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Privacy & Data Section */}
+        <div className="mb-6">
+          <button
+            onClick={handlePrivacyClick}
+            className="w-full bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between hover:bg-gray-50 active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+                <FiShield className="w-5 h-5" style={{ color: '#00a6a6' }} />
+              </div>
+              <span className="text-sm font-medium text-black">Privacy & data</span>
+            </div>
+            <FiChevronRight className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+      </main>
+
+      {/* BottomNav hidden on this page */}
+    </div>
+  );
+};
+
+export default Settings;
+

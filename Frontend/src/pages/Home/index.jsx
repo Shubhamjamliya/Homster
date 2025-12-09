@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { themeColors } from '../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import SearchBar from './components/SearchBar';
@@ -45,7 +46,7 @@ const Home = () => {
     const html = document.documentElement;
     const body = document.body;
     const root = document.getElementById('root');
-    const bgStyle = 'linear-gradient(to bottom, rgba(0, 166, 166, 0.03) 0%, rgba(41, 173, 129, 0.02) 10%, #ffffff 20%)';
+    const bgStyle = themeColors.backgroundGradient.home;
 
     // Set background on all elements
     const elements = [html, body, root].filter(Boolean);

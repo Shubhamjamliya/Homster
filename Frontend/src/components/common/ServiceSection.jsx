@@ -15,7 +15,7 @@ const ServiceSection = ({
   return (
     <div className={`mb-6 ${showTopBorder ? 'border-t-4 border-gray-300 pt-6' : ''}`} id={title.toLowerCase().replace(/\s+/g, '-')}>
       <div className="px-4 mb-4">
-        <h2 className="text-xl font-medium text-black">{title}</h2>
+        <h2 className="text-xl font-bold text-black">{title}</h2>
       </div>
 
       <div className="px-4 space-y-6">
@@ -28,25 +28,28 @@ const ServiceSection = ({
                   {service.badge}
                 </span>
               )}
-              <h3 className="text-lg font-medium text-black mb-2">{service.title}</h3>
+              <h3 className="text-lg font-normal text-gray-600 mb-2">{service.title}</h3>
               <div className="flex items-center gap-1 mb-2">
                 <AiFillStar className="w-4 h-4 text-yellow-400" />
                 <span className="text-sm text-gray-700">{service.rating} ({service.reviews} reviews)</span>
               </div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-gray-700">Starts at ₹{service.price}</span>
-                {service.originalPrice && (
-                  <>
-                    <span className="text-sm text-gray-400 line-through">₹{service.originalPrice}</span>
-                  </>
-                )}
+                <span className="text-base font-bold text-black">₹{service.price}</span>
                 {service.duration && (
                   <>
                     <span className="text-sm text-gray-600">•</span>
                     <span className="text-sm text-gray-600">{service.duration}</span>
                   </>
                 )}
+                {service.originalPrice && (
+                  <>
+                    <span className="text-sm text-gray-400 line-through ml-2">₹{service.originalPrice}</span>
+                  </>
+                )}
               </div>
+              {service.description && (
+                <p className="text-sm text-gray-600 mb-2">{service.description}</p>
+              )}
               {service.features && (
                 <ul className="space-y-1 mb-3">
                   {service.features.map((feature, index) => (

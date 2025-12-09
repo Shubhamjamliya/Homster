@@ -215,8 +215,25 @@ const BottomNav = ({ cartCount, onCartClick }) => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t z-50 safe-area-bottom" style={{ borderTop: '2px solid #9ca3af' }}>
-      <div className="flex items-center justify-around px-2 py-1.5">
+    <nav 
+      className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom"
+      style={{
+        background: 'linear-gradient(135deg, #ffffff 0%, #f0fdfa 50%, #ffffff 100%)',
+        borderTop: '1px solid rgba(0, 166, 166, 0.2)',
+        boxShadow: '0 -4px 20px rgba(0, 166, 166, 0.15), 0 -2px 8px rgba(0, 0, 0, 0.1)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
+    >
+      {/* Gradient overlay for extra depth */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, rgba(0, 166, 166, 0.05) 0%, transparent 100%)',
+        }}
+      />
+      
+      <div className="relative flex items-center justify-around px-2 py-2">
         {navItems.map((item) => {
           const IconComponent = activeTab === item.id ? item.filledIcon : item.icon;
           const isActive = activeTab === item.id;
@@ -227,10 +244,15 @@ const BottomNav = ({ cartCount, onCartClick }) => {
               onClick={() => {
                 handleTabClick(item.path, item.id);
               }}
-              className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 transition-colors relative ${
-                isActive ? '' : 'text-gray-500'
+              className={`flex flex-col items-center justify-center gap-1 py-1.5 px-4 rounded-xl transition-all duration-300 relative ${
+                isActive 
+                  ? 'transform scale-105' 
+                  : 'hover:bg-white/50 active:scale-95'
               }`}
-              style={isActive ? { color: '#00a6a6' } : {}}
+              style={isActive ? {
+                background: 'linear-gradient(135deg, rgba(0, 166, 166, 0.15) 0%, rgba(41, 173, 129, 0.1) 100%)',
+                boxShadow: '0 2px 8px rgba(0, 166, 166, 0.2)',
+              } : {}}
             >
               {item.isCart ? (
                 <div 
@@ -248,11 +270,18 @@ const BottomNav = ({ cartCount, onCartClick }) => {
                       color: isActive ? '#00a6a6' : '#6b7280',
                       transition: 'opacity 2s ease-in-out, color 2s ease-in-out',
                       transform: 'scale(1)',
-                      opacity: iconTransitions[item.id]?.opacity !== undefined ? iconTransitions[item.id].opacity : 1
+                      opacity: iconTransitions[item.id]?.opacity !== undefined ? iconTransitions[item.id].opacity : 1,
+                      filter: isActive ? 'drop-shadow(0 2px 4px rgba(0, 166, 166, 0.3))' : 'none'
                     }}
                   />
                   {cartCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5 z-10">
+                    <span 
+                      className="absolute -top-1 -right-1 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 z-10"
+                      style={{
+                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                        boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)',
+                      }}
+                    >
                       {cartCount > 9 ? '9+' : cartCount}
                     </span>
                   )}
@@ -272,12 +301,33 @@ const BottomNav = ({ cartCount, onCartClick }) => {
                       color: isActive ? '#00a6a6' : '#6b7280',
                       transition: 'opacity 2s ease-in-out, color 2s ease-in-out',
                       transform: 'scale(1)',
-                      opacity: iconTransitions[item.id]?.opacity !== undefined ? iconTransitions[item.id].opacity : 1
+                      opacity: iconTransitions[item.id]?.opacity !== undefined ? iconTransitions[item.id].opacity : 1,
+                      filter: isActive ? 'drop-shadow(0 2px 4px rgba(0, 166, 166, 0.3))' : 'none'
                     }}
                   />
                 </div>
               )}
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span 
+                className={`text-[10px] font-semibold transition-all duration-300 ${
+                  isActive ? 'text-[#00a6a6]' : 'text-gray-500'
+                }`}
+                style={{
+                  textShadow: isActive ? '0 1px 2px rgba(0, 166, 166, 0.2)' : 'none'
+                }}
+              >
+                {item.label}
+              </span>
+              
+              {/* Active indicator dot */}
+              {isActive && (
+                <div 
+                  className="absolute -bottom-0.5 w-1 h-1 rounded-full"
+                  style={{
+                    background: 'linear-gradient(135deg, #00a6a6 0%, #29ad81 100%)',
+                    boxShadow: '0 0 6px rgba(0, 166, 166, 0.6)',
+                  }}
+                />
+              )}
             </button>
           );
         })}

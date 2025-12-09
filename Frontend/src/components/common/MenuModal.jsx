@@ -16,7 +16,7 @@ const MenuModal = ({ isOpen, onClose, onCategoryClick, categories = [] }) => {
         { opacity: 0 },
         { opacity: 1, duration: 0.2 }
       );
-      
+
       // Animate modal
       animateModalIn(modalRef.current);
     }
@@ -25,13 +25,13 @@ const MenuModal = ({ isOpen, onClose, onCategoryClick, categories = [] }) => {
   const handleClose = () => {
     if (modalRef.current && backdropRef.current) {
       setIsClosing(true);
-      
+
       // Animate out
       gsap.to(backdropRef.current, {
         opacity: 0,
         duration: 0.2,
       });
-      
+
       animateModalOut(modalRef.current, () => {
         onClose();
         setIsClosing(false);
@@ -63,7 +63,7 @@ const MenuModal = ({ isOpen, onClose, onCategoryClick, categories = [] }) => {
           <div
             ref={modalRef}
             className="bg-white rounded-3xl overflow-y-auto w-full shadow-2xl pointer-events-auto"
-            style={{ 
+            style={{
               maxHeight: 'calc(100vh - 180px)',
               transform: 'translateY(100%)'
             }}

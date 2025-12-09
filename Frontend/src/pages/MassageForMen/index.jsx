@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import StickyHeader from '../../components/common/StickyHeader';
 import StickySubHeading from '../../components/common/StickySubHeading';
 import BannerSection from '../../components/common/BannerSection';
@@ -7,6 +8,7 @@ import RatingSection from '../../components/common/RatingSection';
 import PaymentOffers from '../../components/common/PaymentOffers';
 import ServiceCategoriesGrid from '../../components/common/ServiceCategoriesGrid';
 import MenuModal from '../../components/common/MenuModal';
+import CategoryCart from '../../components/common/CategoryCart';
 import PainReliefSection from './components/PainReliefSection';
 import StressReliefSection from './components/StressReliefSection';
 import PostWorkoutSection from './components/PostWorkoutSection';
@@ -24,6 +26,7 @@ const MassageForMen = () => {
   const [showStickyHeader, setShowStickyHeader] = useState(false);
   const [currentSection, setCurrentSection] = useState('');
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+  const [showCategoryCartModal, setShowCategoryCartModal] = useState(false);
 
   // Refs for sections
   const bannerRef = useRef(null);
@@ -157,7 +160,7 @@ const MassageForMen = () => {
     localStorage.setItem('cartItems', JSON.stringify(cartItems));
     setCartCount(cartItems.length);
     window.dispatchEvent(new Event('cartUpdated'));
-    alert(`${service.title || 'Item'} added to cart!`);
+    toast.success(`${service.title || 'Item'} added to cart!`);
   };
 
   const handleViewDetails = (service) => {
@@ -175,6 +178,14 @@ const MassageForMen = () => {
     } else if (category.title === 'Post workout') {
       postWorkoutRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  };
+
+  const handleViewCartClick = () => {
+    setShowCategoryCartModal(true);
+  };
+
+  const handleCategoryCartClose = () => {
+    setShowCategoryCartModal(false);
   };
 
   return (
@@ -270,11 +281,16 @@ const MassageForMen = () => {
         </div>
       </main>
 
-      {/* Compact Cart Summary - Fixed at bottom when cart has items */}
-      {cartCount > 0 && (() => {
-        const totalPrice = cartItems.reduce((sum, item) => sum + (item.price || 0), 0);
-        const totalOriginalPrice = cartItems.reduce((sum, item) => sum + (item.originalPrice || item.price || 0), 0);
-        
+      {/* Compact Cart Summary - Fixed at bottom when cart has items from this category */}
+      {(() => {
+        // Filter cart items by category
+        const categoryItems = cartItems.filter(item => item.category === 'Massage for Men');
+        const categoryCount = categoryItems.length;
+        const totalPrice = categoryItems.reduce((sum, item) => sum + (item.price || 0), 0);
+        const totalOriginalPrice = categoryItems.reduce((sum, item) => sum + (item.originalPrice || item.price || 0), 0);
+
+        if (categoryCount === 0) return null;
+
         return (
           <div className="fixed bottom-0 left-0 right-0 z-40 shadow-lg border-t border-gray-200 px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#f8f8f8' }}>
             <div className="flex items-center gap-3">
@@ -283,10 +299,11 @@ const MassageForMen = () => {
                 {totalOriginalPrice > totalPrice && (
                   <span className="text-sm text-gray-400 line-through">₹{totalOriginalPrice.toLocaleString('en-IN')}</span>
                 )}
+                <span className="text-sm text-gray-600">({categoryCount} {categoryCount === 1 ? 'item' : 'items'})</span>
               </div>
             </div>
             <button
-              onClick={() => navigate('/cart')}
+              onClick={handleViewCartClick}
               className="bg-brand text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-brand-hover transition-colors whitespace-nowrap"
               style={{ backgroundColor: '#00a6a6' }}
               onMouseEnter={(e) => e.target.style.backgroundColor = '#008a8a'}
@@ -299,15 +316,21 @@ const MassageForMen = () => {
       })()}
 
       {/* Floating Menu Button - Small at bottom */}
-      <button
-        onClick={handleMenuClick}
-        className={`fixed ${cartCount > 0 ? 'bottom-20' : 'bottom-4'} left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded-full flex items-center gap-1.5 z-40 shadow-lg hover:bg-gray-800 transition-colors`}
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-        <span className="text-sm font-medium">Menu</span>
-      </button>
+      {(() => {
+        const categoryItems = cartItems.filter(item => item.category === 'Massage for Men');
+        const categoryCount = categoryItems.length;
+        return (
+          <button
+            onClick={handleMenuClick}
+            className={`fixed ${categoryCount > 0 ? 'bottom-20' : 'bottom-4'} left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded-full flex items-center gap-1.5 z-40 shadow-lg hover:bg-gray-800 transition-colors`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <span className="text-sm font-medium">Menu</span>
+          </button>
+        );
+      })()}
 
       {/* Menu Modal */}
       <MenuModal
@@ -318,8 +341,15 @@ const MassageForMen = () => {
           { id: 1, title: 'Pain relief', image: painReliefImage },
           { id: 2, title: 'Stress relief', image: stressReliefImage },
           { id: 3, title: 'Post workout', image: postWorkoutImage },
-          { id: 4, title: 'Add-ons', image: painReliefImage },
         ]}
+      />
+
+      {/* Category Cart Modal */}
+      <CategoryCart
+        isOpen={showCategoryCartModal}
+        onClose={handleCategoryCartClose}
+        category="Massage for Men"
+        categoryTitle="Massage Cart"
       />
     </div>
   );

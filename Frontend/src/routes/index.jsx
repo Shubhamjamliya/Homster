@@ -14,6 +14,18 @@ const MassageForMen = lazy(() => import('../pages/MassageForMen'));
 const BathroomKitchenCleaning = lazy(() => import('../pages/BathroomKitchenCleaning'));
 const SofaCarpetCleaning = lazy(() => import('../pages/SofaCarpetCleaning'));
 const Electrician = lazy(() => import('../pages/Electrician'));
+const MyBookings = lazy(() => import('../pages/MyBookings'));
+const BookingDetails = lazy(() => import('../pages/BookingDetails'));
+const BookingConfirmation = lazy(() => import('../pages/BookingConfirmation'));
+const Settings = lazy(() => import('../pages/Settings'));
+const ManagePaymentMethods = lazy(() => import('../pages/ManagePaymentMethods'));
+const ManageAddresses = lazy(() => import('../pages/ManageAddresses'));
+const MySubscription = lazy(() => import('../pages/MySubscription'));
+const Wallet = lazy(() => import('../pages/Wallet'));
+const MyPlan = lazy(() => import('../pages/MyPlan'));
+const MyRating = lazy(() => import('../pages/MyRating'));
+const AboutAppzeto = lazy(() => import('../pages/AboutAppzeto'));
+const UpdateProfile = lazy(() => import('../pages/UpdateProfile'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -41,6 +53,18 @@ const AppRoutes = () => {
         <Route path="/bathroom-kitchen-cleaning" element={<BathroomKitchenCleaning />} />
         <Route path="/sofa-carpet-cleaning" element={<SofaCarpetCleaning />} />
         <Route path="/electrician" element={<Electrician />} />
+        <Route path="/my-bookings" element={<MyBookings />} />
+        <Route path="/booking/:id" element={<BookingDetails />} />
+        <Route path="/booking-confirmation/:id" element={<BookingConfirmation />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/manage-payment-methods" element={<ManagePaymentMethods />} />
+        <Route path="/manage-addresses" element={<ManageAddresses />} />
+        <Route path="/my-subscription" element={<MySubscription />} />
+        <Route path="/wallet" element={<Wallet />} />
+        <Route path="/my-plan" element={<MyPlan />} />
+        <Route path="/my-rating" element={<MyRating />} />
+        <Route path="/about-appzeto" element={<AboutAppzeto />} />
+        <Route path="/update-profile" element={<UpdateProfile />} />
       </Routes>
     </Suspense>
   );
