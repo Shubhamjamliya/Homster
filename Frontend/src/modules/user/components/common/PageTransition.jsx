@@ -14,12 +14,9 @@ const PageTransition = ({ children }) => {
 
   useEffect(() => {
     if (transitionStage === 'exiting') {
-      const timer = setTimeout(() => {
-        setDisplayLocation(location);
-        setTransitionStage('entering');
-      }, 200); // Match exit animation duration
-
-      return () => clearTimeout(timer);
+      // Instant transition - no delay for super fast navigation
+      setDisplayLocation(location);
+      setTransitionStage('entering');
     }
   }, [transitionStage, location]);
 

@@ -11,7 +11,7 @@
 }
 
 .animate-slide-up {
-  animation: slide-up 0.2s ease-out;
+  animation: slide-up 0.15s ease-out;
 }
 
 /* Slide down animation for modal close */
@@ -49,11 +49,11 @@
 }
 
 .animate-page-enter {
-  animation: fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: fade-in 0.05s ease-out forwards;
 }
 
 .animate-page-exit {
-  animation: fade-out 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: fade-out 0.05s ease-out forwards;
 }
 
 /* Logo Animations */

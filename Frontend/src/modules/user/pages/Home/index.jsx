@@ -122,7 +122,7 @@ const Home = () => {
   };
 
   const handleCategoryClick = (category) => {
-    // Show immediate feedback
+    // Navigate immediately without any delay
     if (category.title === 'Electricity') {
       navigate('/user/electrician');
       return;
@@ -133,11 +133,11 @@ const Home = () => {
       return;
     }
 
-    // Open modal for AC & Appliance Repair
+    // Open modal for AC & Appliance Repair - instant
     if (category.title === 'AC & Appliance Repair') {
       setIsACModalOpen(true);
     } else {
-      // Open modal for other categories - immediate
+      // Open modal for other categories - instant
       setSelectedCategory(category);
       setIsCategoryModalOpen(true);
     }

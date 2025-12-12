@@ -12,13 +12,14 @@ const lazyLoad = (importFunc) => {
       // Return a fallback component wrapped in a Promise
       return Promise.resolve({
         default: () => (
-          <div className="flex items-center justify-center min-h-screen" style={{ background: 'linear-gradient(135deg, #FCD34D 0%, #FDE68A 50%, #FFFFFF 100%)' }}>
+          <div className="flex items-center justify-center min-h-screen bg-white">
             <div className="text-center p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-2">Failed to load page</h2>
               <p className="text-gray-600 mb-4">Please refresh the page or try again later.</p>
               <button
                 onClick={() => window.location.reload()}
-                className="px-6 py-3 rounded-xl bg-yellow-500 text-white font-semibold transition-all duration-300 hover:bg-yellow-600"
+                className="px-6 py-3 rounded-xl text-white font-semibold transition-all duration-300 hover:opacity-90"
+                style={{ backgroundColor: '#00a6a6' }}
               >
                 Refresh Page
               </button>
@@ -58,9 +59,9 @@ const UpdateProfile = lazyLoad(() => import('../pages/UpdateProfile'));
 
 // Loading fallback component
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen" style={{ background: 'linear-gradient(135deg, #FCD34D 0%, #FDE68A 50%, #FFFFFF 100%)' }}>
+  <div className="flex items-center justify-center min-h-screen bg-white">
     <div className="flex flex-col items-center gap-3">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: '#00a6a6' }}></div>
       <p className="text-gray-600 text-sm">Loading...</p>
     </div>
   </div>

@@ -80,11 +80,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
   const subServices = getSubServices();
 
   const handleServiceClick = (service) => {
-    // Close modal and navigate immediately
-    setIsClosing(true);
-    onClose();
-    
-    // Navigate immediately without delay
+    // Navigate immediately - don't wait for modal close
     if (service.title === 'Salon for Women') {
       navigate('/user/salon-for-women');
     } else if (service.title === 'Spa for Women') {
@@ -101,8 +97,10 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
       // Navigate to other service pages
     }
     
-    // Reset closing state after animation completes
-    setTimeout(() => setIsClosing(false), 200);
+    // Close modal after navigation (non-blocking)
+    setIsClosing(true);
+    onClose();
+    setTimeout(() => setIsClosing(false), 100);
   };
 
   const modalContent = (

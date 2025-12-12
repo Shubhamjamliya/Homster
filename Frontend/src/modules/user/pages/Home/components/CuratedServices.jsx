@@ -12,38 +12,38 @@ const CuratedServices = React.memo(({ services, onServiceClick }) => {
       id: 1,
       title: 'Bathroom Deep Cleaning',
       gif: null,
-      youtubeUrl: 'https://youtube.com/shorts/Sk9Rb57RoTA?si=4XyV0WBgHkadcYIC', // Replace with actual YouTube link
+      youtubeUrl: null, // Videos removed temporarily
     },
 
     {
       id: 2,
       title: 'SPA for WOMEN',
       gif: null,
-      youtubeUrl: 'https://youtube.com/shorts/-si75xtzHm0?si=YJja3ZqDEu6IZP0Y', // Replace with actual YouTube link
+      youtubeUrl: null, // Videos removed temporarily
     },
     {
       id: 3,
       title: 'Massage for Men',
       gif: null,
-      youtubeUrl: 'https://youtube.com/shorts/Sk9Rb57RoTA?si=4XyV0WBgHkadcYIC', // Replace with actual YouTube link
+      youtubeUrl: null, // Videos removed temporarily
     },
     {
       id: 4,
       title: 'Roll-on waxing',
       gif: null,
-      youtubeUrl: 'https://youtube.com/shorts/Sk9Rb57RoTA?si=4XyV0WBgHkadcYIC', // Replace with actual YouTube link
+      youtubeUrl: null, // Videos removed temporarily
     },
     {
       id: 5,
       title: 'FACIALS & CLEANUPS',
       gif: null,
-      youtubeUrl: 'https://youtube.com/shorts/Sk9Rb57RoTA?si=4XyV0WBgHkadcYIC', // Replace with actual YouTube link
+      youtubeUrl: null, // Videos removed temporarily
     },
     {
       id: 6,
       title: 'Professional Sofa Cleaning',
       gif: null,
-      youtubeUrl: 'https://youtube.com/shorts/Sk9Rb57RoTA?si=4XyV0WBgHkadcYIC', // Replace with actual YouTube link
+      youtubeUrl: null, // Videos removed temporarily
     },
   ];
 
