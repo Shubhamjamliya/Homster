@@ -1,15 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { FiArrowLeft, FiSearch, FiShare2 } from 'react-icons/fi';
 
 const BannerSection = ({ banners = [], onBack, onSearch, onShare, showStickyNav = false, bannerRef = null }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const intervalRef = useRef(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (banners.length <= 1) return;
@@ -43,50 +37,48 @@ const BannerSection = ({ banners = [], onBack, onSearch, onShare, showStickyNav 
     return null;
   }
 
-  // Render banner icons using Portal to body to avoid transform issues
-  const bannerIcons = mounted && createPortal(
-    <div 
-      className={`fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center justify-between transition-all duration-200 ease-out ${
-        showStickyNav ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'
-      }`}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 40,
-        willChange: showStickyNav ? 'transform, opacity' : 'auto',
-        transition: showStickyNav ? 'opacity 150ms ease-in, transform 150ms ease-in' : 'opacity 200ms ease-out, transform 200ms ease-out'
-      }}
-    >
-      <button
-        onClick={onBack}
-        className="w-10 h-10 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shadow-sm"
-      >
-        <FiArrowLeft className="w-6 h-6 text-gray-800" />
-      </button>
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onSearch}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shadow-sm"
-        >
-          <FiSearch className="w-6 h-6 text-gray-800" />
-        </button>
-        <button
-          onClick={onShare}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shadow-sm"
-        >
-          <FiShare2 className="w-6 h-6 text-gray-800" />
-        </button>
-      </div>
-    </div>,
-    document.body
-  );
-
   return (
     <>
-      {bannerIcons}
+      {/* Banner Icons - Fixed at top */}
+      <div 
+        className={`px-4 py-3 flex items-center justify-between transition-all duration-200 ease-out ${
+          showStickyNav ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'
+        }`}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 40,
+          willChange: showStickyNav ? 'transform, opacity' : 'auto',
+          transition: showStickyNav ? 'opacity 150ms ease-in, transform 150ms ease-in' : 'opacity 200ms ease-out, transform 200ms ease-out',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
+      >
+        <button
+          onClick={onBack}
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shadow-sm"
+        >
+          <FiArrowLeft className="w-6 h-6 text-gray-800" />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onSearch}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shadow-sm"
+          >
+            <FiSearch className="w-6 h-6 text-gray-800" />
+          </button>
+          <button
+            onClick={onShare}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shadow-sm"
+          >
+            <FiShare2 className="w-6 h-6 text-gray-800" />
+          </button>
+        </div>
+      </div>
 
       <div ref={bannerRef} className="relative w-full h-64" style={{ overflow: 'hidden' }}>
         {/* Carousel Container */}

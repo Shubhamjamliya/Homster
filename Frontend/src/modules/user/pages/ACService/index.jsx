@@ -25,6 +25,7 @@ const ACService = () => {
   const [currentSection, setCurrentSection] = useState('');
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
   const [showCategoryCartModal, setShowCategoryCartModal] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
   // Refs for sections
   const bannerRef = useRef(null);
@@ -47,82 +48,91 @@ const ACService = () => {
     };
   }, []);
 
-  // Optimized header visibility using IntersectionObserver
+  // Handle scroll to show/hide sticky header and detect current section
   useEffect(() => {
-    if (!bannerRef.current) return;
-
-    const bannerObserver = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        setShowStickyHeader(!entry.isIntersecting);
-        if (entry.isIntersecting) {
-          setCurrentSection('');
-        }
-      },
-      { threshold: 0, rootMargin: '0px' }
-    );
-
-    bannerObserver.observe(bannerRef.current);
-
-    // Section detection only when header is visible (throttled)
-    let sectionCache = null;
+    // Use scroll-based detection (simple and reliable)
     let ticking = false;
-    
-    const detectSection = () => {
-      if (!ticking && showStickyHeader) {
+    let lastScrollY = window.scrollY;
+    const handleScroll = () => {
+      if (!ticking) {
         window.requestAnimationFrame(() => {
-          if (!sectionCache) {
-            const sectionIds = [
-              'super-saver-packages',
-              'service',
-              'repair-gas-refill',
-              'installation-uninstallation',
-            ];
-            sectionCache = sectionIds.map(id => document.getElementById(id)).filter(Boolean);
-          }
+          const currentScrollY = window.scrollY;
+          const isScrollingUp = currentScrollY < lastScrollY;
+          lastScrollY = currentScrollY;
+          
+          if (bannerRef.current) {
+            const rect = bannerRef.current.getBoundingClientRect();
+            
+            // Priority 1: If scrolling up AND near top AND banner is becoming visible, hide header immediately
+            const isNearTop = currentScrollY < 150;
+            const bannerBecomingVisible = rect.top < 300; // Banner is close to or in viewport
+            
+            if (isScrollingUp && isNearTop && bannerBecomingVisible) {
+              setShowStickyHeader(false);
+              setCurrentSection('');
+              ticking = false;
+              return;
+            }
+            
+            // Priority 2: Normal scrolling - show header when banner is scrolled past
+            const bannerScrolledPast = rect.bottom <= 0;
+            setShowStickyHeader(bannerScrolledPast);
 
-          const headerOffset = 57;
-          let activeSection = '';
-          const titleMap = {
-            'super-saver-packages': 'Super saver packages',
-            'service': 'Service',
-            'repair-gas-refill': 'Repair & gas refill',
-            'installation-uninstallation': 'Installation/uninstallation',
-          };
+            // Detect sections when scrolled past banner
+            if (bannerScrolledPast) {
+              const sectionIds = [
+                'super-saver-packages',
+                'service',
+                'repair-gas-refill',
+                'installation-uninstallation',
+              ];
 
-          for (let i = sectionCache.length - 1; i >= 0; i--) {
-            const element = sectionCache[i];
-            if (element) {
-              const sectionRect = element.getBoundingClientRect();
-              if (sectionRect.top <= headerOffset + 50) {
-                activeSection = titleMap[element.id] || '';
-                break;
+              const headerOffset = 57;
+              let activeSection = '';
+
+              // Check sections in reverse order (bottom to top)
+              for (let i = sectionIds.length - 1; i >= 0; i--) {
+                const element = document.getElementById(sectionIds[i]);
+                if (element) {
+                  const sectionRect = element.getBoundingClientRect();
+                  if (sectionRect.top <= headerOffset + 50) {
+                    const titleMap = {
+                      'super-saver-packages': 'Super saver packages',
+                      'service': 'Service',
+                      'repair-gas-refill': 'Repair & gas refill',
+                      'installation-uninstallation': 'Installation/uninstallation',
+                    };
+                    activeSection = titleMap[sectionIds[i]];
+                    break;
+                  }
+                }
               }
+
+              setCurrentSection(activeSection);
+            } else {
+              setCurrentSection('');
             }
           }
-
-          setCurrentSection(activeSection);
           ticking = false;
         });
         ticking = true;
       }
     };
 
-    const scrollHandler = () => {
-      if (showStickyHeader) {
-        detectSection();
-      }
-    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    // Initial check - wait a bit for refs to be ready
+    const timeoutId = setTimeout(() => {
+      handleScroll();
+    }, 200);
 
-    window.addEventListener('scroll', scrollHandler, { passive: true });
-    
     return () => {
-      bannerObserver.disconnect();
-      window.removeEventListener('scroll', scrollHandler);
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(timeoutId);
     };
-  }, [showStickyHeader]);
+  }, []);
 
   const handleBack = () => {
+    setIsExiting(true);
     window.scrollTo({ top: 0, behavior: 'instant' });
     // Navigate immediately
     navigate('/user', { replace: true, state: { scrollToTop: true } });
@@ -222,6 +232,7 @@ const ACService = () => {
   return (
     <div
       className="min-h-screen bg-white pb-20"
+      style={{ willChange: isExiting ? 'transform' : 'auto' }}
     >
       {/* Sticky Header - appears on scroll */}
       <StickyHeader
@@ -317,7 +328,21 @@ const ACService = () => {
         if (categoryCount === 0) return null;
 
         return (
-          <div className="fixed bottom-0 left-0 right-0 z-40 shadow-lg border-t border-gray-200 px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#f8f8f8' }}>
+          <div 
+            className="shadow-lg border-t border-gray-200 px-4 py-3 flex items-center justify-between" 
+            style={{ 
+              backgroundColor: '#f8f8f8',
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 9996,
+              willChange: 'transform',
+              transform: 'translateZ(0)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
+          >
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold text-black">₹{totalPrice.toLocaleString('en-IN')}</span>
@@ -344,11 +369,22 @@ const ACService = () => {
       {(() => {
         const categoryItems = cartItems.filter(item => item.category === 'AC Service');
         const categoryCount = categoryItems.length;
+        
         return (
           <button
             key="menu-button"
             onClick={handleMenuClick}
-            className={`fixed ${categoryCount > 0 ? 'bottom-20' : 'bottom-4'} left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded-full flex items-center gap-1.5 z-40 shadow-lg hover:bg-gray-800 transition-colors`}
+            className="bg-black text-white px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg hover:bg-gray-800 transition-colors"
+            style={{
+              position: 'fixed',
+              bottom: categoryCount > 0 ? '80px' : '16px',
+              left: '50%',
+              transform: 'translateX(-50%) translateZ(0)',
+              zIndex: 9995,
+              willChange: 'transform',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

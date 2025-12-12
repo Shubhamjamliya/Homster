@@ -1,22 +1,65 @@
-import React, { memo, useRef } from 'react';
+import React, { memo, useRef, useEffect } from 'react';
+import { gsap } from 'gsap';
 import { AiFillStar } from 'react-icons/ai';
 import { themeColors } from '../../../../theme';
 
 const DetailedServiceCard = memo(({ image, title, rating, reviews, price, originalPrice, discount, onClick }) => {
   const cardRef = useRef(null);
 
-  // CSS-based hover animations (better performance)
+  // GSAP hover animations
+  useEffect(() => {
+    if (cardRef.current) {
+      const card = cardRef.current;
+      
+      const handleMouseEnter = () => {
+        gsap.to(card, {
+          y: -8,
+          scale: 1.02,
+          boxShadow: '0 12px 24px rgba(0, 166, 166, 0.15), 0 6px 12px rgba(0, 166, 166, 0.1)',
+          duration: 0.3,
+          ease: 'power2.out',
+        });
+      };
+      
+      const handleMouseLeave = () => {
+        gsap.to(card, {
+          y: 0,
+          scale: 1,
+          boxShadow: '0 8px 16px -2px rgba(0, 166, 166, 0.15), 0 4px 8px -1px rgba(0, 166, 166, 0.1)',
+          duration: 0.3,
+          ease: 'power2.out',
+        });
+      };
+      
+      const handleClick = () => {
+        gsap.to(card, {
+          scale: 0.95,
+          duration: 0.1,
+          yoyo: true,
+          repeat: 1,
+          ease: 'power2.out',
+        });
+      };
+      
+      card.addEventListener('mouseenter', handleMouseEnter);
+      card.addEventListener('mouseleave', handleMouseLeave);
+      card.addEventListener('click', handleClick);
+      
+      return () => {
+        card.removeEventListener('mouseenter', handleMouseEnter);
+        card.removeEventListener('mouseleave', handleMouseLeave);
+        card.removeEventListener('click', handleClick);
+      };
+    }
+  }, []);
 
   return (
     <div 
       ref={cardRef}
-      className="min-w-[200px] bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-2 hover:scale-[1.02] active:scale-[0.95]"
+      className="min-w-[200px] bg-white rounded-2xl overflow-hidden cursor-pointer"
       style={{
         boxShadow: '0 8px 16px -2px rgba(0, 166, 166, 0.15), 0 4px 8px -1px rgba(0, 166, 166, 0.1)',
-        border: '1px solid rgba(0, 166, 166, 0.15)',
-        willChange: 'transform',
-        backfaceVisibility: 'hidden',
-        WebkitBackfaceVisibility: 'hidden',
+        border: '1px solid rgba(0, 166, 166, 0.15)'
       }}
       onClick={onClick}
     >

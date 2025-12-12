@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { FiX } from 'react-icons/fi';
 import acIcon from '../../../../../assets/images/icons/services/ac-icon.png';
 import washingMachineIcon from '../../../../../assets/images/icons/services/washing-machine-icon.png';
@@ -8,7 +9,7 @@ import waterPurifierIcon from '../../../../../assets/images/icons/services/water
 import refrigeratorIcon from '../../../../../assets/images/icons/services/refrigerator-icon.png';
 import microwaveIcon from '../../../../../assets/images/icons/services/microwave-icon.png';
 
-const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
+const ACApplianceModal = React.memo(({ isOpen, onClose, location, cartCount }) => {
   const navigate = useNavigate();
   const [isClosing, setIsClosing] = useState(false);
 
@@ -26,7 +27,14 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
     setTimeout(() => setIsClosing(false), 200);
   };
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (!isOpen && !isClosing) return null;
+  if (!mounted) return null;
 
   const homeAppliances = [
     { id: 1, title: 'AC', icon: acIcon },
@@ -57,20 +65,36 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
   };
 
 
-  return (
+  const modalContent = (
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/50 z-50 transition-opacity ${
+        className={`fixed inset-0 bg-black/50 z-[9998] transition-opacity ${
           isClosing ? 'opacity-0' : 'opacity-100'
         }`}
         onClick={handleClose}
+        style={{
+          position: 'fixed',
+          willChange: 'opacity',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
       />
 
       {/* Modal Container with Close Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50">
+      <div 
+        className="fixed bottom-0 left-0 right-0 z-[9999]"
+        style={{
+          position: 'fixed',
+          willChange: 'transform',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
+      >
         {/* Close Button - Above Modal */}
-        <div className="absolute -top-12 right-4 z-[60]">
+        <div className="absolute -top-12 right-4 z-60">
           <button
             onClick={handleClose}
             className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 transition-colors"
@@ -86,11 +110,10 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-
-        {/* Content */}
-        <div className="px-4 py-6">
-          {/* Title */}
-          <h1 className="text-xl font-semibold text-black mb-6">AC & Appliance Repair</h1>
+          {/* Content */}
+          <div className="px-4 py-6">
+            {/* Title */}
+            <h1 className="text-xl font-semibold text-black mb-6">AC & Appliance Repair</h1>
 
           {/* Home Appliances Section */}
           <div className="mb-8">
@@ -104,7 +127,7 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
                     className="min-w-[120px] flex flex-col items-center cursor-pointer active:scale-95 transition-transform"
                   >
                     <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mb-2">
-                      <img src={appliance.icon} alt={appliance.title} className="w-8 h-8 object-contain" />
+                      <img src={appliance.icon} alt={appliance.title} className="w-8 h-8 object-contain" loading="lazy" decoding="async" />
                     </div>
                     <p className="text-xs text-black text-center font-normal">{appliance.title}</p>
                   </div>
@@ -125,7 +148,7 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
                     className="min-w-[120px] flex flex-col items-center cursor-pointer active:scale-95 transition-transform"
                   >
                     <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mb-2">
-                      <img src={appliance.icon} alt={appliance.title} className="w-8 h-8 object-contain" />
+                      <img src={appliance.icon} alt={appliance.title} className="w-8 h-8 object-contain" loading="lazy" decoding="async" />
                     </div>
                     <p className="text-xs text-black text-center font-normal">{appliance.title}</p>
                   </div>
@@ -133,12 +156,16 @@ const ACApplianceModal = ({ isOpen, onClose, location, cartCount }) => {
               })}
             </div>
           </div>
+          </div>
         </div>
-      </div>
       </div>
     </>
   );
-};
+
+  return createPortal(modalContent, document.body);
+});
+
+ACApplianceModal.displayName = 'ACApplianceModal';
 
 export default ACApplianceModal;
 

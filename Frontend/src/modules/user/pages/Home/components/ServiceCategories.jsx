@@ -7,7 +7,7 @@ import cleaningIcon from '../../../../../assets/images/icons/services/cleaning-i
 import electricianPlumberIcon from '../../../../../assets/images/icons/services/electrician-plumber-carpenter-icon.png';
 import acApplianceRepairIcon from '../../../../../assets/images/icons/services/ac-appliance-repair-icon.png';
 
-const ServiceCategories = ({ categories, onCategoryClick, onSeeAllClick }) => {
+const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllClick }) => {
   // Urban Company service categories
   const defaultCategories = [
     { id: 0, title: 'Electricity', icon: electricianIcon },
@@ -39,7 +39,7 @@ const ServiceCategories = ({ categories, onCategoryClick, onSeeAllClick }) => {
             <div key={category.id} className="flex-shrink-0">
               <CategoryCard
                 title={category.title}
-                icon={<img src={category.icon} alt={category.title} className="w-8 h-8 object-contain" />}
+                icon={<img src={category.icon} alt={category.title} className="w-8 h-8 object-contain" loading="lazy" decoding="async" />}
                 onClick={() => onCategoryClick?.(category)}
                 hasSaleBadge={category.hasSaleBadge}
                 index={index}
@@ -50,7 +50,9 @@ const ServiceCategories = ({ categories, onCategoryClick, onSeeAllClick }) => {
       </div>
     </div>
   );
-};
+});
+
+ServiceCategories.displayName = 'ServiceCategories';
 
 export default ServiceCategories;
 

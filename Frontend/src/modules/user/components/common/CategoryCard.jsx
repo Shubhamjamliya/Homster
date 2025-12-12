@@ -1,27 +1,104 @@
-import React, { useRef, memo } from 'react';
+import React, { useState, useRef, memo, useEffect } from 'react';
+import { gsap } from 'gsap';
 import { createRipple } from '../../../../utils/gsapAnimations';
 
 const CategoryCard = memo(({ icon, title, onClick, hasSaleBadge = false, index = 0 }) => {
   const cardRef = useRef(null);
   const iconWrapperRef = useRef(null);
 
-  // Removed entrance animation for better performance - cards appear instantly
+  // GSAP entrance animation - deferred to avoid blocking initial render
+  useEffect(() => {
+    if (!cardRef.current) return;
+    
+    // Defer animation until after initial render
+    const startAnimation = () => {
+      if (cardRef.current) {
+        gsap.fromTo(
+          cardRef.current,
+          {
+            y: 20,
+            opacity: 0,
+            scale: 0.8,
+          },
+          {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 0.5,
+            delay: index * 0.1,
+            ease: 'back.out(1.7)',
+          }
+        );
+      }
+    };
 
-  // CSS-based hover animation (better performance)
+    // Use requestIdleCallback or setTimeout to defer
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(startAnimation, { timeout: 1000 });
+    } else {
+      setTimeout(startAnimation, 200 + index * 50);
+    }
+  }, [index]);
+
+  // Hover animation
+  useEffect(() => {
+    if (iconWrapperRef.current) {
+      const iconWrapper = iconWrapperRef.current;
+      
+      const handleMouseEnter = () => {
+        gsap.to(iconWrapper, {
+          scale: 1.15,
+          rotation: 5,
+          duration: 0.3,
+          ease: 'power2.out',
+        });
+      };
+      
+      const handleMouseLeave = () => {
+        gsap.to(iconWrapper, {
+          scale: 1,
+          rotation: 0,
+          duration: 0.3,
+          ease: 'power2.out',
+        });
+      };
+      
+      iconWrapper.addEventListener('mouseenter', handleMouseEnter);
+      iconWrapper.addEventListener('mouseleave', handleMouseLeave);
+      
+      return () => {
+        iconWrapper.removeEventListener('mouseenter', handleMouseEnter);
+        iconWrapper.removeEventListener('mouseleave', handleMouseLeave);
+      };
+    }
+  }, []);
 
   const handleClick = (e) => {
-    // Immediate click response
+    // Immediate click response - don't wait for animations
     if (onClick) {
       onClick();
     }
     
-    // Lightweight ripple effect (async, non-blocking)
+    // GSAP ripple effect - run asynchronously
     if (cardRef.current) {
       requestAnimationFrame(() => {
-        const rect = cardRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        createRipple(cardRef.current, x, y);
+      const rect = cardRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      createRipple(cardRef.current, x, y);
+      });
+    }
+    
+    // Click animation - run asynchronously
+    if (iconWrapperRef.current) {
+      requestAnimationFrame(() => {
+      gsap.to(iconWrapperRef.current, {
+        scale: 0.9,
+        duration: 0.1,
+        yoyo: true,
+        repeat: 1,
+        ease: 'power2.out',
+        });
       });
     }
   };
@@ -38,14 +115,11 @@ const CategoryCard = memo(({ icon, title, onClick, hasSaleBadge = false, index =
     >
       <div 
         ref={iconWrapperRef}
-        className="w-14 h-14 rounded-full flex items-center justify-center mb-1.5 relative backdrop-blur-md border flex-shrink-0 transition-transform duration-300 ease-out hover:scale-110 hover:rotate-3 active:scale-95"
+        className="w-14 h-14 rounded-full flex items-center justify-center mb-1.5 relative backdrop-blur-md border flex-shrink-0"
         style={{ 
           backgroundColor: 'rgba(255, 255, 255, 0.7)',
           borderColor: '#F59E0B',
-          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1)',
-          willChange: 'transform',
-          backfaceVisibility: 'hidden',
-          WebkitBackfaceVisibility: 'hidden',
+          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1)'
         }}
       >
         {icon || (

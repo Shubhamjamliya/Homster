@@ -1,68 +1,119 @@
-import React, { useRef, useEffect, memo, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { createOptimizedScrollAnimation, createOptimizedStaggerAnimation } from '../../../../../utils/optimizedScrollTrigger';
 import ServiceWithRatingCard from '../../../components/common/ServiceWithRatingCard';
-import SectionHeader from '../../../components/common/SectionHeader';
+import { themeColors } from '../../../../../theme';
 
-const ServiceSectionWithRating = memo(({ title, subtitle, services, onSeeAllClick, onServiceClick, showTopBorder = true }) => {
+const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeAllClick, onServiceClick, showTopBorder = true }) => {
   const sectionRef = useRef(null);
   const titleRef = useRef(null);
   const cardsRef = useRef(null);
 
-  const handleServiceClick = useCallback((service) => {
-    onServiceClick?.(service);
-  }, [onServiceClick]);
-
-  // Optimized GSAP scroll animations
+  // Defer GSAP scroll animations until after initial render for better performance
   useEffect(() => {
-    if (!sectionRef.current || !titleRef.current || !cardsRef.current) return;
+    // Skip animations on initial load to improve performance
+    const shouldAnimate = typeof window !== 'undefined' && 
+      (window.requestIdleCallback || window.setTimeout);
+    
+    if (!shouldAnimate || !sectionRef.current || !titleRef.current || !cardsRef.current) {
+      // Show content immediately without animation
+      if (titleRef.current) titleRef.current.style.opacity = '1';
+      if (cardsRef.current) {
+        Array.from(cardsRef.current.children).forEach(card => {
+          card.style.opacity = '1';
+          card.style.transform = 'none';
+        });
+      }
+      return;
+    }
 
-    const cards = Array.from(cardsRef.current.children);
-    if (cards.length === 0) return;
+    // Defer animation initialization until browser is idle
+    const initAnimations = () => {
+      const cards = Array.from(cardsRef.current?.children || []);
+      if (cards.length === 0) return;
 
-    const cleanupFunctions = [];
+      const cleanupFunctions = [];
 
-    // Animate title
-    const titleCleanup = createOptimizedScrollAnimation(
-      titleRef.current,
-      {
-        from: { y: 30, opacity: 0 },
-        to: { y: 0, opacity: 1 },
-        duration: 0.6,
-        ease: 'power2.out',
-      },
-      { rootMargin: '100px' }
-    );
-    if (titleCleanup) cleanupFunctions.push(titleCleanup);
+      // Animate title
+      const titleCleanup = createOptimizedScrollAnimation(
+        titleRef.current,
+        {
+          from: { y: 30, opacity: 0 },
+          to: { y: 0, opacity: 1 },
+          duration: 0.6,
+          ease: 'power2.out',
+        },
+        { rootMargin: '100px' }
+      );
+      if (titleCleanup) cleanupFunctions.push(titleCleanup);
 
-    // Stagger animate cards
-    const cardsCleanup = createOptimizedStaggerAnimation(
-      cards,
-      {
-        from: { x: 50, opacity: 0, scale: 0.9 },
-        to: { x: 0, opacity: 1, scale: 1 },
-        duration: 0.5,
-        stagger: 0.08,
-        ease: 'back.out(1.7)',
-      },
-      { rootMargin: '150px' }
-    );
-    if (cardsCleanup) cleanupFunctions.push(cardsCleanup);
+      // Stagger animate cards
+      const cardsCleanup = createOptimizedStaggerAnimation(
+        cards,
+        {
+          from: { x: 50, opacity: 0, scale: 0.9 },
+          to: { x: 0, opacity: 1, scale: 1 },
+          duration: 0.5,
+          stagger: 0.08,
+          ease: 'back.out(1.7)',
+        },
+        { rootMargin: '150px' }
+      );
+      if (cardsCleanup) cleanupFunctions.push(cardsCleanup);
 
-    return () => {
-      cleanupFunctions.forEach(cleanup => cleanup?.());
+      return () => {
+        cleanupFunctions.forEach(cleanup => cleanup?.());
+      };
     };
-  }, [services]);
+
+    // Use requestIdleCallback if available, otherwise setTimeout
+    if (window.requestIdleCallback) {
+      const idleCallback = window.requestIdleCallback(initAnimations, { timeout: 2000 });
+      return () => {
+        if (idleCallback) window.cancelIdleCallback(idleCallback);
+      };
+    } else {
+      const timeout = setTimeout(initAnimations, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, []); // Empty deps - only run once on mount
 
   return (
     <div ref={sectionRef} className="mb-6">
       {/* Title and Subtitle Section */}
-      <div ref={titleRef} style={{ opacity: 0 }}>
-        <SectionHeader
-          title={title}
-          subtitle={subtitle}
-          onSeeAllClick={onSeeAllClick}
-          showSeeAll={!!onSeeAllClick}
-        />
+      <div ref={titleRef} className="px-4 mb-5 flex items-center justify-between" style={{ opacity: 1 }}>
+        <div>
+          <h2 
+            className="text-xl font-bold mb-1 text-black"
+          >
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="text-sm font-medium text-black">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        {onSeeAllClick && (
+          <button
+            onClick={onSeeAllClick}
+            className="font-semibold text-sm px-4 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95"
+            style={{ 
+              color: themeColors.button,
+              backgroundColor: 'rgba(0, 166, 166, 0.08)',
+              border: '1.5px solid rgba(0, 166, 166, 0.25)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = 'rgba(0, 166, 166, 0.12)';
+              e.target.style.borderColor = themeColors.button;
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'rgba(0, 166, 166, 0.08)';
+              e.target.style.borderColor = 'rgba(0, 166, 166, 0.25)';
+            }}
+          >
+            See all →
+          </button>
+        )}
       </div>
 
       {/* Horizontal Scrollable Service Cards */}
@@ -77,7 +128,7 @@ const ServiceSectionWithRating = memo(({ title, subtitle, services, onSeeAllClic
             originalPrice={service.originalPrice}
             discount={service.discount}
             image={service.image}
-            onClick={() => handleServiceClick(service)}
+            onClick={() => onServiceClick?.(service)}
           />
         ))}
       </div>

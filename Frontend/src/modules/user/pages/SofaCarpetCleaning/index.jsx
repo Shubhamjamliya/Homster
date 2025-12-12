@@ -28,6 +28,7 @@ const SofaCarpetCleaning = () => {
   const [currentSection, setCurrentSection] = useState('');
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
   const [showCategoryCartModal, setShowCategoryCartModal] = useState(false);
+  const [isExiting, setIsExiting] = React.useState(false);
 
   // Refs for sections
   const bannerRef = useRef(null);
@@ -54,30 +55,20 @@ const SofaCarpetCleaning = () => {
     };
   }, []);
 
-  // Optimized header visibility using IntersectionObserver
+  // Handle scroll to show/hide sticky header and detect current section (optimized)
   useEffect(() => {
-    if (!bannerRef.current) return;
-
-    const bannerObserver = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        setShowStickyHeader(!entry.isIntersecting);
-        if (entry.isIntersecting) {
-          setCurrentSection('');
-        }
-      },
-      { threshold: 0, rootMargin: '0px' }
-    );
-
-    bannerObserver.observe(bannerRef.current);
-
-    // Section detection only when header is visible (throttled)
-    let sectionCache = null;
-    let ticking = false;
+    let sectionCache = null; // Cache section elements
     
-    const detectSection = () => {
-      if (!ticking && showStickyHeader) {
-        window.requestAnimationFrame(() => {
+    const handleScroll = () => {
+      if (bannerRef.current) {
+        const rect = bannerRef.current.getBoundingClientRect();
+        const shouldShowHeader = rect.bottom <= 0;
+        
+        setShowStickyHeader(shouldShowHeader);
+
+        // Detect sections when scrolled past banner (cache elements)
+        if (shouldShowHeader) {
+          // Cache section elements on first check
           if (!sectionCache) {
             const sectionIds = [
               'sofa-cleaning',
@@ -97,6 +88,7 @@ const SofaCarpetCleaning = () => {
             'mattress': 'Mattress',
           };
 
+          // Check sections in reverse order (bottom to top)
           for (let i = sectionCache.length - 1; i >= 0; i--) {
             const element = sectionCache[i];
             if (element) {
@@ -109,27 +101,35 @@ const SofaCarpetCleaning = () => {
           }
 
           setCurrentSection(activeSection);
+        } else {
+          setCurrentSection('');
+        }
+      }
+    };
+
+    // Optimized scroll handler with throttling
+    let ticking = false;
+    const optimizedHandler = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          handleScroll();
           ticking = false;
         });
         ticking = true;
       }
     };
 
-    const scrollHandler = () => {
-      if (showStickyHeader) {
-        detectSection();
-      }
-    };
-
-    window.addEventListener('scroll', scrollHandler, { passive: true });
+    window.addEventListener('scroll', optimizedHandler, { passive: true });
+    const timeoutId = setTimeout(handleScroll, 300); // Increased delay for better performance
     
     return () => {
-      bannerObserver.disconnect();
-      window.removeEventListener('scroll', scrollHandler);
+      window.removeEventListener('scroll', optimizedHandler);
+      clearTimeout(timeoutId);
     };
-  }, [showStickyHeader]);
+  }, []); // Empty deps - only run once on mount
 
   const handleBack = () => {
+    setIsExiting(true);
     window.scrollTo({ top: 0, behavior: 'instant' });
     // Navigate immediately
     navigate('/user', { replace: true, state: { scrollToTop: true } });
@@ -207,7 +207,10 @@ const SofaCarpetCleaning = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-20">
+    <div 
+      className="min-h-screen bg-white pb-20"
+      style={{ willChange: isExiting ? 'transform' : 'auto' }}
+    >
       {/* Sticky Header - appears on scroll */}
       <StickyHeader
         title="Sofa & Carpet Cleaning"
@@ -224,6 +227,7 @@ const SofaCarpetCleaning = () => {
       />
 
       {/* Spacer to prevent layout shift when sticky header appears */}
+      {/* Always reserve space for header (57px) when visible */}
       <div 
         className={`transition-all duration-300 ease-in-out ${
           showStickyHeader ? 'h-[57px]' : 'h-0'
@@ -232,6 +236,7 @@ const SofaCarpetCleaning = () => {
       ></div>
 
       {/* Spacer for sticky sub-heading to prevent layout shift */}
+      {/* Reserve space for sub-heading (40px) when visible */}
       <div 
         className={`transition-all duration-300 ease-in-out ${
           showStickyHeader && currentSection ? 'h-10' : 'h-0'
@@ -312,7 +317,21 @@ const SofaCarpetCleaning = () => {
         if (categoryCount === 0) return null;
 
         return (
-          <div className="fixed bottom-0 left-0 right-0 z-40 shadow-lg border-t border-gray-200 px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#f8f8f8' }}>
+          <div
+            className="shadow-lg border-t border-gray-200 px-4 py-3 flex items-center justify-between"
+            style={{
+              backgroundColor: '#f8f8f8',
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 9996,
+              willChange: 'transform',
+              transform: 'translateZ(0)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
+          >
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold text-black">₹{totalPrice.toLocaleString('en-IN')}</span>
@@ -339,10 +358,22 @@ const SofaCarpetCleaning = () => {
       {(() => {
         const categoryItems = cartItems.filter(item => item.category === 'Sofa & Carpet Cleaning');
         const categoryCount = categoryItems.length;
+        
         return (
           <button
+            key="menu-button"
             onClick={handleMenuClick}
-            className={`fixed ${categoryCount > 0 ? 'bottom-20' : 'bottom-4'} left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded-full flex items-center gap-1.5 z-40 shadow-lg hover:bg-gray-800 transition-colors`}
+            className="bg-black text-white px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg hover:bg-gray-800 transition-colors"
+            style={{
+              position: 'fixed',
+              bottom: categoryCount > 0 ? '80px' : '16px',
+              left: '50%',
+              transform: 'translateX(-50%) translateZ(0)',
+              zIndex: 9995,
+              willChange: 'transform',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -351,6 +382,8 @@ const SofaCarpetCleaning = () => {
           </button>
         );
       })()}
+
+      {/* Bottom Navigation - Removed from Salon page */}
 
       {/* Menu Modal */}
       <MenuModal

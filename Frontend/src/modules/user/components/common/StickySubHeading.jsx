@@ -1,18 +1,11 @@
-import React, { memo, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { memo } from 'react';
 
 const StickySubHeading = memo(({ title, isVisible }) => {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || !isVisible || !title || title.trim() === '') {
+  if (!isVisible || !title || title.trim() === '') {
     return null;
   }
 
-  const subHeadingContent = (
+  return (
     <div 
       style={{
         position: 'fixed',
@@ -25,16 +18,17 @@ const StickySubHeading = memo(({ title, isVisible }) => {
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
         zIndex: 9998,
         opacity: 1,
-        transform: 'translateY(0)',
+        transform: 'translateZ(0)',
         display: 'block',
-        visibility: 'visible'
+        visibility: 'visible',
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
       }}
     >
       <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#000000', margin: 0 }}>{title}</h2>
     </div>
   );
-
-  return createPortal(subHeadingContent, document.body);
 });
 
 StickySubHeading.displayName = 'StickySubHeading';

@@ -42,42 +42,31 @@ const MassageForMen = () => {
       setCartItems(items);
       setCartCount(items.length);
     };
-    
+
     updateCart();
-    
+
     // Listen for cart updates
     window.addEventListener('cartUpdated', updateCart);
-    
+
     return () => {
       window.removeEventListener('cartUpdated', updateCart);
     };
   }, []);
 
-  // Optimized header visibility using IntersectionObserver (better performance than scroll listener)
+  // Handle scroll to show/hide sticky header and detect current section (optimized)
   useEffect(() => {
-    if (!bannerRef.current) return;
+    let sectionCache = null; // Cache section elements
 
-    // Use IntersectionObserver for banner visibility (more efficient)
-    const bannerObserver = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        setShowStickyHeader(!entry.isIntersecting);
-        if (entry.isIntersecting) {
-          setCurrentSection('');
-        }
-      },
-      { threshold: 0, rootMargin: '0px' }
-    );
+    const handleScroll = () => {
+      if (bannerRef.current) {
+        const rect = bannerRef.current.getBoundingClientRect();
+        const shouldShowHeader = rect.bottom <= 0;
 
-    bannerObserver.observe(bannerRef.current);
+        setShowStickyHeader(shouldShowHeader);
 
-    // Section detection only when header is visible (throttled)
-    let sectionCache = null;
-    let ticking = false;
-    
-    const detectSection = () => {
-      if (!ticking && showStickyHeader) {
-        window.requestAnimationFrame(() => {
+        // Detect sections when scrolled past banner (cache elements)
+        if (shouldShowHeader) {
+          // Cache section elements on first check
           if (!sectionCache) {
             const sectionIds = ['pain-relief', 'stress-relief', 'post-workout'];
             sectionCache = sectionIds.map(id => document.getElementById(id)).filter(Boolean);
@@ -91,6 +80,7 @@ const MassageForMen = () => {
             'post-workout': 'Post workout',
           };
 
+          // Check sections in reverse order (bottom to top)
           for (let i = sectionCache.length - 1; i >= 0; i--) {
             const element = sectionCache[i];
             if (element) {
@@ -103,28 +93,37 @@ const MassageForMen = () => {
           }
 
           setCurrentSection(activeSection);
+        } else {
+          setCurrentSection('');
+        }
+      }
+    };
+
+    // Optimized scroll handler with throttling
+    let ticking = false;
+    const optimizedHandler = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          handleScroll();
           ticking = false;
         });
         ticking = true;
       }
     };
 
-    // Throttled scroll listener only for section detection
-    const scrollHandler = () => {
-      if (showStickyHeader) {
-        detectSection();
-      }
-    };
+    window.addEventListener('scroll', optimizedHandler, { passive: true });
+    const timeoutId = setTimeout(handleScroll, 300); // Increased delay for better performance
 
-    window.addEventListener('scroll', scrollHandler, { passive: true });
-    
     return () => {
-      bannerObserver.disconnect();
-      window.removeEventListener('scroll', scrollHandler);
+      window.removeEventListener('scroll', optimizedHandler);
+      clearTimeout(timeoutId);
     };
-  }, [showStickyHeader]);
+  }, []); // Empty deps - only run once on mount
+
+  const [isExiting, setIsExiting] = React.useState(false);
 
   const handleBack = () => {
+    setIsExiting(true);
     // Reset scroll position first
     window.scrollTo({ top: 0, behavior: 'instant' });
     // Navigate immediately
@@ -145,7 +144,7 @@ const MassageForMen = () => {
 
   const handleAddClick = (service) => {
     const cartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
-    
+
     const cartItem = {
       id: Date.now(),
       title: service.title || service.name || 'Service',
@@ -158,7 +157,7 @@ const MassageForMen = () => {
       rating: service.rating || null,
       reviews: service.reviews || null,
     };
-    
+
     cartItems.push(cartItem);
     localStorage.setItem('cartItems', JSON.stringify(cartItems));
     setCartCount(cartItems.length);
@@ -204,7 +203,10 @@ const MassageForMen = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-20">
+    <div
+      className="min-h-screen bg-white pb-20"
+      style={{ willChange: isExiting ? 'transform' : 'auto' }}
+    >
       {/* Sticky Header - appears on scroll */}
       <StickyHeader
         title="Massage for Men"
@@ -221,20 +223,18 @@ const MassageForMen = () => {
       />
 
       {/* Spacer to prevent layout shift when sticky header appears */}
-      <div 
-        className={`transition-all ${showStickyHeader ? 'duration-200' : 'duration-150'} ease-out ${
-          showStickyHeader ? 'h-[57px]' : 'h-0'
-        }`}
-        style={{ willChange: showStickyHeader ? 'height' : 'auto' }}
+      {/* Always reserve space for header (57px) when visible */}
+      <div
+        className={`transition-all duration-300 ease-in-out ${showStickyHeader ? 'h-[57px]' : 'h-0'
+          }`}
         aria-hidden="true"
       ></div>
 
       {/* Spacer for sticky sub-heading to prevent layout shift */}
-      <div 
-        className={`transition-all ${showStickyHeader && currentSection ? 'duration-200' : 'duration-150'} ease-out ${
-          showStickyHeader && currentSection ? 'h-10' : 'h-0'
-        }`}
-        style={{ willChange: showStickyHeader && currentSection ? 'height' : 'auto' }}
+      {/* Reserve space for sub-heading (40px) when visible */}
+      <div
+        className={`transition-all duration-300 ease-in-out ${showStickyHeader && currentSection ? 'h-10' : 'h-0'
+          }`}
         aria-hidden="true"
       ></div>
 
@@ -304,7 +304,21 @@ const MassageForMen = () => {
         if (categoryCount === 0) return null;
 
         return (
-          <div className="fixed bottom-0 left-0 right-0 z-40 shadow-lg border-t border-gray-200 px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#f8f8f8' }}>
+          <div
+            className="shadow-lg border-t border-gray-200 px-4 py-3 flex items-center justify-between"
+            style={{
+              backgroundColor: '#f8f8f8',
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 9996,
+              willChange: 'transform',
+              transform: 'translateZ(0)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
+          >
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold text-black">₹{totalPrice.toLocaleString('en-IN')}</span>
@@ -331,10 +345,22 @@ const MassageForMen = () => {
       {(() => {
         const categoryItems = cartItems.filter(item => item.category === 'Massage for Men');
         const categoryCount = categoryItems.length;
+        
         return (
           <button
+            key="menu-button"
             onClick={handleMenuClick}
-            className={`fixed ${categoryCount > 0 ? 'bottom-20' : 'bottom-4'} left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded-full flex items-center gap-1.5 z-40 shadow-lg hover:bg-gray-800 transition-colors`}
+            className="bg-black text-white px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg hover:bg-gray-800 transition-colors"
+            style={{
+              position: 'fixed',
+              bottom: categoryCount > 0 ? '80px' : '16px',
+              left: '50%',
+              transform: 'translateX(-50%) translateZ(0)',
+              zIndex: 9995,
+              willChange: 'transform',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -343,6 +369,8 @@ const MassageForMen = () => {
           </button>
         );
       })()}
+
+      {/* Bottom Navigation - Removed from Salon page */}
 
       {/* Menu Modal */}
       <MenuModal
@@ -355,11 +383,9 @@ const MassageForMen = () => {
           { id: 3, title: 'Post workout', image: postWorkoutImage },
         ]}
       />
-
     </div>
   );
 };
 
 export default MassageForMen;
-
 

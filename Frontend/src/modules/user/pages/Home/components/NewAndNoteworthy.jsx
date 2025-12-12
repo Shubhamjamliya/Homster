@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { createOptimizedScrollAnimation, createOptimizedStaggerAnimation } from '../../../../../utils/optimizedScrollTrigger';
 import SimpleServiceCard from '../../../components/common/SimpleServiceCard';
 import waterPurifierImage from '../../../../../assets/images/pages/Home/NewAndNoteworthy/water-purifiers.png';
@@ -36,50 +36,78 @@ const NewAndNoteworthy = React.memo(({ services, onServiceClick }) => {
 
   const serviceList = services || defaultServices;
 
-  // Optimized GSAP scroll animations
+  // Defer GSAP scroll animations until after initial render for better performance
   useEffect(() => {
-    if (!sectionRef.current || !titleRef.current || !cardsRef.current) return;
+    // Skip animations on initial load to improve performance
+    const shouldAnimate = typeof window !== 'undefined' && 
+      (window.requestIdleCallback || window.setTimeout);
+    
+    if (!shouldAnimate || !sectionRef.current || !titleRef.current || !cardsRef.current) {
+      // Show content immediately without animation
+      if (titleRef.current) titleRef.current.style.opacity = '1';
+      if (cardsRef.current) {
+        Array.from(cardsRef.current.children).forEach(card => {
+          card.style.opacity = '1';
+          card.style.transform = 'none';
+        });
+      }
+      return;
+    }
 
-    const cards = Array.from(cardsRef.current.children);
-    if (cards.length === 0) return;
+    // Defer animation initialization until browser is idle
+    const initAnimations = () => {
+      const cards = Array.from(cardsRef.current?.children || []);
+      if (cards.length === 0) return;
 
-    const cleanupFunctions = [];
+      const cleanupFunctions = [];
 
-    // Animate title
-    const titleCleanup = createOptimizedScrollAnimation(
-      titleRef.current,
-      {
-        from: { y: 30, opacity: 0 },
-        to: { y: 0, opacity: 1 },
-        duration: 0.6,
-        ease: 'power2.out',
-      },
-      { rootMargin: '100px' }
-    );
-    if (titleCleanup) cleanupFunctions.push(titleCleanup);
+      // Animate title
+      const titleCleanup = createOptimizedScrollAnimation(
+        titleRef.current,
+        {
+          from: { y: 30, opacity: 0 },
+          to: { y: 0, opacity: 1 },
+          duration: 0.6,
+          ease: 'power2.out',
+        },
+        { rootMargin: '100px' }
+      );
+      if (titleCleanup) cleanupFunctions.push(titleCleanup);
 
-    // Stagger animate cards
-    const cardsCleanup = createOptimizedStaggerAnimation(
-      cards,
-      {
-        from: { x: 50, opacity: 0, scale: 0.9 },
-        to: { x: 0, opacity: 1, scale: 1 },
-        duration: 0.5,
-        stagger: 0.08,
-        ease: 'back.out(1.7)',
-      },
-      { rootMargin: '150px' }
-    );
-    if (cardsCleanup) cleanupFunctions.push(cardsCleanup);
+      // Stagger animate cards
+      const cardsCleanup = createOptimizedStaggerAnimation(
+        cards,
+        {
+          from: { x: 50, opacity: 0, scale: 0.9 },
+          to: { x: 0, opacity: 1, scale: 1 },
+          duration: 0.5,
+          stagger: 0.08,
+          ease: 'back.out(1.7)',
+        },
+        { rootMargin: '150px' }
+      );
+      if (cardsCleanup) cleanupFunctions.push(cardsCleanup);
 
-    return () => {
-      cleanupFunctions.forEach(cleanup => cleanup?.());
+      return () => {
+        cleanupFunctions.forEach(cleanup => cleanup?.());
+      };
     };
-  }, [serviceList]);
+
+    // Use requestIdleCallback if available, otherwise setTimeout
+    if (window.requestIdleCallback) {
+      const idleCallback = window.requestIdleCallback(initAnimations, { timeout: 2000 });
+      return () => {
+        if (idleCallback) window.cancelIdleCallback(idleCallback);
+      };
+    } else {
+      const timeout = setTimeout(initAnimations, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, []); // Empty deps - only run once on mount
 
   return (
     <div ref={sectionRef} className="mb-6">
-      <div ref={titleRef} className="px-4 mb-5" style={{ opacity: 0 }}>
+      <div ref={titleRef} className="px-4 mb-5" style={{ opacity: 1 }}>
         <h2 
           className="text-xl font-bold text-black"
         >
@@ -94,7 +122,7 @@ const NewAndNoteworthy = React.memo(({ services, onServiceClick }) => {
             key={service.id}
             title={service.title}
             image={service.image}
-            onClick={() => handleServiceClick(service)}
+            onClick={() => onServiceClick?.(service)}
           />
         ))}
       </div>

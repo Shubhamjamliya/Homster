@@ -3,7 +3,7 @@ import { FiX } from 'react-icons/fi';
 import { gsap } from 'gsap';
 import { animateModalIn, animateModalOut } from '../../../../utils/gsapAnimations';
 
-const MenuModal = ({ isOpen, onClose, onCategoryClick, categories = [] }) => {
+const MenuModal = React.memo(({ isOpen, onClose, onCategoryClick, categories = [] }) => {
   const [isClosing, setIsClosing] = useState(false);
   const modalRef = useRef(null);
   const backdropRef = useRef(null);
@@ -51,13 +51,29 @@ const MenuModal = ({ isOpen, onClose, onCategoryClick, categories = [] }) => {
       {/* Backdrop */}
       <div
         ref={backdropRef}
-        className="fixed inset-0 bg-black/85 z-50"
+        className="fixed inset-0 bg-black/85 z-[9998]"
         onClick={handleClose}
-        style={{ opacity: 0 }}
+        style={{ 
+          opacity: 0,
+          position: 'fixed',
+          willChange: 'opacity',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
       />
 
       {/* Modal Container - Centered Card */}
-      <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-20 pointer-events-none">
+      <div 
+        className="fixed inset-0 z-[9999] flex items-end justify-center px-4 pb-20 pointer-events-none"
+        style={{
+          position: 'fixed',
+          willChange: 'transform',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
+      >
         <div className="flex flex-col items-center w-full max-w-sm">
           {/* Modal Card - Square */}
           <div
@@ -128,9 +144,11 @@ const MenuModal = ({ isOpen, onClose, onCategoryClick, categories = [] }) => {
           </div>
         </div>
       </div>
-    </>
-  );
-};
+      </>
+    );
+});
+
+MenuModal.displayName = 'MenuModal';
 
 export default MenuModal;
 

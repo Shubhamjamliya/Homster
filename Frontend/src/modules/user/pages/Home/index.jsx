@@ -1,16 +1,18 @@
-import React, { useState, useLayoutEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import SearchBar from './components/SearchBar';
 import ServiceCategories from './components/ServiceCategories';
-import PromoCarousel from './components/PromoCarousel';
-import NewAndNoteworthy from './components/NewAndNoteworthy';
-import MostBookedServices from './components/MostBookedServices';
-import CuratedServices from './components/CuratedServices';
-import ServiceSectionWithRating from './components/ServiceSectionWithRating';
-import Banner from './components/Banner';
+
+// Lazy load heavy components for better initial load performance
+const PromoCarousel = lazy(() => import('./components/PromoCarousel'));
+const NewAndNoteworthy = lazy(() => import('./components/NewAndNoteworthy'));
+const MostBookedServices = lazy(() => import('./components/MostBookedServices'));
+const CuratedServices = lazy(() => import('./components/CuratedServices'));
+const ServiceSectionWithRating = lazy(() => import('./components/ServiceSectionWithRating'));
+const Banner = lazy(() => import('./components/Banner'));
 // Salon for Women Images
 import salon1Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-1.jpg';
 import salon2Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-2.jpg';
@@ -18,9 +20,10 @@ import salon3Image from '../../../../assets/images/pages/Home/ServiceCategorySec
 import salon4Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-4.jpg';
 import salon5Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-5.jpg';
 import salon6Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-6.jpg';
-import ServiceCategorySection from './components/ServiceCategorySection';
-import HomeRepairSection from './components/HomeRepairSection';
-import BannerWithRefer from './components/BannerWithRefer';
+// Lazy load more heavy components
+const ServiceCategorySection = lazy(() => import('./components/ServiceCategorySection'));
+const HomeRepairSection = lazy(() => import('./components/HomeRepairSection'));
+const BannerWithRefer = lazy(() => import('./components/BannerWithRefer'));
 import ACApplianceModal from './components/ACApplianceModal';
 import CategoryModal from './components/CategoryModal';
 import acRepairImage from '../../../../assets/images/pages/Home/ServiceCategorySection/ApplianceServices/ac-repair.jpg';
@@ -35,226 +38,90 @@ import intenseBathroom2Image from '../../../../assets/images/pages/Home/ServiceC
 import intenseBathroom3Image from '../../../../assets/images/pages/Home/ServiceCategorySection/CleaningEssentials/intense-bathroom-3.jpg';
 import bathroomCleaningImage from '../../../../assets/images/pages/Home/ServiceCategorySection/CleaningEssentials/bathroom-cleaning.png';
 
-// Move service data outside component to prevent recreation on every render
-const ELECTRICAL_SERVICES = [
-  {
-    id: 1,
-    title: 'Home Wiring Installation',
-    image: homeWiringInstallationImage,
-  },
-  {
-    id: 2,
-    title: 'Panel Upgrade & Repair',
-    image: panelUpgradeRepairImage,
-  },
-  {
-    id: 3,
-    title: 'Smart Home Setup',
-    image: smartHomeSetupImage,
-  },
-];
-
-const APPLIANCE_SERVICES = [
-  {
-    id: 1,
-    title: 'AC Service and Repair',
-    image: acRepairImage,
-  },
-  {
-    id: 2,
-    title: 'Washing Machine Repair',
-    image: washingMachineRepairImage,
-  },
-  {
-    id: 3,
-    title: 'Water Heater Repair',
-    image: waterHeaterRepairImage,
-  },
-  {
-    id: 4,
-    title: 'Refrigerator Repair',
-    image: refrigeratorRepairImage,
-  },
-];
-
-const SALON_SERVICES = [
-  {
-    id: 1,
-    title: 'Roll-on waxing (Full arms, legs & underarms)',
-    rating: '4.87',
-    reviews: '47K',
-    price: '799',
-    image: salon1Image,
-  },
-  {
-    id: 2,
-    title: 'Spatula waxing (Full arms, legs & underarms)',
-    rating: '4.86',
-    reviews: '31K',
-    price: '599',
-    image: salon2Image,
-  },
-  {
-    id: 3,
-    title: 'Sara Lightening glow facial',
-    rating: '4.84',
-    reviews: '140K',
-    price: '949',
-    image: salon3Image,
-  },
-  {
-    id: 4,
-    title: 'Sara fruit cleanup',
-    rating: '4.86',
-    reviews: '147K',
-    price: '699',
-    image: salon4Image,
-  },
-  {
-    id: 5,
-    title: 'Elysian Firming Wine glow',
-    rating: '4.85',
-    reviews: '111K',
-    price: '1,049',
-    image: salon5Image,
-  },
-  {
-    id: 6,
-    title: 'Elysian British rose pedicure',
-    rating: '4.83',
-    reviews: '225K',
-    price: '759',
-    image: salon6Image,
-  },
-  {
-    id: 7,
-    title: 'Mani pedi combo',
-    rating: '4.83',
-    reviews: '327K',
-    price: '1,309',
-    originalPrice: '1,408',
-    discount: '7%',
-    image: salon6Image,
-  },
-];
-
-const CLEANING_SERVICES = [
-  {
-    id: 1,
-    title: 'Intense cleaning (2 bathrooms)',
-    rating: '4.79',
-    reviews: '3.7M',
-    price: '950',
-    originalPrice: '1,038',
-    discount: '8%',
-    image: intenseBathroom2Image,
-  },
-  {
-    id: 2,
-    title: 'Intense cleaning (3 bathrooms)',
-    rating: '4.79',
-    reviews: '3.7M',
-    price: '1,381',
-    originalPrice: '1,557',
-    discount: '11%',
-    image: intenseBathroom3Image,
-  },
-  {
-    id: 3,
-    title: 'Classic cleaning (2 bathrooms)',
-    rating: '4.82',
-    reviews: '1.5M',
-    price: '785',
-    originalPrice: '858',
-    discount: '9%',
-    image: bathroomCleaningImage,
-  },
-  {
-    id: 4,
-    title: 'Classic cleaning (3 bathrooms)',
-    rating: '4.82',
-    reviews: '1.5M',
-    price: '1,141',
-    originalPrice: '1,287',
-    discount: '11%',
-    image: bathroomCleaningImage,
-  },
-  {
-    id: 5,
-    title: 'Dining table & chairs cleaning',
-    rating: '4.82',
-    reviews: '57K',
-    price: '299',
-    image: bathroomCleaningImage,
-  },
-  {
-    id: 6,
-    title: 'Chimney cleaning',
-    rating: '4.83',
-    reviews: '109K',
-    price: '599',
-    image: bathroomCleaningImage,
-  },
-];
-
-const CATEGORY_ROUTES = {
-  'salon-women': '/user/salon-for-women',
-  'cleaning-essentials': '/user/bathroom-kitchen-cleaning',
-  'electrical': '/user/electrician',
-  'appliance': '/user/ac-service',
-  'home-repair': '/user/electrician',
-};
-
 const Home = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [address] = useState('New Palasia- Indore- Madhya Pradesh...');
-  // Removed cartCount state - BottomNav already handles it, no need for duplicate listeners
-  const [isACModalOpen, setIsACModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
-  // Optimized useLayoutEffect - only run on mount, handle scroll separately
+  // Combined useLayoutEffect - Set background on mount only (optimized)
   useLayoutEffect(() => {
     const html = document.documentElement;
     const body = document.body;
     const root = document.getElementById('root');
     const bgStyle = themeColors.backgroundGradient;
 
-    // Set background on all elements (only if not already set)
+    // Set background on all elements (only once on mount)
     const elements = [html, body, root].filter(Boolean);
     elements.forEach(el => {
-      if (el.style.background !== bgStyle) {
+      if (el && !el.dataset.bgSet) {
         el.style.backgroundColor = '#ffffff';
         el.style.background = bgStyle;
+        el.dataset.bgSet = 'true';
       }
     });
 
     // Force immediate visibility (only if needed)
-    if (body.style.opacity !== '1') {
+    if (body && body.style.opacity !== '1') {
       body.style.opacity = '1';
       body.style.visibility = 'visible';
     }
+  }, []); // Empty deps - only run once on mount
 
-    return () => {
-      // Cleanup not needed - background should persist
-    };
-  }, []); // Only run on mount
-
-  // Handle scroll to top separately - only when needed
-  useLayoutEffect(() => {
+  // Handle scroll separately (only when needed)
+  useEffect(() => {
     if (location.state?.scrollToTop) {
       window.scrollTo({ top: 0, behavior: 'instant' });
       window.history.replaceState({}, '', location.pathname);
     }
   }, [location.state?.scrollToTop, location.pathname]);
 
-  // Memoized handlers to prevent unnecessary re-renders
-  const handleSearch = useCallback((query) => {
-    // Navigate to search results page
-  }, []);
+  // Load cart count from localStorage on mount and when cart changes (optimized)
+  useEffect(() => {
+    let updateTimeout = null;
+    let lastCount = 0;
+    
+    const updateCartCount = () => {
+      // Debounce rapid updates
+      if (updateTimeout) clearTimeout(updateTimeout);
+      updateTimeout = setTimeout(() => {
+        try {
+          const cartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
+          const newCount = cartItems.length;
+          // Only update if count changed
+          if (newCount !== lastCount) {
+            lastCount = newCount;
+            setCartCount(newCount);
+          }
+        } catch (error) {
+          console.error('Error reading cart:', error);
+        }
+      }, 100); // Debounce delay for better performance
+    };
 
-  const handleCategoryClick = useCallback((category) => {
+    updateCartCount();
+
+    // Listen for storage changes (when cart is updated from other tabs/pages)
+    window.addEventListener('storage', updateCartCount);
+
+    // Custom event for same-tab updates
+    window.addEventListener('cartUpdated', updateCartCount);
+
+    return () => {
+      window.removeEventListener('storage', updateCartCount);
+      window.removeEventListener('cartUpdated', updateCartCount);
+      if (updateTimeout) clearTimeout(updateTimeout);
+    };
+  }, []);
+  const [isACModalOpen, setIsACModalOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
+  const handleSearch = (query) => {
+    // Navigate to search results page
+  };
+
+  const handleCategoryClick = (category) => {
     // Show immediate feedback
     if (category.title === 'Electricity') {
       navigate('/user/electrician');
@@ -274,9 +141,9 @@ const Home = () => {
       setSelectedCategory(category);
       setIsCategoryModalOpen(true);
     }
-  }, [navigate]);
+  };
 
-  const handlePromoClick = useCallback((promo) => {
+  const handlePromoClick = (promo) => {
     if (promo.route) {
       if (promo.scrollToSection) {
         // Navigate to page and scroll to specific section
@@ -288,9 +155,9 @@ const Home = () => {
         navigate(promo.route);
       }
     }
-  }, [navigate]);
+  };
 
-  const handleServiceClick = useCallback((service) => {
+  const handleServiceClick = (service) => {
     if (!service || !service.title) return;
     
     const title = service.title.toLowerCase();
@@ -308,41 +175,90 @@ const Home = () => {
       navigate('/user/ac-service');
     } else if (title.includes('drill') || title.includes('hang') || title.includes('tap repair') || title.includes('fan repair') || title.includes('switch') || title.includes('socket') || title.includes('electrical') || title.includes('wiring') || title.includes('doorbell') || title.includes('mcb') || title.includes('inverter') || title.includes('appliance')) {
       navigate('/user/electrician');
+    } else {
+      // Default: stay on home or navigate to a general page
+      // You can add more specific routes as needed
     }
-  }, [navigate]);
+  };
 
-  const handleBuyClick = useCallback(() => {
+
+  const handleBuyClick = () => {
     // Navigate to product page or checkout
-  }, []);
+  };
 
-  const handleSeeAllClick = useCallback((category) => {
-    const route = CATEGORY_ROUTES[category];
+  const handleSeeAllClick = (category) => {
+    // Navigate to category page based on category identifier
+    const categoryRoutes = {
+      'salon-women': '/user/salon-for-women',
+      'cleaning-essentials': '/user/bathroom-kitchen-cleaning',
+      'electrical': '/user/electrician',
+      'appliance': '/user/ac-service',
+      'home-repair': '/user/electrician',
+    };
+    
+    const route = categoryRoutes[category];
     if (route) {
       navigate(route);
     }
-  }, [navigate]);
+  };
 
-  const handleAddClick = useCallback((service) => {
+  const handleAddClick = (service) => {
     // Add service to cart
-  }, []);
+  };
 
-  const handleReferClick = useCallback(() => {
+  const handleReferClick = () => {
     navigate('/user/rewards');
-  }, [navigate]);
+  };
 
-  const handleLocationClick = useCallback(() => {
+  // Service category data
+  const electricalServices = [
+    {
+      id: 1,
+      title: 'Home Wiring Installation',
+      image: homeWiringInstallationImage,
+    },
+    {
+      id: 2,
+      title: 'Panel Upgrade & Repair',
+      image: panelUpgradeRepairImage,
+    },
+    {
+      id: 3,
+      title: 'Smart Home Setup',
+      image: smartHomeSetupImage,
+    },
+  ];
+
+  const applianceServices = [
+    {
+      id: 1,
+      title: 'AC Service and Repair',
+      image: acRepairImage,
+    },
+    {
+      id: 2,
+      title: 'Washing Machine Repair',
+      image: washingMachineRepairImage,
+    },
+    {
+      id: 3,
+      title: 'Water Heater Repair',
+      image: waterHeaterRepairImage,
+    },
+    {
+      id: 4,
+      title: 'Refrigerator Repair',
+      image: refrigeratorRepairImage,
+    },
+  ];
+
+  const handleLocationClick = () => {
     // Open location selector modal
-  }, []);
+  };
 
-  const handleCartClick = useCallback(() => {
+  const handleCartClick = () => {
     // Navigate to cart page
-  }, []);
-
-  // Memoize service data to prevent recreation
-  const electricalServices = useMemo(() => ELECTRICAL_SERVICES, []);
-  const applianceServices = useMemo(() => APPLIANCE_SERVICES, []);
-  const salonServices = useMemo(() => SALON_SERVICES, []);
-  const cleaningServices = useMemo(() => CLEANING_SERVICES, []);
+  };
 
 
   return (
@@ -387,72 +303,210 @@ const Home = () => {
 
             <ServiceCategories
               onCategoryClick={handleCategoryClick}
-              onSeeAllClick={() => {}}
+              onSeeAllClick={() => { }}
             />
 
-            <PromoCarousel
-              onPromoClick={handlePromoClick}
-            />
+            <Suspense fallback={<div className="h-48" />}>
+              <PromoCarousel
+                onPromoClick={handlePromoClick}
+              />
+            </Suspense>
           </div>
         </div>
 
-        <CuratedServices
-          onServiceClick={handleServiceClick}
-        />
+        <Suspense fallback={<div className="h-32" />}>
+          <CuratedServices
+            onServiceClick={handleServiceClick}
+          />
+        </Suspense>
 
-        <NewAndNoteworthy
-          onServiceClick={handleServiceClick}
-        />
+        <Suspense fallback={<div className="h-32" />}>
+          <NewAndNoteworthy
+            onServiceClick={handleServiceClick}
+          />
+        </Suspense>
 
-        <MostBookedServices
-          onServiceClick={handleServiceClick}
-        />
+        <Suspense fallback={<div className="h-32" />}>
+          <MostBookedServices
+            onServiceClick={handleServiceClick}
+          />
+        </Suspense>
 
-        <ServiceSectionWithRating
+        <Suspense fallback={<div className="h-32" />}>
+          <ServiceSectionWithRating
           title="Salon for Women"
           subtitle="Pamper yourself at home"
-          services={salonServices}
+          services={[
+            {
+              id: 1,
+              title: 'Roll-on waxing (Full arms, legs & underarms)',
+              rating: '4.87',
+              reviews: '47K',
+              price: '799',
+              image: salon1Image,
+            },
+            {
+              id: 2,
+              title: 'Spatula waxing (Full arms, legs & underarms)',
+              rating: '4.86',
+              reviews: '31K',
+              price: '599',
+              image: salon2Image,
+            },
+            {
+              id: 3,
+              title: 'Sara Lightening glow facial',
+              rating: '4.84',
+              reviews: '140K',
+              price: '949',
+              image: salon3Image,
+            },
+            {
+              id: 4,
+              title: 'Sara fruit cleanup',
+              rating: '4.86',
+              reviews: '147K',
+              price: '699',
+              image: salon4Image,
+            },
+            {
+              id: 5,
+              title: 'Elysian Firming Wine glow',
+              rating: '4.85',
+              reviews: '111K',
+              price: '1,049',
+              image: salon5Image,
+            },
+            {
+              id: 6,
+              title: 'Elysian British rose pedicure',
+              rating: '4.83',
+              reviews: '225K',
+              price: '759',
+              image: salon6Image,
+            },
+            {
+              id: 7,
+              title: 'Mani pedi combo',
+              rating: '4.83',
+              reviews: '327K',
+              price: '1,309',
+              originalPrice: '1,408',
+              discount: '7%',
+              image: salon6Image, // Using salon-6 as placeholder for 7th service
+            },
+          ]}
           onSeeAllClick={() => handleSeeAllClick('salon-women')}
           onServiceClick={handleServiceClick}
-        />
+          />
+        </Suspense>
 
-        <Banner
-          onBuyClick={handleBuyClick}
-        />
+        <Suspense fallback={<div className="h-32" />}>
+          <Banner
+            onBuyClick={handleBuyClick}
+          />
+        </Suspense>
 
-        <ServiceSectionWithRating
+        <Suspense fallback={<div className="h-32" />}>
+          <ServiceSectionWithRating
           title="Cleaning Essentials"
           subtitle="Monthly cleaning essential services"
           showTopBorder={false}
-          services={cleaningServices}
+          services={[
+            {
+              id: 1,
+              title: 'Intense cleaning (2 bathrooms)',
+              rating: '4.79',
+              reviews: '3.7M',
+              price: '950',
+              originalPrice: '1,038',
+              discount: '8%',
+              image: intenseBathroom2Image,
+            },
+            {
+              id: 2,
+              title: 'Intense cleaning (3 bathrooms)',
+              rating: '4.79',
+              reviews: '3.7M',
+              price: '1,381',
+              originalPrice: '1,557',
+              discount: '11%',
+              image: intenseBathroom3Image,
+            },
+            {
+              id: 3,
+              title: 'Classic cleaning (2 bathrooms)',
+              rating: '4.82',
+              reviews: '1.5M',
+              price: '785',
+              originalPrice: '858',
+              discount: '9%',
+              image: bathroomCleaningImage,
+            },
+            {
+              id: 4,
+              title: 'Classic cleaning (3 bathrooms)',
+              rating: '4.82',
+              reviews: '1.5M',
+              price: '1,141',
+              originalPrice: '1,287',
+              discount: '11%',
+              image: bathroomCleaningImage,
+            },
+            {
+              id: 5,
+              title: 'Dining table & chairs cleaning',
+              rating: '4.82',
+              reviews: '57K',
+              price: '299',
+              image: bathroomCleaningImage,
+            },
+            {
+              id: 6,
+              title: 'Chimney cleaning',
+              rating: '4.83',
+              reviews: '109K',
+              price: '599',
+              image: bathroomCleaningImage,
+            },
+          ]}
           onSeeAllClick={() => handleSeeAllClick('cleaning-essentials')}
           onServiceClick={handleServiceClick}
-        />
+          />
+        </Suspense>
 
-        <ServiceCategorySection
-          title="Electrical Installation & Repair"
-          services={electricalServices}
-          onSeeAllClick={() => handleSeeAllClick('electrical')}
-          onServiceClick={handleServiceClick}
-        />
+        <Suspense fallback={<div className="h-32" />}>
+          <ServiceCategorySection
+            title="Electrical Installation & Repair"
+            services={electricalServices}
+            onSeeAllClick={() => handleSeeAllClick('electrical')}
+            onServiceClick={handleServiceClick}
+          />
+        </Suspense>
 
-        <ServiceCategorySection
-          title="Appliance repair & service"
-          services={applianceServices}
-          onSeeAllClick={() => handleSeeAllClick('appliance')}
-          onServiceClick={handleServiceClick}
-        />
+        <Suspense fallback={<div className="h-32" />}>
+          <ServiceCategorySection
+            title="Appliance repair & service"
+            services={applianceServices}
+            onSeeAllClick={() => handleSeeAllClick('appliance')}
+            onServiceClick={handleServiceClick}
+          />
+        </Suspense>
 
-        <HomeRepairSection
-          onSeeAllClick={() => handleSeeAllClick('home-repair')}
-          onServiceClick={handleServiceClick}
-          onAddClick={handleAddClick}
-        />
+        <Suspense fallback={<div className="h-32" />}>
+          <HomeRepairSection
+            onSeeAllClick={() => handleSeeAllClick('home-repair')}
+            onServiceClick={handleServiceClick}
+            onAddClick={handleAddClick}
+          />
+        </Suspense>
 
-        <BannerWithRefer
-          onBuyClick={handleBuyClick}
-          onReferClick={handleReferClick}
-        />
+        <Suspense fallback={<div className="h-32" />}>
+          <BannerWithRefer
+            onBuyClick={handleBuyClick}
+            onReferClick={handleReferClick}
+          />
+        </Suspense>
       </main>
 
       <BottomNav />
@@ -460,24 +514,26 @@ const Home = () => {
       {/* AC & Appliance Repair Modal */}
       <ACApplianceModal
         isOpen={isACModalOpen}
-        onClose={useCallback(() => setIsACModalOpen(false), [])}
+        onClose={() => setIsACModalOpen(false)}
         location={address}
+        cartCount={cartCount}
       />
+
 
       {/* Category Modal */}
       <CategoryModal
         isOpen={isCategoryModalOpen}
-        onClose={useCallback(() => {
+        onClose={() => {
           setIsCategoryModalOpen(false);
           setSelectedCategory(null);
-        }, [])}
+        }}
         category={selectedCategory}
         location={address}
+        cartCount={cartCount}
       />
     </div>
   );
 };
 
-// Memoize Home component to prevent unnecessary re-renders
-export default React.memo(Home);
+export default Home;
 

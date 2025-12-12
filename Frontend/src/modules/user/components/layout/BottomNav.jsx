@@ -5,7 +5,7 @@ import { HiHome, HiGift, HiShoppingCart, HiUser } from 'react-icons/hi';
 import { gsap } from 'gsap';
 import { themeColors } from '../../../../theme';
 
-const BottomNav = () => {
+const BottomNav = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const iconRefs = useRef({});
@@ -132,168 +132,21 @@ const BottomNav = () => {
   }, [activeTab, isInitialLoad]);
 
   const handleTabClick = (path, itemId) => {
-    // Animate icon on click - get ref immediately
-    const iconRef = iconRefs.current[itemId];
-    
-    if (iconRef) {
-      // Different animations for different icons
-      let animation;
-      switch (itemId) {
-        case 'rewards':
-          // Rotation animation - spinning gift icon
-          gsap.killTweensOf(iconRef);
-          // Reset to initial state first
-          gsap.set(iconRef, { scale: 1, rotation: 0, x: 0, y: 0 });
-          // Start animation immediately
-          // Create timeline for smooth rotation
-          const tl = gsap.timeline({
-            onStart: () => {
-              iconRef.style.willChange = 'transform';
-            },
-            onComplete: () => {
-              gsap.set(iconRef, { rotation: 0 });
-              iconRef.style.willChange = 'auto';
-              delete activeAnimations.current[itemId];
-            }
-          });
-          
-          // Rotation animation - spin 360 degrees with bounce
-          tl.to(iconRef, {
-            rotation: 360,
-            scale: 1.2,
-            duration: 0.8,
-            ease: 'back.out(1.7)',
-          })
-          // Return to normal
-          .to(iconRef, {
-            scale: 1,
-            duration: 0.3,
-            ease: 'power2.out',
-          });
-          
-          animation = tl;
-          activeAnimations.current[itemId] = animation;
-          
-          // Navigate immediately - animation runs in background
-          navigate(path);
-          return; // Return early to prevent double navigation
-          break;
-        case 'cart':
-          // Cart moving animation - translate X - slow and visible
-          gsap.killTweensOf(iconRef);
-          gsap.set(iconRef, { scale: 1, rotation: 0, x: 0, y: 0 });
-          animation = gsap.to(iconRef, {
-            x: 8,
-            duration: 0.5,
-            yoyo: true,
-            repeat: 2,
-            ease: 'power1.inOut',
-            onStart: () => {
-              iconRef.style.willChange = 'transform';
-            },
-            onComplete: () => {
-              gsap.set(iconRef, { x: 0 });
-              iconRef.style.willChange = 'auto';
-              delete activeAnimations.current[itemId];
-            }
-          });
-          activeAnimations.current[itemId] = animation;
-          
-          // Navigate immediately - animation runs in background
-          navigate(path);
-          return;
-          break;
-        case 'account':
-          // Pulse animation - slow and visible
-          gsap.killTweensOf(iconRef);
-          gsap.set(iconRef, { scale: 1, rotation: 0, x: 0, y: 0 });
-          animation = gsap.to(iconRef, {
-            scale: 1.3,
-            duration: 1.2,
-            yoyo: true,
-            repeat: 1,
-            ease: 'power2.out',
-            onStart: () => {
-              iconRef.style.willChange = 'transform';
-            },
-            onComplete: () => {
-              gsap.set(iconRef, { scale: 1 });
-              iconRef.style.willChange = 'auto';
-              delete activeAnimations.current[itemId];
-            }
-          });
-          activeAnimations.current[itemId] = animation;
-          
-          // Navigate immediately - animation runs in background
-          navigate(path);
-          return;
-          break;
-        case 'home':
-          // Pulse with scale and glow effect - different from bounce
-          gsap.killTweensOf(iconRef);
-          gsap.set(iconRef, { scale: 1, rotation: 0, x: 0, y: 0 });
-          // Create timeline for multi-step animation
-          const homeTl = gsap.timeline({
-            onStart: () => {
-              iconRef.style.willChange = 'transform';
-            },
-            onComplete: () => {
-              gsap.set(iconRef, { scale: 1, rotation: 0 });
-              iconRef.style.willChange = 'auto';
-              delete activeAnimations.current[itemId];
-            }
-          });
-          
-          // Quick scale up with slight rotation
-          homeTl.to(iconRef, {
-            scale: 1.4,
-            rotation: -15,
-            duration: 0.3,
-            ease: 'power2.out',
-          })
-          // Quick bounce back with opposite rotation
-          .to(iconRef, {
-            scale: 1.1,
-            rotation: 10,
-            duration: 0.2,
-            ease: 'power2.inOut',
-          })
-          // Final settle
-          .to(iconRef, {
-            scale: 1,
-            rotation: 0,
-            duration: 0.3,
-            ease: 'power2.out',
-          });
-          
-          animation = homeTl;
-          activeAnimations.current[itemId] = animation;
-          
-          // Navigate immediately - animation runs in background
-          navigate(path);
-          return;
-          break;
-        default:
-          // Default scale animation
-          gsap.killTweensOf(iconRef);
-          gsap.set(iconRef, { scale: 1, rotation: 0, x: 0, y: 0 });
-          animation = gsap.to(iconRef, {
-            scale: 1.2,
-            duration: 0.5,
-            yoyo: true,
-            repeat: 1,
-            ease: 'power2.out',
-            onComplete: () => {
-              gsap.set(iconRef, { scale: 1 });
-              delete activeAnimations.current[itemId];
-            }
-          });
-          activeAnimations.current[itemId] = animation;
-      }
-    }
-    
-    // Default navigation (should not reach here for rewards, cart, account, home)
+    // Navigate immediately for better performance - no delays
     navigate(path);
+    
+    // Optional: Simple CSS animation without blocking navigation
+    const iconRef = iconRefs.current[itemId];
+    if (iconRef) {
+      // Simple scale animation without GSAP delays
+      iconRef.style.transition = 'transform 0.2s ease';
+      iconRef.style.transform = 'scale(1.15)';
+      setTimeout(() => {
+        if (iconRef) {
+          iconRef.style.transform = 'scale(1)';
+        }
+      }, 150);
+    }
   };
 
   return (
@@ -305,6 +158,12 @@ const BottomNav = () => {
         boxShadow: '0 -4px 20px rgba(0, 166, 166, 0.15), 0 -2px 8px rgba(0, 0, 0, 0.1)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
+        position: 'fixed',
+        width: '100%',
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
       }}
     >
       {/* Gradient overlay for extra depth */}
@@ -416,7 +275,9 @@ const BottomNav = () => {
       </div>
     </nav>
   );
-};
+});
+
+BottomNav.displayName = 'BottomNav';
 
 export default BottomNav;
 

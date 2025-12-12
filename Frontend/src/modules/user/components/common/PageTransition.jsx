@@ -25,15 +25,14 @@ const PageTransition = ({ children }) => {
 
   return (
     <div
-      className={`min-h-screen ${
-        transitionStage === 'entering'
-          ? 'animate-page-enter'
-          : 'animate-page-exit'
-      }`}
+      className={`min-h-screen ${transitionStage === 'entering'
+        ? 'animate-page-enter'
+        : 'animate-page-exit'
+        }`}
       style={{
         animationFillMode: 'both',
-        position: 'relative',
-        isolation: 'isolate',
+        // Removed position: 'relative' to allow fixed elements to work correctly
+        // Removed isolation: 'isolate' for better performance
       }}
     >
       {cloneElement(children, { location: displayLocation })}

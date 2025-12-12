@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
+import { gsap } from 'gsap';
 import PromoCard from '../../../components/common/PromoCard';
 import promo1 from '../../../../../assets/images/pages/Home/promo-carousel/1764052270908-bae94c.jpg';
 import promo2 from '../../../../../assets/images/pages/Home/promo-carousel/1678450687690-81f922.jpg';
@@ -74,25 +75,43 @@ const PromoCarousel = memo(({ promos, onPromoClick }) => {
 
   const promotionalCards = promos || defaultPromos;
 
-  // Auto-scroll functionality
+  // Optimized auto-scroll functionality - use setInterval instead of continuous RAF
   useEffect(() => {
     if (isHovered || promotionalCards.length <= 1) return;
 
+    // Use setInterval instead of continuous requestAnimationFrame loop for better performance
     intervalRef.current = setInterval(() => {
       setCurrentIndex((prevIndex) => {
         const nextIndex = (prevIndex + 1) % promotionalCards.length;
         return nextIndex;
       });
-    }, 5000); // Auto-scroll every 5 seconds (reduced frequency for better performance)
+    }, 8000); // 8 seconds interval
+
+    // Pause when page is hidden
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      } else {
+        intervalRef.current = setInterval(() => {
+          setCurrentIndex((prevIndex) => {
+            const nextIndex = (prevIndex + 1) % promotionalCards.length;
+            return nextIndex;
+          });
+        }, 8000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isHovered, promotionalCards.length]);
 
-  // Scroll to current index when it changes
+  // Optimized scroll to current index - use requestAnimationFrame
   useEffect(() => {
     if (!scrollContainerRef.current) return;
     
@@ -100,31 +119,45 @@ const PromoCarousel = memo(({ promos, onPromoClick }) => {
     const firstCard = container.querySelector('[data-promo-card]');
     if (!firstCard) return;
 
-    const cardWidth = firstCard.offsetWidth;
-    const gap = 16; // gap-4 = 16px
-    const scrollPosition = currentIndex * (cardWidth + gap);
+    // Use requestAnimationFrame for smooth scrolling
+    const rafId = requestAnimationFrame(() => {
+      const cardWidth = firstCard.offsetWidth;
+      const gap = 16; // gap-4 = 16px
+      const scrollPosition = currentIndex * (cardWidth + gap);
 
-    container.scrollTo({
-      left: scrollPosition,
-      behavior: 'smooth'
+      container.scrollTo({
+        left: scrollPosition,
+        behavior: 'smooth'
+      });
     });
+
+    return () => cancelAnimationFrame(rafId);
   }, [currentIndex]);
 
-  // Sync currentIndex when user manually scrolls
+  // Optimized sync currentIndex when user manually scrolls - use passive listener with throttling
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
     let scrollTimeout;
-    let ticking = false;
+    let rafId = null;
+    let lastScrollTime = 0;
+    const throttleDelay = 200; // Throttle to 200ms for better performance
+
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
+      const now = Date.now();
+      if (now - lastScrollTime < throttleDelay) return;
+      lastScrollTime = now;
+
+      // Cancel previous RAF
+      if (rafId) cancelAnimationFrame(rafId);
+
+      // Debounce scroll events
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        rafId = requestAnimationFrame(() => {
           const firstCard = container.querySelector('[data-promo-card]');
-          if (!firstCard) {
-            ticking = false;
-            return;
-          }
+          if (!firstCard) return;
 
           const cardWidth = firstCard.offsetWidth;
           const gap = 16;
@@ -134,24 +167,55 @@ const PromoCarousel = memo(({ promos, onPromoClick }) => {
           if (newIndex !== currentIndex && newIndex >= 0 && newIndex < promotionalCards.length) {
             setCurrentIndex(newIndex);
           }
-          ticking = false;
         });
-        ticking = true;
-      }
+      }, 200); // Increased debounce delay for better performance
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       container.removeEventListener('scroll', handleScroll);
       clearTimeout(scrollTimeout);
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }, [currentIndex, promotionalCards.length]);
 
-  // Removed GSAP entrance animation for better performance - use CSS instead
+  // Defer GSAP entrance animation until after initial render
+  useEffect(() => {
+    if (!carouselRef.current) return;
+
+    // Show immediately without animation for better performance
+    carouselRef.current.style.opacity = '1';
+    carouselRef.current.style.transform = 'translateY(0)';
+
+    // Optionally add animation later if needed (deferred)
+    const initAnimation = () => {
+      if (carouselRef.current) {
+        gsap.fromTo(
+          carouselRef.current,
+          { y: 30, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.6,
+            ease: 'power2.out',
+          }
+        );
+      }
+    };
+
+    // Defer animation initialization
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(initAnimation, { timeout: 2000 });
+    } else {
+      setTimeout(initAnimation, 300);
+    }
+  }, []);
+
   return (
     <div 
       ref={carouselRef}
-      className="pb-6 animate-fade-in"
+      className="pb-6"
+      style={{ opacity: 1 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

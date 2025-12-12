@@ -248,11 +248,16 @@ const CategoryCart = ({
         {/* Order Summary - Fixed at bottom if items exist */}
         {cartItems.length > 0 && (
           <div
-            className="fixed left-0 right-0 z-40 px-4 py-4 border-t border-gray-200"
+            className="fixed left-0 right-0 z-[9997] px-4 py-4 border-t border-gray-200"
             style={{
               backgroundColor: '#ffffff',
               boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.08)',
-              bottom: '70px'
+              bottom: '70px',
+              position: 'fixed',
+              willChange: 'transform',
+              transform: 'translateZ(0)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
             }}
           >
             <div className="mb-3 pb-3 border-b border-gray-200">

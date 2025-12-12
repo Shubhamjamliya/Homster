@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { FiX } from 'react-icons/fi';
 import salonIcon from '../../../../../assets/images/icons/services/salon.png';
 import spaIcon from '../../../../../assets/images/icons/services/spa.png';
@@ -10,7 +11,7 @@ import electricianIcon from '../../../../../assets/images/icons/services/electri
 import plumberIcon from '../../../../../assets/images/icons/services/plumber.png';
 import carpenterIcon from '../../../../../assets/images/icons/services/carpenter.png';
 
-const CategoryModal = ({ isOpen, onClose, category, location, cartCount }) => {
+const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCount }) => {
   const navigate = useNavigate();
   const [isClosing, setIsClosing] = useState(false);
 
@@ -28,7 +29,14 @@ const CategoryModal = ({ isOpen, onClose, category, location, cartCount }) => {
     setTimeout(() => setIsClosing(false), 200);
   };
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (!isOpen && !isClosing) return null;
+  if (!mounted) return null;
 
   // Default sub-services for each category
   const getSubServices = () => {
@@ -97,18 +105,34 @@ const CategoryModal = ({ isOpen, onClose, category, location, cartCount }) => {
     setTimeout(() => setIsClosing(false), 200);
   };
 
-  return (
+  const modalContent = (
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/50 z-50 transition-opacity ${
+        className={`fixed inset-0 bg-black/50 z-[9998] transition-opacity ${
           isClosing ? 'opacity-0' : 'opacity-100'
         }`}
         onClick={handleClose}
+        style={{
+          position: 'fixed',
+          willChange: 'opacity',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
       />
 
       {/* Modal Container with Close Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50">
+      <div 
+        className="fixed bottom-0 left-0 right-0 z-[9999]"
+        style={{
+          position: 'fixed',
+          willChange: 'transform',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
+      >
         {/* Close Button - Above Modal */}
         <div className="absolute -top-12 right-4 z-[60]">
           <button
@@ -146,6 +170,8 @@ const CategoryModal = ({ isOpen, onClose, category, location, cartCount }) => {
                           src={service.icon} 
                           alt={service.title} 
                           className="w-14 h-14 object-contain"
+                          loading="lazy"
+                          decoding="async"
                         />
                       )}
                     </div>
@@ -168,6 +194,8 @@ const CategoryModal = ({ isOpen, onClose, category, location, cartCount }) => {
                           src={service.icon} 
                           alt={service.title} 
                           className="w-14 h-14 object-contain"
+                          loading="lazy"
+                          decoding="async"
                         />
                       )}
                     </div>
@@ -190,6 +218,8 @@ const CategoryModal = ({ isOpen, onClose, category, location, cartCount }) => {
                           src={service.icon} 
                           alt={service.title} 
                           className="w-10 h-10 object-contain"
+                          loading="lazy"
+                          decoding="async"
                         />
                       )}
                     </div>
@@ -231,7 +261,11 @@ const CategoryModal = ({ isOpen, onClose, category, location, cartCount }) => {
       </div>
     </>
   );
-};
+
+  return createPortal(modalContent, document.body);
+});
+
+CategoryModal.displayName = 'CategoryModal';
 
 export default CategoryModal;
 

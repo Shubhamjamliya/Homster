@@ -1,25 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React from 'react';
 import { FiArrowLeft, FiSearch, FiShare2 } from 'react-icons/fi';
 
-const StickyHeader = ({ 
+const StickyHeader = React.memo(({ 
   title = 'Appzeto', 
   onBack, 
   onSearch, 
   onShare, 
   isVisible = false 
 }) => {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || !isVisible) {
+  if (!isVisible) {
     return null;
   }
 
-  const headerContent = (
+  return (
     <header
       style={{
         position: 'fixed',
@@ -33,10 +26,13 @@ const StickyHeader = ({
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
         zIndex: 9999,
         opacity: 1,
-        transform: 'translateY(0)',
+        transform: 'translateZ(0)',
         pointerEvents: 'auto',
         display: 'block',
-        visibility: 'visible'
+        visibility: 'visible',
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
       }}
     >
       <div className="flex items-center justify-between">
@@ -66,9 +62,9 @@ const StickyHeader = ({
       </div>
     </header>
   );
+});
 
-  return createPortal(headerContent, document.body);
-};
+StickyHeader.displayName = 'StickyHeader';
 
 export default StickyHeader;
 
