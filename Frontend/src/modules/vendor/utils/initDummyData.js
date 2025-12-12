@@ -418,22 +418,42 @@ export const initVendorDummyData = () => {
 
 // Auto-initialize if localStorage is empty
 export const autoInitDummyData = () => {
-  const hasData = localStorage.getItem('vendorProfile');
-  if (!hasData) {
-    initVendorDummyData();
-    // Dispatch events after a small delay to ensure listeners are ready
-    setTimeout(() => {
-      window.dispatchEvent(new Event('vendorStatsUpdated'));
-      window.dispatchEvent(new Event('vendorProfileUpdated'));
-      window.dispatchEvent(new Event('vendorJobsUpdated'));
-      window.dispatchEvent(new Event('vendorWorkersUpdated'));
-      window.dispatchEvent(new Event('vendorWalletUpdated'));
-      window.dispatchEvent(new Event('vendorEarningsUpdated'));
-      window.dispatchEvent(new Event('vendorNotificationsUpdated'));
-    }, 100);
-    return true; // Data was initialized
-  } else {
-    return false; // Data already exists
+  try {
+    // Check if localStorage is available
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      console.warn('localStorage is not available');
+      return false;
+    }
+
+    const hasData = localStorage.getItem('vendorProfile');
+    if (!hasData) {
+      try {
+        initVendorDummyData();
+        // Dispatch events after a small delay to ensure listeners are ready
+        setTimeout(() => {
+          try {
+            window.dispatchEvent(new Event('vendorStatsUpdated'));
+            window.dispatchEvent(new Event('vendorProfileUpdated'));
+            window.dispatchEvent(new Event('vendorJobsUpdated'));
+            window.dispatchEvent(new Event('vendorWorkersUpdated'));
+            window.dispatchEvent(new Event('vendorWalletUpdated'));
+            window.dispatchEvent(new Event('vendorEarningsUpdated'));
+            window.dispatchEvent(new Event('vendorNotificationsUpdated'));
+          } catch (eventError) {
+            console.error('Error dispatching events:', eventError);
+          }
+        }, 100);
+        return true; // Data was initialized
+      } catch (initError) {
+        console.error('Error initializing vendor dummy data:', initError);
+        return false;
+      }
+    } else {
+      return false; // Data already exists
+    }
+  } catch (error) {
+    console.error('Error in autoInitDummyData:', error);
+    return false;
   }
 };
 

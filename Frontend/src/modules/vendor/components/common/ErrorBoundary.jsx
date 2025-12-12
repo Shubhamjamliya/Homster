@@ -1,68 +1,62 @@
 import React from 'react';
-import { FiAlertTriangle } from 'react-icons/fi';
-import { vendorTheme as themeColors } from '../../../../theme';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error('Vendor App Error:', error, errorInfo);
+    this.setState({
+      error,
+      errorInfo,
+    });
   }
-
-  handleReset = () => {
-    this.setState({ hasError: false, error: null });
-  };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-4" style={{ background: themeColors.backgroundGradient }}>
-          <div className="bg-white rounded-2xl p-8 shadow-lg max-w-md w-full text-center">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+        <div className="flex items-center justify-center min-h-screen" style={{ background: 'linear-gradient(135deg, #FCD34D 0%, #FDE68A 50%, #FFFFFF 100%)' }}>
+          <div className="flex flex-col items-center gap-4 p-6 max-w-md mx-auto">
+            <div className="text-6xl">⚠️</div>
+            <h2 className="text-2xl font-bold text-gray-800 text-center">Something went wrong</h2>
+            <p className="text-gray-600 text-center">
+              The vendor app encountered an error. Please try refreshing the page.
+            </p>
+            <button
+              onClick={() => {
+                window.location.reload();
+              }}
+              className="px-6 py-3 rounded-xl font-semibold text-white transition-all duration-300"
               style={{
-                background: '#FEE2E2',
+                background: '#00a6a6',
+                boxShadow: '0 4px 12px rgba(0, 166, 166, 0.3)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 166, 166, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 166, 166, 0.3)';
               }}
             >
-              <FiAlertTriangle className="w-8 h-8 text-red-500" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              We're sorry, but something unexpected happened. Please try refreshing the page.
-            </p>
-            {this.state.error && (
-              <details className="text-left mb-4">
-                <summary className="text-xs text-gray-500 cursor-pointer mb-2">Error details</summary>
-                <pre className="text-xs text-red-600 bg-red-50 p-2 rounded overflow-auto">
+              Refresh Page
+            </button>
+            {process.env.NODE_ENV === 'development' && this.state.error && (
+              <details className="mt-4 p-4 bg-red-50 rounded-lg max-w-full overflow-auto">
+                <summary className="cursor-pointer font-semibold text-red-800 mb-2">Error Details (Dev Only)</summary>
+                <pre className="text-xs text-red-700 whitespace-pre-wrap">
                   {this.state.error.toString()}
+                  {this.state.errorInfo?.componentStack}
                 </pre>
               </details>
             )}
-            <div className="flex gap-3">
-              <button
-                onClick={this.handleReset}
-                className="flex-1 py-3 rounded-xl font-semibold text-white transition-all active:scale-95"
-                style={{
-                  background: themeColors.button,
-                  boxShadow: `0 4px 12px ${themeColors.button}40`,
-                }}
-              >
-                Try Again
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="flex-1 py-3 rounded-xl font-semibold border-2 border-gray-200 text-gray-700 transition-all active:scale-95"
-              >
-                Reload Page
-              </button>
-            </div>
           </div>
         </div>
       );
@@ -73,4 +67,3 @@ class ErrorBoundary extends React.Component {
 }
 
 export default ErrorBoundary;
-

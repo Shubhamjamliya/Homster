@@ -5,24 +5,50 @@ import { autoInitDummyData } from '../utils/initDummyData';
 import '../utils/testDummyData';
 import PageTransition from '../components/common/PageTransition';
 import BottomNav from '../components/layout/BottomNav';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 
-// Lazy load vendor pages for code splitting
-const Dashboard = lazy(() => import('../pages/Dashboard'));
-const BookingAlert = lazy(() => import('../pages/BookingAlert'));
-const BookingDetails = lazy(() => import('../pages/BookingDetails'));
-const BookingTimeline = lazy(() => import('../pages/BookingTimeline'));
-const ActiveJobs = lazy(() => import('../pages/ActiveJobs'));
-const WorkersList = lazy(() => import('../pages/WorkersList'));
-const AddEditWorker = lazy(() => import('../pages/AddEditWorker'));
-const AssignWorker = lazy(() => import('../pages/AssignWorker'));
-const Earnings = lazy(() => import('../pages/Earnings'));
-const Wallet = lazy(() => import('../pages/Wallet'));
-const WithdrawalRequest = lazy(() => import('../pages/WithdrawalRequest'));
-const Profile = lazy(() => import('../pages/Profile'));
-const ProfileDetails = lazy(() => import('../pages/Profile/ProfileDetails'));
-const EditProfile = lazy(() => import('../pages/Profile/EditProfile'));
-const Settings = lazy(() => import('../pages/Settings'));
-const Notifications = lazy(() => import('../pages/Notifications'));
+// Lazy load vendor pages for code splitting with error handling
+const lazyLoad = (importFunc) => {
+  return lazy(() => {
+    return Promise.resolve(importFunc()).catch((error) => {
+      console.error('Failed to load vendor page:', error);
+      // Return a fallback component wrapped in a Promise
+      return Promise.resolve({
+        default: () => (
+          <div className="flex items-center justify-center min-h-screen" style={{ background: 'linear-gradient(135deg, #FCD34D 0%, #FDE68A 50%, #FFFFFF 100%)' }}>
+            <div className="text-center p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Failed to load page</h2>
+              <p className="text-gray-600 mb-4">Please refresh the page or try again later.</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 rounded-xl bg-blue-500 text-white font-semibold transition-all duration-300 hover:bg-blue-600"
+              >
+                Refresh Page
+              </button>
+            </div>
+          </div>
+        ),
+      });
+    });
+  });
+};
+
+const Dashboard = lazyLoad(() => import('../pages/Dashboard'));
+const BookingAlert = lazyLoad(() => import('../pages/BookingAlert'));
+const BookingDetails = lazyLoad(() => import('../pages/BookingDetails'));
+const BookingTimeline = lazyLoad(() => import('../pages/BookingTimeline'));
+const ActiveJobs = lazyLoad(() => import('../pages/ActiveJobs'));
+const WorkersList = lazyLoad(() => import('../pages/WorkersList'));
+const AddEditWorker = lazyLoad(() => import('../pages/AddEditWorker'));
+const AssignWorker = lazyLoad(() => import('../pages/AssignWorker'));
+const Earnings = lazyLoad(() => import('../pages/Earnings'));
+const Wallet = lazyLoad(() => import('../pages/Wallet'));
+const WithdrawalRequest = lazyLoad(() => import('../pages/WithdrawalRequest'));
+const Profile = lazyLoad(() => import('../pages/Profile'));
+const ProfileDetails = lazyLoad(() => import('../pages/Profile/ProfileDetails'));
+const EditProfile = lazyLoad(() => import('../pages/Profile/EditProfile'));
+const Settings = lazyLoad(() => import('../pages/Settings'));
+const Notifications = lazyLoad(() => import('../pages/Notifications'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -37,11 +63,23 @@ const LoadingFallback = () => (
 const VendorRoutes = () => {
   // Initialize dummy data when vendor routes load
   useEffect(() => {
-    autoInitDummyData();
+    try {
+      autoInitDummyData();
+    } catch (error) {
+      console.error('Failed to initialize vendor data:', error);
+      // Try to initialize again after a delay
+      setTimeout(() => {
+        try {
+          autoInitDummyData();
+        } catch (retryError) {
+          console.error('Retry failed to initialize vendor data:', retryError);
+        }
+      }, 500);
+    }
   }, []);
 
   return (
-    <>
+    <ErrorBoundary>
       <Suspense fallback={<LoadingFallback />}>
         <PageTransition>
           <Routes>
@@ -67,7 +105,7 @@ const VendorRoutes = () => {
         </PageTransition>
       </Suspense>
       <BottomNav />
-    </>
+    </ErrorBoundary>
   );
 };
 
