@@ -44,7 +44,7 @@ const Notifications = () => {
     // Load immediately and after a delay
     loadNotifications();
     setTimeout(loadNotifications, 200);
-    
+
     window.addEventListener('vendorNotificationsUpdated', loadNotifications);
 
     return () => {
@@ -53,7 +53,7 @@ const Notifications = () => {
   }, []);
 
   const handleMarkAsRead = (id) => {
-    const updated = notifications.map(n => 
+    const updated = notifications.map(n =>
       n.id === id ? { ...n, read: true } : n
     );
     setNotifications(updated);
@@ -114,20 +114,19 @@ const Notifications = () => {
             <button
               key={filterOption.id}
               onClick={() => setFilter(filterOption.id)}
-              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${
-                filter === filterOption.id
+              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${filter === filterOption.id
                   ? 'text-white'
                   : 'bg-white text-gray-700'
-              }`}
+                }`}
               style={
                 filter === filterOption.id
                   ? {
-                      background: themeColors.button,
-                      boxShadow: `0 2px 8px ${themeColors.button}40`,
-                    }
+                    background: themeColors.button,
+                    boxShadow: `0 2px 8px ${themeColors.button}40`,
+                  }
                   : {
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                    }
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  }
               }
             >
               {filterOption.label}
@@ -165,9 +164,8 @@ const Notifications = () => {
             {filteredNotifications.map((notif) => (
               <div
                 key={notif.id}
-                className={`bg-white rounded-xl p-4 shadow-md transition-all ${
-                  !notif.read ? 'border-l-4' : ''
-                }`}
+                className={`bg-white rounded-xl p-4 shadow-md transition-all ${!notif.read ? 'border-l-4' : ''
+                  }`}
                 style={{
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
                   borderLeftColor: !notif.read ? getNotificationColor(notif.type) : 'transparent',

@@ -15,6 +15,8 @@ export const initVendorDummyData = () => {
     rating: 4.8,
     totalJobs: 45,
     completionRate: 98,
+    serviceCategory: 'Electrician',
+    skills: ['Fan Repair', 'AC', 'Lightings', 'House Wiring'],
   };
   localStorage.setItem('vendorProfile', JSON.stringify(vendorProfile));
 
@@ -460,6 +462,22 @@ export const autoInitDummyData = () => {
 // Force initialize (useful for testing)
 export const forceInitDummyData = () => {
   initVendorDummyData();
+  
+  // Also update existing profile if it exists but missing serviceCategory/skills
+  try {
+    const existingProfile = JSON.parse(localStorage.getItem('vendorProfile') || '{}');
+    if (Object.keys(existingProfile).length > 0) {
+      const updatedProfile = {
+        ...existingProfile,
+        serviceCategory: existingProfile.serviceCategory || 'Electrician',
+        skills: existingProfile.skills || ['Fan Repair', 'AC', 'Lightings', 'House Wiring'],
+      };
+      localStorage.setItem('vendorProfile', JSON.stringify(updatedProfile));
+    }
+  } catch (e) {
+    console.error('Error updating existing profile:', e);
+  }
+  
   setTimeout(() => {
     window.dispatchEvent(new Event('vendorStatsUpdated'));
     window.dispatchEvent(new Event('vendorProfileUpdated'));

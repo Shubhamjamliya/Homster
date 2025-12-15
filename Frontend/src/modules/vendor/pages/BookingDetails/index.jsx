@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiMapPin, FiClock, FiDollarSign, FiUser, FiPhone, FiNavigation, FiArrowRight } from 'react-icons/fi';
+import { FiMapPin, FiClock, FiDollarSign, FiUser, FiPhone, FiNavigation, FiArrowRight, FiEdit, FiCheckCircle } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
@@ -9,6 +9,7 @@ const BookingDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -60,7 +61,190 @@ const BookingDetails = () => {
     };
 
     loadBooking();
+    window.addEventListener('vendorJobsUpdated', loadBooking);
+    
+    return () => {
+      window.removeEventListener('vendorJobsUpdated', loadBooking);
+    };
   }, [id]);
+
+  // Available status options for vendor
+  const getAvailableStatuses = (currentStatus, booking) => {
+    // Check payment status
+    const workerPaymentDone = booking?.workerPaymentStatus === 'PAID';
+    const finalSettlementDone = booking?.finalSettlementStatus === 'DONE';
+
+    const statusFlow = {
+      'ACCEPTED': ['ASSIGNED', 'VISITED'],
+      'ASSIGNED': ['VISITED'],
+      'VISITED': ['WORK_DONE'],
+      'WORK_DONE': workerPaymentDone 
+        ? (finalSettlementDone ? ['COMPLETED'] : ['FINAL_SETTLEMENT', 'COMPLETED'])
+        : [],
+      'FINAL_SETTLEMENT': ['COMPLETED'],
+      'COMPLETED': [],
+    };
+    return statusFlow[currentStatus] || [];
+  };
+
+  const canPayWorker = (booking) => {
+    return booking?.status === 'WORK_DONE' && booking?.workerPaymentStatus !== 'PAID';
+  };
+
+  const canDoFinalSettlement = (booking) => {
+    return booking?.status === 'WORK_DONE' && 
+           booking?.workerPaymentStatus === 'PAID' && 
+           booking?.finalSettlementStatus !== 'DONE';
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (!booking) return;
+
+    const availableStatuses = getAvailableStatuses(booking.status, booking);
+    if (!availableStatuses.includes(newStatus)) {
+      alert(`Cannot change status from ${booking.status} to ${newStatus}. Please follow the proper flow.`);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to change status to ${newStatus.replace('_', ' ')}?`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
+      const updated = acceptedBookings.map(b =>
+        b.id === id
+          ? {
+              ...b,
+              status: newStatus,
+              [`${newStatus.toLowerCase()}At`]: new Date().toISOString(),
+              statusChangedBy: 'VENDOR',
+              statusChangedAt: new Date().toISOString(),
+            }
+          : b
+      );
+      localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
+
+      // Update worker assigned job status if assigned
+      if (booking.assignedTo && booking.assignedTo !== 'SELF') {
+        const assignedJobs = JSON.parse(localStorage.getItem('workerAssignedJobs') || '[]');
+        const updatedWorkerJobs = assignedJobs.map(j =>
+          j.id === id || j.bookingId === id
+            ? {
+                ...j,
+                workerStatus: newStatus,
+                [`${newStatus.toLowerCase()}At`]: new Date().toISOString(),
+              }
+            : j
+        );
+        localStorage.setItem('workerAssignedJobs', JSON.stringify(updatedWorkerJobs));
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+      }
+
+      window.dispatchEvent(new Event('vendorJobsUpdated'));
+      setBooking(updated.find(b => b.id === id));
+      alert(`Status updated to ${newStatus.replace('_', ' ')} successfully!`);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayWorker = async () => {
+    if (!booking) return;
+
+    if (!window.confirm(`Pay ₹${booking.price} to worker ${booking.assignedTo?.name || 'Worker'}?`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
+      const updated = acceptedBookings.map(b =>
+        b.id === id
+          ? {
+              ...b,
+              workerPaymentStatus: 'PAID',
+              workerPaidAt: new Date().toISOString(),
+              workerPaidBy: 'VENDOR',
+            }
+          : b
+      );
+      localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
+
+      // Update worker assigned job
+      if (booking.assignedTo && booking.assignedTo !== 'SELF') {
+        const assignedJobs = JSON.parse(localStorage.getItem('workerAssignedJobs') || '[]');
+        const updatedWorkerJobs = assignedJobs.map(j =>
+          j.id === id || j.bookingId === id
+            ? {
+                ...j,
+                paymentStatus: 'PAID',
+                paidAt: new Date().toISOString(),
+              }
+            : j
+        );
+        localStorage.setItem('workerAssignedJobs', JSON.stringify(updatedWorkerJobs));
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+      }
+
+      // Add notification to worker
+      const workerNotifications = JSON.parse(localStorage.getItem('workerNotifications') || '[]');
+      workerNotifications.unshift({
+        id: `payment-${Date.now()}`,
+        type: 'payment',
+        message: `Payment received for ${booking.serviceType}: ₹${booking.price}`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      });
+      localStorage.setItem('workerNotifications', JSON.stringify(workerNotifications));
+      window.dispatchEvent(new Event('workerNotificationsUpdated'));
+
+      window.dispatchEvent(new Event('vendorJobsUpdated'));
+      setBooking(updated.find(b => b.id === id));
+      alert('Worker payment completed successfully!');
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      alert('Failed to process payment. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFinalSettlement = async () => {
+    if (!booking) return;
+
+    if (!window.confirm('Mark final settlement as done? This will allow you to complete the booking.')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
+      const updated = acceptedBookings.map(b =>
+        b.id === id
+          ? {
+              ...b,
+              finalSettlementStatus: 'DONE',
+              finalSettlementAt: new Date().toISOString(),
+            }
+          : b
+      );
+      localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
+
+      window.dispatchEvent(new Event('vendorJobsUpdated'));
+      setBooking(updated.find(b => b.id === id));
+      alert('Final settlement marked as done!');
+    } catch (error) {
+      console.error('Error updating settlement:', error);
+      alert('Failed to update settlement. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!booking) {
     return (
@@ -239,6 +423,162 @@ const BookingDetails = () => {
           </div>
         </div>
 
+        {/* Worker Assignment Status */}
+        {booking.assignedTo && booking.assignedTo !== 'SELF' && (
+          <div
+            className="bg-white rounded-xl p-4 mb-4 shadow-md"
+            style={{
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            <p className="text-sm font-semibold text-gray-700 mb-2">Worker Assignment</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-gray-800">{booking.assignedTo.name}</p>
+                {booking.workerResponse ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                        booking.workerResponse === 'ACCEPTED'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {booking.workerResponse === 'ACCEPTED' ? '✓ Accepted' : '✗ Rejected'}
+                    </span>
+                    {booking.workerResponseAt && (
+                      <span className="text-xs text-gray-500">
+                        {new Date(booking.workerResponseAt).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-yellow-600 mt-1">⏳ Waiting for worker response...</p>
+                )}
+              </div>
+              {booking.workerResponse === 'REJECTED' && (
+                <button
+                  onClick={handleAssignWorker}
+                  className="px-4 py-2 rounded-lg font-semibold text-sm text-white transition-all active:scale-95"
+                  style={{
+                    background: themeColors.button,
+                    boxShadow: `0 2px 8px ${themeColors.button}40`,
+                  }}
+                >
+                  Reassign
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Worker Payment Button */}
+        {canPayWorker(booking) && (
+          <div
+            className="bg-white rounded-xl p-4 mb-4 shadow-md border-2"
+            style={{
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+              borderColor: '#10B981',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <FiDollarSign className="w-5 h-5" style={{ color: '#10B981' }} />
+              <p className="text-sm font-semibold text-gray-700">Worker Payment</p>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              Pay ₹{booking.price} to {booking.assignedTo?.name || 'Worker'}
+            </p>
+            <button
+              onClick={handlePayWorker}
+              disabled={loading}
+              className="w-full py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: '#10B981',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+              }}
+            >
+              <FiDollarSign className="w-5 h-5" />
+              Pay Worker
+            </button>
+          </div>
+        )}
+
+        {/* Final Settlement Button */}
+        {canDoFinalSettlement(booking) && (
+          <div
+            className="bg-white rounded-xl p-4 mb-4 shadow-md border-2"
+            style={{
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+              borderColor: '#8B5CF6',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <FiCheckCircle className="w-5 h-5" style={{ color: '#8B5CF6' }} />
+              <p className="text-sm font-semibold text-gray-700">Final Settlement</p>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              Complete final settlement to mark booking as completed
+            </p>
+            <button
+              onClick={handleFinalSettlement}
+              disabled={loading}
+              className="w-full py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: '#8B5CF6',
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
+              }}
+            >
+              <FiCheckCircle className="w-5 h-5" />
+              Mark Final Settlement Done
+            </button>
+          </div>
+        )}
+
+        {/* Status Change Section */}
+        {getAvailableStatuses(booking.status, booking).length > 0 && (
+          <div
+            className="bg-white rounded-xl p-4 mb-4 shadow-md"
+            style={{
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <FiEdit className="w-5 h-5" style={{ color: themeColors.button }} />
+              <p className="text-sm font-semibold text-gray-700">Change Status</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {getAvailableStatuses(booking.status, booking).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => handleStatusChange(status)}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: `linear-gradient(135deg, ${themeColors.button} 0%, ${themeColors.icon} 100%)`,
+                    color: '#FFFFFF',
+                    boxShadow: `0 2px 8px ${themeColors.button}40`,
+                  }}
+                >
+                  {status.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Current Status: <span className="font-semibold">{booking.status}</span>
+            </p>
+            {booking.workerPaymentStatus === 'PAID' && (
+              <p className="text-xs text-green-600 mt-1">
+                ✓ Worker Payment: Paid
+              </p>
+            )}
+            {booking.finalSettlementStatus === 'DONE' && (
+              <p className="text-xs text-purple-600 mt-1">
+                ✓ Final Settlement: Done
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="space-y-3">
           <button
@@ -253,7 +593,7 @@ const BookingDetails = () => {
             <FiArrowRight className="w-5 h-5" />
           </button>
 
-          {booking.status === 'ACCEPTED' && (
+          {(booking.status === 'ACCEPTED' || (booking.assignedTo && booking.workerResponse === 'REJECTED')) && (
             <button
               onClick={handleAssignWorker}
               className="w-full py-4 rounded-xl font-semibold border-2 transition-all active:scale-95"
@@ -263,7 +603,7 @@ const BookingDetails = () => {
                 background: 'white',
               }}
             >
-              Assign Worker
+              {booking.workerResponse === 'REJECTED' ? 'Reassign Worker' : 'Assign Worker'}
             </button>
           )}
         </div>

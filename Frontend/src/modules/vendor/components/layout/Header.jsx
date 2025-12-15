@@ -26,8 +26,7 @@ const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifi
           scale: 1.0,
           y: 0,
           duration: 0.6,
-          ease: 'back.out(1.7)',
-          filter: 'drop-shadow(0 0 12px rgba(245, 158, 11, 0.6)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2))'
+          ease: 'back.out(1.7)'
         }
       );
     }
@@ -77,7 +76,6 @@ const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifi
                 if (logoRef.current) {
                   gsap.to(logoRef.current, {
                     scale: 1.2,
-                    filter: 'drop-shadow(0 0 20px rgba(245, 158, 11, 0.9)) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3))',
                     duration: 0.3,
                     ease: 'power2.out',
                   });
@@ -87,7 +85,6 @@ const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifi
                 if (logoRef.current) {
                   gsap.to(logoRef.current, {
                     scale: 1.0,
-                    filter: 'drop-shadow(0 0 12px rgba(245, 158, 11, 0.6)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2))',
                     duration: 0.3,
                     ease: 'power2.out',
                   });
@@ -99,11 +96,6 @@ const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifi
                 src="/Appzeto-logo.png"
                 alt="Appzeto"
                 className="h-12 w-auto object-contain"
-                style={{ 
-                  opacity: 1,
-                  filter: 'hue-rotate(-10deg) saturate(0.9) brightness(1.05)',
-                  WebkitFilter: 'hue-rotate(-10deg) saturate(0.9) brightness(1.05)',
-                }}
               />
             </div>
           )}

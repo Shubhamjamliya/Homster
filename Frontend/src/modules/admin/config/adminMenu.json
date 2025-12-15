@@ -1,0 +1,95 @@
+[
+  {
+    "title": "Dashboard",
+    "route": "/admin/dashboard",
+    "children": []
+  },
+  {
+    "title": "Users",
+    "route": "/admin/users",
+    "children": [
+      "All Users",
+      "User Bookings",
+      "User Analytics"
+    ]
+  },
+  {
+    "title": "Vendors",
+    "route": "/admin/vendors",
+    "children": [
+      "All Vendors",
+      "Vendor Bookings",
+      "Vendor Analytics",
+      "Worker Assignment"
+    ]
+  },
+  {
+    "title": "Workers",
+    "route": "/admin/workers",
+    "children": [
+      "All Workers",
+      "Worker Jobs",
+      "Worker Analytics",
+      "Worker Payments"
+    ]
+  },
+  {
+    "title": "Bookings",
+    "route": "/admin/bookings",
+    "children": [
+      "All Bookings",
+      "Active Bookings",
+      "Completed Bookings",
+      "Booking Analytics"
+    ]
+  },
+  {
+    "title": "Service Categories",
+    "route": "/admin/services",
+    "children": [
+      "Manage Categories",
+      "Category Settings",
+      "Skills Management"
+    ]
+  },
+  {
+    "title": "Payments",
+    "route": "/admin/payments",
+    "children": [
+      "Payment Overview",
+      "Worker Payments",
+      "Vendor Payments",
+      "Payment Reports"
+    ]
+  },
+  {
+    "title": "Reports",
+    "route": "/admin/reports",
+    "children": [
+      "Revenue Report",
+      "Booking Report",
+      "Worker Report",
+      "Vendor Report"
+    ]
+  },
+  {
+    "title": "Notifications",
+    "route": "/admin/notifications",
+    "children": [
+      "Push Notifications",
+      "Custom Messages",
+      "Notification Settings"
+    ]
+  },
+  {
+    "title": "Settings",
+    "route": "/admin/settings",
+    "children": [
+      "General Settings",
+      "Worker Assignment",
+      "Service Configuration",
+      "System Settings"
+    ]
+  }
+]
+

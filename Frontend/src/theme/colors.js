@@ -45,10 +45,28 @@ const vendorTheme = {
   icon: '#29ad81',
 };
 
+// Worker Theme Colors (same as vendor)
+const workerTheme = {
+  // Background Gradient (for full page)
+  backgroundGradient: 'linear-gradient(to bottom, rgba(0, 166, 166, 0.03) 0%, rgba(41, 173, 129, 0.02) 10%, #ffffff 20%)',
+
+  // Top Section Gradient (yellow gradient - same as vendor)
+  gradient: 'linear-gradient(135deg, #FCD34D 0%, #FDE68A 50%, #FDE68A 100%)',
+
+  // Header Gradient (solid yellow - same as vendor)
+  headerGradient: '#FCD34D',
+
+  // Button Color (same as vendor)
+  button: '#00a6a6',
+
+  // Icon Color (same as vendor)
+  icon: '#29ad81',
+};
+
 // Default theme (for backward compatibility - uses user theme)
 const themeColors = userTheme;
 
 // Export all themes
-export { userTheme, vendorTheme };
+export { userTheme, vendorTheme, workerTheme };
 export default themeColors;
 

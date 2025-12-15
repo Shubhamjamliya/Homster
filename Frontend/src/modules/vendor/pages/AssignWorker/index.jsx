@@ -70,6 +70,8 @@ const AssignWorker = () => {
 
     try {
       const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
+      const booking = acceptedBookings.find(b => b.id === id);
+      
       const updated = acceptedBookings.map(b => {
         if (b.id === id) {
           return {
@@ -77,20 +79,76 @@ const AssignWorker = () => {
             status: 'ASSIGNED',
             assignedTo: assignToSelf ? 'SELF' : { id: selectedWorker.id, name: selectedWorker.name },
             timeline: [...(b.timeline || []), { stage: 3, timestamp: new Date().toISOString() }],
+            workerResponse: null, // Reset worker response if reassigning
+            workerResponseAt: null,
           };
         }
         return b;
       });
       localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
 
-      // Update worker's current job if assigned to worker
-      if (!assignToSelf && selectedWorker) {
+      // If assigning to worker (not self), create worker assignment
+      if (!assignToSelf && selectedWorker && booking) {
+        // Update worker's current job
         const savedWorkers = JSON.parse(localStorage.getItem('vendorWorkers') || '[]');
         const updatedWorkers = savedWorkers.map(w => 
           w.id === selectedWorker.id ? { ...w, currentJob: id } : w
         );
         localStorage.setItem('vendorWorkers', JSON.stringify(updatedWorkers));
         window.dispatchEvent(new Event('vendorWorkersUpdated'));
+
+        // Create assignment for worker app
+        const workerAssignment = {
+          id: id,
+          serviceType: booking.serviceType || 'Service',
+          location: booking.location,
+          price: booking.price,
+          user: booking.user,
+          vendorId: 'vendor-1', // In real app, get from vendor profile
+          vendorName: 'Vendor Name', // In real app, get from vendor profile
+          workerId: selectedWorker.id,
+          workerStatus: 'PENDING', // Worker needs to accept/reject
+          assignedAt: new Date().toISOString(),
+          description: booking.description,
+          timeSlot: booking.timeSlot,
+        };
+
+        // Add to worker assigned jobs
+        const workerAssignedJobs = JSON.parse(localStorage.getItem('workerAssignedJobs') || '[]');
+        // Remove existing assignment for this booking if any
+        const filteredJobs = workerAssignedJobs.filter(j => !(j.id === id && j.workerId === selectedWorker.id));
+        filteredJobs.push(workerAssignment);
+        localStorage.setItem('workerAssignedJobs', JSON.stringify(filteredJobs));
+
+        // Update worker stats
+        const workerStats = JSON.parse(localStorage.getItem('workerStats') || '{}');
+        const newStats = {
+          ...workerStats,
+          pendingJobs: (workerStats.pendingJobs || 0) + 1,
+        };
+        localStorage.setItem('workerStats', JSON.stringify(newStats));
+
+        // PRESERVE EXISTING FUNCTIONALITY: Send call/message notification to worker
+        // In real app, this would trigger SMS/call API
+        console.log(`Sending notification (call/message) to worker ${selectedWorker.name} (${selectedWorker.phone}) for job ${id}`);
+        // Example: await sendSMS(selectedWorker.phone, `New job assigned: ${booking.serviceType}`);
+        // Example: await makeCall(selectedWorker.phone);
+
+        // Create notification for worker
+        const workerNotifications = JSON.parse(localStorage.getItem('workerNotifications') || '[]');
+        workerNotifications.unshift({
+          id: `notif-${Date.now()}`,
+          type: 'JOB',
+          title: 'New Job Assigned',
+          message: `You have been assigned a new job: ${booking.serviceType}`,
+          createdAt: new Date().toISOString(),
+          read: false,
+          jobId: id,
+        });
+        localStorage.setItem('workerNotifications', JSON.stringify(workerNotifications));
+
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+        window.dispatchEvent(new Event('workerNotificationsUpdated'));
       }
 
       window.dispatchEvent(new Event('vendorJobsUpdated'));

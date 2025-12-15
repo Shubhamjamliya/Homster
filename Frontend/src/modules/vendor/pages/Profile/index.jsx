@@ -26,7 +26,8 @@ const Profile = () => {
     rating: 4.8,
     totalJobs: 0,
     completionRate: 0,
-    serviceCategories: ['AC Service', 'Plumbing', 'Electrician', 'Cleaning'],
+    serviceCategory: 'Electrician',
+    skills: ['Fan Repair', 'AC', 'Lightings'],
   });
 
   useLayoutEffect(() => {

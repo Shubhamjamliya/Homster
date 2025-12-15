@@ -1,0 +1,40 @@
+import React, { useEffect, useState, cloneElement } from 'react';
+import { useLocation } from 'react-router-dom';
+
+const PageTransition = ({ children }) => {
+  const location = useLocation();
+  const [displayLocation, setDisplayLocation] = useState(location);
+  const [transitionStage, setTransitionStage] = useState('entering');
+
+  useEffect(() => {
+    if (location.pathname !== displayLocation.pathname) {
+      setTransitionStage('exiting');
+    }
+  }, [location.pathname, displayLocation.pathname]);
+
+  useEffect(() => {
+    if (transitionStage === 'exiting') {
+      setDisplayLocation(location);
+      setTransitionStage('entering');
+    }
+  }, [transitionStage, location]);
+
+  return (
+    <div
+      className={`min-h-screen ${transitionStage === 'entering'
+          ? 'animate-page-enter'
+          : 'animate-page-exit'
+        }`}
+      style={{
+        animationFillMode: 'both',
+        position: 'relative',
+        isolation: 'isolate',
+      }}
+    >
+      {cloneElement(children, { location: displayLocation })}
+    </div>
+  );
+};
+
+export default PageTransition;
+

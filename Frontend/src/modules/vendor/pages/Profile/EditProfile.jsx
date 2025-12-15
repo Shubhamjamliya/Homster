@@ -22,25 +22,52 @@ const EditProfile = () => {
     phone: '',
     email: '',
     address: '',
-    serviceCategories: [],
+    serviceCategory: '',
+    skills: [],
   });
 
-  // Available service categories
-  const availableCategories = [
-    'AC Service',
-    'Plumbing',
-    'Electrician',
-    'Cleaning',
-    'Carpentry',
-    'Painting',
-    'Appliance Repair',
-    'Salon Services',
-    'Massage',
-    'Bathroom Cleaning',
-    'Kitchen Cleaning',
-    'Sofa Cleaning',
-    'Carpet Cleaning',
-  ];
+  // Load service categories from admin config (dynamic)
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [skillsByCategory, setSkillsByCategory] = useState({});
+
+  useEffect(() => {
+    const loadServiceCategories = () => {
+      try {
+        const categories = JSON.parse(localStorage.getItem('serviceCategories') || '[]');
+        const serviceConfig = JSON.parse(localStorage.getItem('adminServiceConfig') || '{}');
+        
+        // If single service mode, show only first category
+        if (serviceConfig.mode === 'single' && categories.length > 0) {
+          setAvailableCategories([categories[0].name]);
+        } else {
+          setAvailableCategories(categories.map(cat => cat.name));
+        }
+
+        // Build skills mapping from categories
+        const skillsMap = {};
+        categories.forEach(cat => {
+          skillsMap[cat.name] = cat.skills || [];
+        });
+        setSkillsByCategory(skillsMap);
+      } catch (error) {
+        console.error('Error loading service categories:', error);
+        // Fallback to default
+        setAvailableCategories(['Electrician', 'Plumber', 'Salon']);
+        setSkillsByCategory({
+          'Electrician': ['Fan Repair', 'AC', 'Lightings'],
+          'Plumber': ['Tap Repair', 'Pipe Installation'],
+          'Salon': ['Haircut', 'Hair Color'],
+        });
+      }
+    };
+
+    loadServiceCategories();
+    window.addEventListener('serviceCategoriesUpdated', loadServiceCategories);
+    
+    return () => {
+      window.removeEventListener('serviceCategoriesUpdated', loadServiceCategories);
+    };
+  }, []);
 
   const [errors, setErrors] = useState({});
 
@@ -72,7 +99,8 @@ const EditProfile = () => {
             phone: vendorProfile.phone || '',
             email: vendorProfile.email || '',
             address: vendorProfile.address || '',
-            serviceCategories: vendorProfile.serviceCategories || [],
+            serviceCategory: vendorProfile.serviceCategory || '',
+            skills: vendorProfile.skills || [],
           });
         } else {
           // Set default values if no profile exists
@@ -82,7 +110,8 @@ const EditProfile = () => {
             phone: '+91 9876543210',
             email: 'vendor@example.com',
             address: 'Indore, Madhya Pradesh',
-            serviceCategories: [],
+            serviceCategory: '',
+            skills: [],
           });
         }
       } catch (error) {
@@ -107,18 +136,26 @@ const EditProfile = () => {
     }
   };
 
-  const handleCategoryToggle = (category) => {
+  const handleCategoryChange = (category) => {
+    setFormData(prev => ({
+      ...prev,
+      serviceCategory: category,
+      skills: [], // Reset skills when category changes
+    }));
+  };
+
+  const handleSkillToggle = (skill) => {
     setFormData(prev => {
-      const currentCategories = prev.serviceCategories || [];
-      if (currentCategories.includes(category)) {
+      const currentSkills = prev.skills || [];
+      if (currentSkills.includes(skill)) {
         return {
           ...prev,
-          serviceCategories: currentCategories.filter(cat => cat !== category),
+          skills: currentSkills.filter(s => s !== skill),
         };
       } else {
         return {
           ...prev,
-          serviceCategories: [...currentCategories, category],
+          skills: [...currentSkills, skill],
         };
       }
     });
@@ -149,6 +186,14 @@ const EditProfile = () => {
     
     if (!formData.address.trim()) {
       newErrors.address = 'Address is required';
+    }
+    
+    if (!formData.serviceCategory.trim()) {
+      newErrors.serviceCategory = 'Service category is required';
+    }
+    
+    if (!formData.skills || formData.skills.length === 0) {
+      newErrors.skills = 'At least one skill is required';
     }
     
     setErrors(newErrors);
@@ -315,7 +360,7 @@ const EditProfile = () => {
             {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
           </div>
 
-          {/* Service Categories */}
+          {/* Service Category */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <div
@@ -326,16 +371,16 @@ const EditProfile = () => {
               >
                 <FiTag className="w-4 h-4" style={{ color: themeColors.icon }} />
               </div>
-              <span>Service Categories</span>
+              <span>Service Category <span className="text-red-500">*</span></span>
             </label>
             <div className="flex flex-wrap gap-2">
               {availableCategories.map((category) => {
-                const isSelected = formData.serviceCategories.includes(category);
+                const isSelected = formData.serviceCategory === category;
                 return (
                   <button
                     key={category}
                     type="button"
-                    onClick={() => handleCategoryToggle(category)}
+                    onClick={() => handleCategoryChange(category)}
                     className="px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-95"
                     style={{
                       background: isSelected
@@ -353,10 +398,55 @@ const EditProfile = () => {
                 );
               })}
             </div>
-            {formData.serviceCategories.length === 0 && (
-              <p className="text-gray-500 text-xs mt-2">Select at least one service category</p>
+            {!formData.serviceCategory && (
+              <p className="text-gray-500 text-xs mt-2">Select a service category</p>
             )}
           </div>
+
+          {/* Skills */}
+          {formData.serviceCategory && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <div
+                  className="p-2 rounded-lg"
+                  style={{
+                    background: `linear-gradient(135deg, ${themeColors.button}25 0%, ${themeColors.button}15 100%)`,
+                  }}
+                >
+                  <FiTag className="w-4 h-4" style={{ color: themeColors.button }} />
+                </div>
+                <span>Skills <span className="text-red-500">*</span></span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {(skillsByCategory[formData.serviceCategory] || []).map((skill) => {
+                  const isSelected = formData.skills.includes(skill);
+                  return (
+                    <button
+                      key={skill}
+                      type="button"
+                      onClick={() => handleSkillToggle(skill)}
+                      className="px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-95"
+                      style={{
+                        background: isSelected
+                          ? `linear-gradient(135deg, ${themeColors.button} 0%, ${themeColors.button}dd 100%)`
+                          : `linear-gradient(135deg, ${themeColors.button}20 0%, ${themeColors.button}10 100%)`,
+                        color: isSelected ? '#FFFFFF' : themeColors.button,
+                        border: `1.5px solid ${isSelected ? themeColors.button : `${themeColors.button}40`}`,
+                        boxShadow: isSelected
+                          ? `0 2px 8px ${hexToRgba(themeColors.button, 0.3)}`
+                          : `0 2px 6px ${hexToRgba(themeColors.button, 0.15)}`,
+                      }}
+                    >
+                      {skill}
+                    </button>
+                  );
+                })}
+              </div>
+              {formData.skills.length === 0 && (
+                <p className="text-gray-500 text-xs mt-2">Select at least one skill</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
