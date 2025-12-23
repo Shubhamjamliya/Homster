@@ -1,7 +1,7 @@
-// Searching...
+const Worker = require('../../models/Worker');
 const { createOTPToken, verifyOTPToken, markTokenAsUsed } = require('../../services/otpService');
 const { generateTokenPair, verifyRefreshToken } = require('../../utils/tokenService');
-const { TOKEN_TYPES, USER_ROLES } = require('../../utils/constants');
+const { TOKEN_TYPES, USER_ROLES, WORKER_STATUS } = require('../../utils/constants');
 const { validationResult } = require('express-validator');
 
 /**
@@ -30,8 +30,6 @@ const sendOTP = async (req, res) => {
       expiryMinutes: 10
     });
 
-    console.log('Worker sendOTP - Created token:', token, 'for phone:', phone);
-
     if (process.env.NODE_ENV === 'development' || process.env.USE_DEFAULT_OTP === 'true') {
       console.log(`[DEV MODE] Default OTP for worker ${phone}: ${otp}`);
     } else {
@@ -48,98 +46,6 @@ const sendOTP = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to send OTP. Please try again.'
-    });
-  }
-};
-
-/**
- * Register worker with OTP and Aadhar
- */
-const register = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
-    const { name, email, phone, aadhar, otp, token } = req.body;
-
-    console.log('Worker register request:', { name, email, phone, aadhar, otp, token });
-
-    // Verify OTP
-    const verification = await verifyOTPToken({ phone, otp, type: TOKEN_TYPES.PHONE_VERIFICATION });
-    if (!verification.success) {
-      console.log('OTP verification failed:', verification.message);
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
-    }
-
-    console.log('OTP verification successful. Token from DB:', verification.tokenDoc.token, 'Token from request:', token);
-
-    if (verification.tokenDoc.token !== token) {
-      console.log('Token mismatch! DB token:', verification.tokenDoc.token, 'Request token:', token);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid verification token'
-      });
-    }
-
-    // Check if worker already exists
-    const existingWorker = await Worker.findOne({ $or: [{ phone }, { email }] });
-    if (existingWorker) {
-      return res.status(400).json({
-        success: false,
-        message: 'Worker already exists. Please login.'
-      });
-    }
-
-    // Upload Aadhar document (assuming base64 or URL)
-    const aadharDoc = req.body.aadharDocument || null;
-    // TODO: Upload to local storage if it's a file
-
-    // Create worker
-    const worker = await Worker.create({
-      name,
-      email,
-      phone,
-      aadhar: {
-        number: aadhar,
-        document: aadharDoc // In production, use uploaded URL
-      },
-      isPhoneVerified: true
-    });
-
-    // Mark token as used
-    await markTokenAsUsed(verification.tokenDoc._id);
-
-    // Generate JWT tokens
-    const tokens = generateTokenPair({
-      userId: worker._id,
-      role: USER_ROLES.WORKER
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Registration successful',
-      worker: {
-        id: worker._id,
-        name: worker.name,
-        email: worker.email,
-        phone: worker.phone
-      },
-      ...tokens
-    });
-  } catch (error) {
-    console.error('Worker registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Registration failed. Please try again.'
     });
   }
 };
@@ -181,7 +87,7 @@ const login = async (req, res) => {
     if (!worker) {
       return res.status(404).json({
         success: false,
-        message: 'Worker not found. Please sign up first.'
+        message: 'Worker not found. Please contact your vendor or register first.'
       });
     }
 
@@ -208,7 +114,9 @@ const login = async (req, res) => {
         id: worker._id,
         name: worker.name,
         email: worker.email,
-        phone: worker.phone
+        phone: worker.phone,
+        status: worker.status,
+        serviceCategory: worker.serviceCategory
       },
       ...tokens
     });
@@ -217,6 +125,92 @@ const login = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Login failed. Please try again.'
+    });
+  }
+};
+
+/**
+ * Register worker (if allowed directly)
+ */
+const register = async (req, res) => {
+  // Implementing same as vendor/user if needed, but usually workers are added by vendors
+  // For now, let's keep it consistent with the requirement
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { name, email, phone, otp, token, aadharNumber, aadharDocument } = req.body;
+
+    // Verify OTP
+    const verification = await verifyOTPToken({ phone, otp, type: TOKEN_TYPES.PHONE_VERIFICATION });
+    if (!verification.success) {
+      return res.status(400).json({
+        success: false,
+        message: verification.message
+      });
+    }
+
+    if (verification.tokenDoc.token !== token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification token'
+      });
+    }
+
+    // Check if worker already exists
+    const existingWorker = await Worker.findOne({ $or: [{ phone }, { email }] });
+    if (existingWorker) {
+      return res.status(400).json({
+        success: false,
+        message: 'Worker already exists. Please login.'
+      });
+    }
+
+    // Create worker
+    const worker = await Worker.create({
+      name,
+      email,
+      phone,
+      isPhoneVerified: true,
+      aadhar: {
+        number: aadharNumber,
+        document: aadharDocument
+      },
+      status: WORKER_STATUS.OFFLINE
+    });
+
+    // Mark token as used
+    await markTokenAsUsed(verification.tokenDoc._id);
+
+    // Generate JWT tokens
+    const tokens = generateTokenPair({
+      userId: worker._id,
+      role: USER_ROLES.WORKER
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      worker: {
+        id: worker._id,
+        name: worker.name,
+        email: worker.email,
+        phone: worker.phone,
+        status: worker.status
+      },
+      ...tokens
+    });
+  } catch (error) {
+    console.error('Worker registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Registration failed. Please try again.'
     });
   }
 };

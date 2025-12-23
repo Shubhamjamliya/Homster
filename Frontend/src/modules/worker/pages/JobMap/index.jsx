@@ -119,26 +119,36 @@ const JobMap = () => {
 
 
   // Calculate Route - Run ONCE
+  // Calculate Route & Adjust Bounds
   useEffect(() => {
-    if (isLoaded && currentLocation && coords && map && !directions) {
-      const directionsService = new window.google.maps.DirectionsService();
-      directionsService.route(
-        {
-          origin: currentLocation,
-          destination: coords,
-          travelMode: window.google.maps.TravelMode.DRIVING,
-        },
-        (result, status) => {
-          if (status === window.google.maps.DirectionsStatus.OK) {
-            setDirections(result);
-            const leg = result.routes[0].legs[0];
-            setDistance(leg.distance.text);
-            setDuration(leg.duration.text);
-            setRoutePath(result.routes[0].overview_path); // Set path for animation
-            map.fitBounds(result.routes[0].bounds);
+    if (isLoaded && currentLocation && coords && map) {
+      if (!directions) {
+        const directionsService = new window.google.maps.DirectionsService();
+        directionsService.route(
+          {
+            origin: currentLocation,
+            destination: coords,
+            travelMode: window.google.maps.TravelMode.DRIVING,
+          },
+          (result, status) => {
+            if (status === window.google.maps.DirectionsStatus.OK) {
+              setDirections(result);
+              const leg = result.routes[0].legs[0];
+              setDistance(leg.distance.text);
+              setDuration(leg.duration.text);
+              setRoutePath(result.routes[0].overview_path); // Set path for animation
+              map.fitBounds(result.routes[0].bounds);
+            }
           }
-        }
-      );
+        );
+      } else {
+        // Continuous Focus: Update bounds to include both worker and job destination
+        // Pure track focus
+        const bounds = new window.google.maps.LatLngBounds();
+        bounds.extend(currentLocation);
+        bounds.extend(coords);
+        map.fitBounds(bounds, { top: 100, bottom: 250, left: 50, right: 50 });
+      }
     }
   }, [isLoaded, coords, map, directions, currentLocation]);
 
@@ -159,13 +169,19 @@ const JobMap = () => {
       <div className="flex-1 w-full h-full">
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '100%' }}
-          center={currentLocation || coords || defaultCenter}
-          zoom={14}
+          defaultCenter={defaultCenter}
+          defaultZoom={14}
           onLoad={map => setMap(map)}
           options={{
             styles: mapStyles,
             disableDefaultUI: true,
             zoomControl: false,
+            // Rotational & Premium Map Features
+            tilt: 45,
+            heading: 0,
+            mapTypeId: 'roadmap',
+            gestureHandling: 'greedy',
+            rotateControl: true,
           }}
         >
           {directions && (

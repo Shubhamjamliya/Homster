@@ -5,7 +5,8 @@ const {
   sendOTP,
   register,
   login,
-  logout
+  logout,
+  refreshToken
 } = require('../../controllers/workerControllers/workerAuthController');
 const { authenticate } = require('../../middleware/authMiddleware');
 const { isWorker } = require('../../middleware/roleMiddleware');
@@ -18,9 +19,8 @@ const sendOTPValidation = [
 
 const registerValidation = [
   body('name').trim().notEmpty().withMessage('Name is required'),
-  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Please provide a valid email'),
   body('phone').trim().notEmpty().withMessage('Phone number is required').isLength({ min: 10, max: 10 }).withMessage('Phone number must be 10 digits'),
-  body('aadhar').trim().notEmpty().withMessage('Aadhar number is required').isLength({ min: 12, max: 12 }).withMessage('Aadhar number must be 12 digits'),
+  body('email').isEmail().withMessage('Please provide a valid email'),
   body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
   body('token').trim().notEmpty().withMessage('Verification token is required')
 ];
@@ -35,8 +35,7 @@ const loginValidation = [
 router.post('/send-otp', sendOTPValidation, sendOTP);
 router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
-router.post('/refresh-token', require('../../controllers/workerControllers/workerAuthController').refreshToken);
+router.post('/refresh-token', refreshToken);
 router.post('/logout', authenticate, isWorker, logout);
 
 module.exports = router;
-
