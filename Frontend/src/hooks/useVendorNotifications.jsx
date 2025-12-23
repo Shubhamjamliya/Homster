@@ -45,9 +45,9 @@ export const useVendorNotifications = (vendorId, onNewBooking) => {
     socket.on('new_booking_request', (data) => {
       console.log('🔔 New booking request received:', data);
 
-      // Play notification sound if enabled
+      // Play notification sound
       if (data.playSound && isSoundEnabled()) {
-        playNotificationSound();
+        playNotificationSound().catch(err => console.warn('Sound play failed:', err));
       }
 
       // Show toast notification

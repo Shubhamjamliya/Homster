@@ -54,10 +54,50 @@ const createNotificationSound = (type = 'chime') => {
 };
 
 // Play notification sound (Premium Chime)
-export const playNotificationSound = () => {
+// Play notification sound (Premium Alert)
+export const playNotificationSound = async () => {
   try {
     initAudio();
-    createNotificationSound('chime');
+
+    // Ensure AudioContext is running (fix for 'suspended' state restriction)
+    if (audioContext.state === 'suspended') {
+      try {
+        await audioContext.resume();
+      } catch (e) {
+        console.warn('Could not resume audio context:', e);
+      }
+    }
+
+    // Play a sequence of tones for a more distinct alert
+    const now = audioContext.currentTime;
+
+    // Main chime (Louder and Clearer C Major 7th)
+    const tones = [
+      { freq: 523.25, time: 0, dur: 0.8 },   // C5
+      { freq: 659.25, time: 0.1, dur: 0.8 }, // E5
+      { freq: 783.99, time: 0.2, dur: 0.8 }, // G5
+      { freq: 987.77, time: 0.3, dur: 1.0 }  // B5
+    ];
+
+    tones.forEach(({ freq, time, dur }) => {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + time);
+
+      // Increased Volume
+      gain.gain.setValueAtTime(0, now + time);
+      gain.gain.linearRampToValueAtTime(0.4, now + time + 0.05); // Faster attack, louder peak
+      gain.gain.exponentialRampToValueAtTime(0.01, now + time + dur);
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+
+      osc.start(now + time);
+      osc.stop(now + time + dur);
+    });
+
     return true;
   } catch (error) {
     console.error('Error playing notification sound:', error);

@@ -38,6 +38,8 @@ const Checkout = () => {
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('online'); // 'online' | 'pay_at_home'
 
+  const [loading, setLoading] = useState(true);
+
   // Check if Razorpay is loaded (defer to avoid blocking initial render)
   useEffect(() => {
     // Defer Razorpay check until after page load
@@ -73,6 +75,7 @@ const Checkout = () => {
   useEffect(() => {
     const loadCart = async () => {
       try {
+        setLoading(true);
         const response = await cartService.getCart();
         if (response.success) {
           let items = response.data || [];
@@ -86,6 +89,8 @@ const Checkout = () => {
         }
       } catch (error) {
         setCartItems([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -344,9 +349,13 @@ const Checkout = () => {
             if (verifyResponse.success) {
               toast.success('Payment successful!');
 
-              // Clear cart
+              // Clear cart (or just category items)
               try {
-                await cartService.clearCart();
+                if (category) {
+                  await cartService.removeCategoryItems(category);
+                } else {
+                  await cartService.clearCart();
+                }
                 setCartItems([]);
               } catch (error) {
               }
@@ -395,9 +404,13 @@ const Checkout = () => {
 
       if (response.success) {
         toast.success('Booking confirmed!');
-        // Clear cart
+        // Clear cart (or just category items)
         try {
-          await cartService.clearCart();
+          if (category) {
+            await cartService.removeCategoryItems(category);
+          } else {
+            await cartService.clearCart();
+          }
           setCartItems([]);
         } catch (error) {
         }
@@ -503,6 +516,17 @@ const Checkout = () => {
   const isTimeSelected = (time) => {
     return selectedTime === time;
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white pb-32 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4" style={{ borderColor: themeColors.button }}></div>
+          <p className="text-gray-500">Loading checkout details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (
