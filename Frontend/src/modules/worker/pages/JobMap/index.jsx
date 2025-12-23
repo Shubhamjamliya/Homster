@@ -62,16 +62,25 @@ const JobMap = () => {
         const response = await workerService.getJobById(id);
         if (response.success) {
           setJob(response.data);
-          // Geocode address
-          const geocoder = new window.google.maps.Geocoder();
+          // Use saved coordinates if available
           const address = response.data.address || {};
-          const fullAddress = `${address.addressLine1 || ''}, ${address.city || ''}, ${address.state || ''} ${address.pincode || ''}`;
 
-          geocoder.geocode({ address: fullAddress }, (results, status) => {
-            if (status === 'OK' && results[0]) {
-              setCoords(results[0].geometry.location.toJSON());
-            }
-          });
+          if (address.lat && address.lng) {
+            setCoords({
+              lat: parseFloat(address.lat),
+              lng: parseFloat(address.lng)
+            });
+          } else {
+            // Geocode address fallback
+            const geocoder = new window.google.maps.Geocoder();
+            const fullAddress = `${address.addressLine1 || ''}, ${address.city || ''}, ${address.state || ''} ${address.pincode || ''}`;
+
+            geocoder.geocode({ address: fullAddress }, (results, status) => {
+              if (status === 'OK' && results[0]) {
+                setCoords(results[0].geometry.location.toJSON());
+              }
+            });
+          }
         }
       } catch (error) {
         console.error('Error:', error);
@@ -153,6 +162,18 @@ const JobMap = () => {
     }
   }, [isLoaded, coords, map, directions, currentLocation, isAutoCenter]);
 
+  const [heading, setHeading] = useState(0);
+
+  // Calculate Heading (Orientation)
+  useEffect(() => {
+    if (isLoaded && currentLocation && coords && window.google) {
+      const start = new window.google.maps.LatLng(currentLocation);
+      const end = new window.google.maps.LatLng(coords);
+      const headingVal = window.google.maps.geometry.spherical.computeHeading(start, end);
+      setHeading(headingVal);
+    }
+  }, [isLoaded, currentLocation, coords]);
+
   if (!isLoaded || loading) return <div className="h-screen bg-gray-100 flex items-center justify-center"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
   return (
@@ -232,7 +253,10 @@ const JobMap = () => {
                 }}
               >
                 {/* Icon Container - No background/border */}
-                <div className="relative z-20 w-16 h-16">
+                <div
+                  className="relative z-20 w-16 h-16 transition-transform duration-500 ease-in-out"
+                  style={{ transform: `rotate(${heading}deg)` }}
+                >
                   <img
                     src="/rider.png"
                     alt="Rider"

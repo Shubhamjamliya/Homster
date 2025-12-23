@@ -62,19 +62,28 @@ const BookingMap = () => {
         const data = response.data || response;
         setBooking(data);
 
-        // Geocode address
-        const geocoder = new window.google.maps.Geocoder();
+        // Use saved coordinates if available
         const addressData = data.address || data.location || {};
-        const fullAddress = addressData.addressLine1
-          ? `${addressData.addressLine1}, ${addressData.city || ''}, ${addressData.state || ''}`
-          : addressData.address || '';
 
-        if (fullAddress) {
-          geocoder.geocode({ address: fullAddress }, (results, status) => {
-            if (status === 'OK' && results[0]) {
-              setCoords(results[0].geometry.location.toJSON());
-            }
+        if (addressData.lat && addressData.lng) {
+          setCoords({
+            lat: parseFloat(addressData.lat),
+            lng: parseFloat(addressData.lng)
           });
+        } else {
+          // Fallback to Geocoding
+          const geocoder = new window.google.maps.Geocoder();
+          const fullAddress = addressData.addressLine1
+            ? `${addressData.addressLine1}, ${addressData.city || ''}, ${addressData.state || ''} ${addressData.pincode || ''}`
+            : addressData.address || '';
+
+          if (fullAddress) {
+            geocoder.geocode({ address: fullAddress }, (results, status) => {
+              if (status === 'OK' && results[0]) {
+                setCoords(results[0].geometry.location.toJSON());
+              }
+            });
+          }
         }
 
       } catch (error) {
@@ -143,7 +152,7 @@ const BookingMap = () => {
               const leg = result.routes[0].legs[0];
               setDistance(leg.distance.text);
               setDuration(leg.duration.text);
-              setRoutePath(result.routes[0].overview_path);
+              setRoutePath(result.routes[0].overview_path); // Set path for animation
               map.fitBounds(result.routes[0].bounds);
             }
           }
@@ -158,6 +167,18 @@ const BookingMap = () => {
       }
     }
   }, [isLoaded, coords, map, directions, currentLocation, isAutoCenter]);
+
+  const [heading, setHeading] = useState(0);
+
+  // Calculate Heading (Orientation)
+  useEffect(() => {
+    if (isLoaded && currentLocation && coords && window.google) {
+      const start = new window.google.maps.LatLng(currentLocation);
+      const end = new window.google.maps.LatLng(coords);
+      const headingVal = window.google.maps.geometry.spherical.computeHeading(start, end);
+      setHeading(headingVal);
+    }
+  }, [isLoaded, currentLocation, coords]);
 
   if (!isLoaded || loading) return <div className="h-screen bg-gray-100 flex items-center justify-center"><div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
@@ -193,24 +214,18 @@ const BookingMap = () => {
           }}
         >
           {directions && (
-            <>
-              <DirectionsRenderer
-                directions={directions}
-                options={{
-                  suppressMarkers: true,
-                  suppressPolylines: true
-                }}
-              />
-              <PolylineF
-                path={routePath}
-                options={{
-                  strokeColor: "#0F766E",
+            <DirectionsRenderer
+              directions={directions}
+              options={{
+                suppressMarkers: true,
+                polylineOptions: {
+                  strokeColor: "#0F766E", // Dark Teal
                   strokeWeight: 8,
                   strokeOpacity: 1,
                   zIndex: 50
-                }}
-              />
-            </>
+                }
+              }}
+            />
           )}
 
           {/* Destination Marker - Premium Pin */}
@@ -244,7 +259,10 @@ const BookingMap = () => {
                 }}
               >
                 {/* Icon Container - No background/border */}
-                <div className="relative z-20 w-16 h-16">
+                <div
+                  className="relative z-20 w-16 h-16 transition-transform duration-500 ease-in-out"
+                  style={{ transform: `rotate(${heading}deg)` }}
+                >
                   <img
                     src="/rider.png"
                     alt="Rider"

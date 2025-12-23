@@ -89,34 +89,44 @@ const BookingTrack = () => {
           if (isFirstLoad) {
             const geocoder = new window.google.maps.Geocoder();
 
-            // 1. Geocode User/Destination Address
+            // 1. Geocode User/Destination Address (Prioritize Saved Coords)
             const addr = response.data.address || {};
-            const addressStr = typeof addr === 'string' ? addr : `${addr.addressLine1 || ''}, ${addr.city || ''}, ${addr.state || ''}`;
 
-            if (addressStr.replaceAll(',', '').trim()) {
-              geocoder.geocode({ address: addressStr }, (results, status) => {
-                if (status === 'OK' && results[0]) {
-                  setCoords(results[0].geometry.location.toJSON());
-                }
-              });
+            if (addr.lat && addr.lng) {
+              setCoords({ lat: parseFloat(addr.lat), lng: parseFloat(addr.lng) });
+            } else {
+              const addressStr = typeof addr === 'string' ? addr : `${addr.addressLine1 || ''}, ${addr.city || ''}, ${addr.state || ''} ${addr.pincode || ''}`;
+              if (addressStr.replaceAll(',', '').trim()) {
+                geocoder.geocode({ address: addressStr }, (results, status) => {
+                  if (status === 'OK' && results[0]) {
+                    setCoords(results[0].geometry.location.toJSON());
+                  }
+                });
+              }
             }
 
             // 2. Geocode Worker/Vendor for Initial "Current Location" (Start Point)
-            // Use assignedTo (Worker) or vendorId (Vendor) address
-            const provider = response.data.assignedTo || response.data.vendorId;
-            // Only set if we don't have a live location yet
-            if (provider) {
-              const pAddr = provider.address || {};
-              const providerAddressStr = typeof pAddr === 'string' ? pAddr : `${pAddr.addressLine1 || ''}, ${pAddr.city || ''}, ${pAddr.state || ''}`;
+            // Use workerId (Worker) or vendorId (Vendor)
+            // Workers usually have 'location', Vendors have 'address' populated
+            const provider = response.data.workerId || response.data.vendorId;
 
-              if (providerAddressStr.replaceAll(',', '').trim()) {
-                geocoder.geocode({ address: providerAddressStr }, (results, status) => {
-                  if (status === 'OK' && results[0]) {
-                    const startLoc = results[0].geometry.location.toJSON();
-                    // Only update if still null (socket might have fired already)
-                    setCurrentLocation(prev => prev || startLoc);
-                  }
-                });
+            if (provider) {
+              const pAddr = provider.location || provider.address || {};
+
+              if (pAddr.lat && pAddr.lng) {
+                const startLoc = { lat: parseFloat(pAddr.lat), lng: parseFloat(pAddr.lng) };
+                setCurrentLocation(prev => prev || startLoc);
+              } else {
+                const providerAddressStr = typeof pAddr === 'string' ? pAddr : `${pAddr.addressLine1 || ''}, ${pAddr.city || ''}, ${pAddr.state || ''} ${pAddr.pincode || ''}`;
+                if (providerAddressStr.replaceAll(',', '').trim()) {
+                  geocoder.geocode({ address: providerAddressStr }, (results, status) => {
+                    if (status === 'OK' && results[0]) {
+                      const startLoc = results[0].geometry.location.toJSON();
+                      // Only update if still null (socket might have fired already)
+                      setCurrentLocation(prev => prev || startLoc);
+                    }
+                  });
+                }
               }
             }
           }
@@ -134,6 +144,18 @@ const BookingTrack = () => {
 
     return () => clearInterval(intervalId);
   }, [id, isLoaded]);
+
+  const [heading, setHeading] = useState(0);
+
+  // Calculate Heading
+  useEffect(() => {
+    if (isLoaded && currentLocation && coords && window.google) {
+      const start = new window.google.maps.LatLng(currentLocation);
+      const end = new window.google.maps.LatLng(coords);
+      const headingVal = window.google.maps.geometry.spherical.computeHeading(start, end);
+      setHeading(headingVal);
+    }
+  }, [isLoaded, currentLocation, coords]);
 
   // Simulate Rider Location (Since we don't have real rider GPS stream yet for User App)
   // Ideally this would come from a websocket or Firebase subscription
@@ -273,7 +295,10 @@ const BookingTrack = () => {
                 }}
               >
                 {/* Icon Container - No background/border */}
-                <div className="relative z-20 w-16 h-16">
+                <div
+                  className="relative z-20 w-16 h-16 transition-transform duration-500 ease-in-out"
+                  style={{ transform: `rotate(${heading}deg)` }}
+                >
                   <img
                     src="/rider.png"
                     alt="Rider"
