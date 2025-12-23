@@ -1,595 +1,421 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSave, FiUser, FiPhone, FiMail, FiMapPin, FiTag } from 'react-icons/fi';
-import { workerTheme as themeColors } from '../../../../theme';
+import {
+  FiSave, FiUser, FiPhone, FiMail,
+  FiMapPin, FiBriefcase, FiCamera, FiCheck,
+  FiChevronDown, FiX
+} from 'react-icons/fi';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
+import workerService from '../../../../services/workerService';
+import { publicCatalogService } from '../../../../services/catalogService';
+import { toast } from 'react-hot-toast';
 
 const EditProfile = () => {
   const navigate = useNavigate();
-
-  // Helper function to convert hex to rgba
-  const hexToRgba = (hex, alpha) => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isServicesOpen, setIsServicesOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
-    address: '',
+    address: {
+      addressLine1: '',
+      city: '',
+      state: '',
+      pincode: '',
+    },
     serviceCategory: '',
     skills: [],
+    profilePhoto: null,
+    status: 'OFFLINE'
   });
-
-  // Load service categories from admin config (dynamic)
-  // Initialize with fallback categories so they're always available
-  const [availableCategories, setAvailableCategories] = useState(['Electrician', 'Plumber', 'Salon', 'Carpenter', 'Cleaning']);
-  const [skillsByCategory, setSkillsByCategory] = useState({
-    'Electrician': ['Fan Repair', 'AC', 'Lightings', 'Wiring', 'Switch Repair'],
-    'Plumber': ['Tap Repair', 'Pipe Installation', 'Geyser Repair', 'Bathroom Fitting'],
-    'Salon': ['Haircut', 'Hair Color', 'Hair Spa', 'Facial'],
-    'Carpenter': ['Furniture Repair', 'Door Installation', 'Cabinet Making'],
-    'Cleaning': ['House Cleaning', 'Bathroom Cleaning', 'Kitchen Cleaning'],
-  });
-
-  useEffect(() => {
-    const loadServiceCategories = () => {
-      try {
-        // Try loading from serviceCategories (old format)
-        let categories = JSON.parse(localStorage.getItem('serviceCategories') || '[]');
-        const serviceConfig = JSON.parse(localStorage.getItem('adminServiceConfig') || '{}');
-
-        // If no categories in old format, try loading from new adminUserAppCatalog
-        if (!categories || categories.length === 0) {
-          try {
-            const userAppCatalog = JSON.parse(localStorage.getItem('adminUserAppCatalog') || '{}');
-            if (userAppCatalog.categories && Array.isArray(userAppCatalog.categories) && userAppCatalog.categories.length > 0) {
-              // Convert new format to old format for compatibility
-              categories = userAppCatalog.categories.map(cat => ({
-                name: cat.title || cat.name || '',
-                skills: [] // Skills are managed differently in new format
-              }));
-            }
-          } catch (e) {
-            console.log('Could not load from adminUserAppCatalog:', e);
-          }
-        }
-
-        console.log('Loaded categories:', categories);
-        console.log('Service config:', serviceConfig);
-
-        // Always show fallback categories if nothing is found
-        if (!categories || categories.length === 0) {
-          console.warn('No categories found, using fallback');
-          const fallbackCategories = ['Electrician', 'Plumber', 'Salon', 'Carpenter', 'Cleaning'];
-          setAvailableCategories(fallbackCategories);
-          setSkillsByCategory({
-            'Electrician': ['Fan Repair', 'AC', 'Lightings', 'Wiring', 'Switch Repair'],
-            'Plumber': ['Tap Repair', 'Pipe Installation', 'Geyser Repair', 'Bathroom Fitting'],
-            'Salon': ['Haircut', 'Hair Color', 'Hair Spa', 'Facial'],
-            'Carpenter': ['Furniture Repair', 'Door Installation', 'Cabinet Making'],
-            'Cleaning': ['House Cleaning', 'Bathroom Cleaning', 'Kitchen Cleaning'],
-          });
-          return;
-        }
-
-        // Filter out categories without names
-        const validCategories = categories.filter(cat => cat && (cat.name || cat.title));
-
-        if (validCategories.length === 0) {
-          // Use fallback if all categories are invalid
-          const fallbackCategories = ['Electrician', 'Plumber', 'Salon', 'Carpenter', 'Cleaning'];
-          setAvailableCategories(fallbackCategories);
-          setSkillsByCategory({
-            'Electrician': ['Fan Repair', 'AC', 'Lightings', 'Wiring', 'Switch Repair'],
-            'Plumber': ['Tap Repair', 'Pipe Installation', 'Geyser Repair', 'Bathroom Fitting'],
-            'Salon': ['Haircut', 'Hair Color', 'Hair Spa', 'Facial'],
-            'Carpenter': ['Furniture Repair', 'Door Installation', 'Cabinet Making'],
-            'Cleaning': ['House Cleaning', 'Bathroom Cleaning', 'Kitchen Cleaning'],
-          });
-          return;
-        }
-
-        // If single service mode, show only first category
-        if (serviceConfig.mode === 'single' && validCategories.length > 0) {
-          const firstCat = validCategories[0];
-          setAvailableCategories([firstCat.name || firstCat.title]);
-        } else {
-          setAvailableCategories(validCategories.map(cat => cat.name || cat.title));
-        }
-
-        // Build skills mapping from categories
-        const skillsMap = {};
-        validCategories.forEach(cat => {
-          const catName = cat.name || cat.title || '';
-          // Handle both string arrays and object arrays
-          const skills = (cat.skills || []).map(skill => {
-            return typeof skill === 'string' ? skill : skill.name || skill;
-          });
-          // If no skills in category, add some default ones
-          if (skills.length === 0) {
-            skillsMap[catName] = ['General Service', 'Repair', 'Installation', 'Maintenance'];
-          } else {
-            skillsMap[catName] = skills;
-          }
-        });
-
-        console.log('Skills map:', skillsMap);
-        setSkillsByCategory(skillsMap);
-      } catch (error) {
-        console.error('Error loading service categories:', error);
-        // Fallback to default
-        const fallbackCategories = ['Electrician', 'Plumber', 'Salon', 'Carpenter', 'Cleaning'];
-        setAvailableCategories(fallbackCategories);
-        setSkillsByCategory({
-          'Electrician': ['Fan Repair', 'AC', 'Lightings', 'Wiring', 'Switch Repair'],
-          'Plumber': ['Tap Repair', 'Pipe Installation', 'Geyser Repair', 'Bathroom Fitting'],
-          'Salon': ['Haircut', 'Hair Color', 'Hair Spa', 'Facial'],
-          'Carpenter': ['Furniture Repair', 'Door Installation', 'Cabinet Making'],
-          'Cleaning': ['House Cleaning', 'Bathroom Cleaning', 'Kitchen Cleaning'],
-        });
-      }
-    };
-
-    loadServiceCategories();
-    window.addEventListener('serviceCategoriesUpdated', loadServiceCategories);
-    window.addEventListener('adminUserAppCatalogUpdated', loadServiceCategories);
-
-    return () => {
-      window.removeEventListener('serviceCategoriesUpdated', loadServiceCategories);
-      window.removeEventListener('adminUserAppCatalogUpdated', loadServiceCategories);
-    };
-  }, []);
 
   const [errors, setErrors] = useState({});
 
-  useLayoutEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const root = document.getElementById('root');
-    const bgStyle = themeColors.backgroundGradient;
-
-    if (html) html.style.background = bgStyle;
-    if (body) body.style.background = bgStyle;
-    if (root) root.style.background = bgStyle;
-
-    return () => {
-      if (html) html.style.background = '';
-      if (body) body.style.background = '';
-      if (root) root.style.background = '';
-    };
-  }, []);
-
   useEffect(() => {
-    const loadProfile = () => {
+    const initData = async () => {
       try {
-        const workerProfile = JSON.parse(localStorage.getItem('workerProfile') || '{}');
-        if (Object.keys(workerProfile).length > 0) {
-          // Use actual saved values - don't override with defaults if values exist (even if empty)
-          const category = workerProfile.serviceCategory ?? workerProfile.category ?? '';
-          const skills = workerProfile.skills ?? [];
+        setLoading(true);
+        const [profileRes, catalogRes] = await Promise.all([
+          workerService.getProfile(),
+          publicCatalogService.getCategories()
+        ]);
 
-          console.log('EditProfile - Loading profile:', workerProfile);
-          console.log('EditProfile - Category:', category, 'Skills:', skills);
-
+        if (profileRes.success) {
+          const w = profileRes.worker;
           setFormData({
-            name: workerProfile.name ?? 'Worker Name',
-            phone: workerProfile.phone ?? '+91 9876543210',
-            email: workerProfile.email ?? 'worker@example.com',
-            address: workerProfile.address ?? 'Indore, Madhya Pradesh',
-            serviceCategory: category,
-            skills: Array.isArray(skills) ? skills : [],
-          });
-        } else {
-          // Set default values if no profile exists (same as Profile page)
-          setFormData({
-            name: 'Worker Name',
-            phone: '+91 9876543210',
-            email: 'worker@example.com',
-            address: 'Indore, Madhya Pradesh',
-            serviceCategory: '',
-            skills: [],
+            name: w.name || '',
+            phone: w.phone || '',
+            email: w.email || '',
+            address: {
+              addressLine1: w.address?.addressLine1 || '',
+              city: w.address?.city || '',
+              state: w.address?.state || '',
+              pincode: w.address?.pincode || '',
+            },
+            serviceCategory: w.serviceCategory || '',
+            skills: w.skills || [],
+            profilePhoto: w.profilePhoto || null,
+            status: w.status || 'OFFLINE'
           });
         }
+
+        if (catalogRes.success) {
+          setCategories(catalogRes.categories || []);
+        }
       } catch (error) {
-        console.error('Error loading profile:', error);
-        // Set defaults on error too
-        setFormData({
-          name: 'Worker Name',
-          phone: '+91 9876543210',
-          email: 'worker@example.com',
-          address: 'Indore, Madhya Pradesh',
-          serviceCategory: '',
-          skills: [],
-        });
+        console.error('Init error:', error);
+        toast.error('Failed to load data');
+      } finally {
+        setLoading(false);
       }
     };
-
-    loadProfile();
-    window.addEventListener('workerProfileUpdated', loadProfile);
-
-    return () => {
-      window.removeEventListener('workerProfileUpdated', loadProfile);
-    };
+    initData();
   }, []);
 
   const handleInputChange = (field, value) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: { ...prev[parent], [child]: value }
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
+  };
+
+  const handleCategoryChange = (val) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value,
+      serviceCategory: val,
+      skills: [] // Reset skills on category change
     }));
-    // Clear error for this field
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: null,
-      }));
-    }
   };
 
-  const handleCategoryChange = (category) => {
-    console.log('Changing category to:', category);
+  const toggleSkill = (skill) => {
     setFormData(prev => {
-      const updated = {
-        ...prev,
-        serviceCategory: category,
-        skills: [], // Reset skills when category changes
-      };
-      console.log('Updated formData:', updated);
-      return updated;
-    });
-    // Clear error for this field
-    if (errors.serviceCategory) {
-      setErrors(prev => ({
-        ...prev,
-        serviceCategory: null,
-      }));
-    }
-  };
-
-  const handleSkillToggle = (skill) => {
-    setFormData(prev => {
-      const currentSkills = prev.skills || [];
-      if (currentSkills.includes(skill)) {
-        return {
-          ...prev,
-          skills: currentSkills.filter(s => s !== skill),
-        };
-      } else {
-        return {
-          ...prev,
-          skills: [...currentSkills, skill],
-        };
-      }
+      const skills = prev.skills.includes(skill)
+        ? prev.skills.filter(s => s !== skill)
+        : [...prev.skills, skill];
+      return { ...prev, skills };
     });
   };
 
   const validate = () => {
-    const newErrors = {};
+    const errs = {};
+    if (!formData.name.trim()) errs.name = 'Name is required';
+    if (!formData.serviceCategory) errs.serviceCategory = 'Category is required';
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    }
+    // Validate phone just in case, though it's read-only usually
+    // Validate email
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!/^\+?[0-9]{10,13}$/.test(formData.phone.replace(/[\s-]/g, ''))) {
-      newErrors.phone = 'Invalid phone number';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email address';
-    }
-
-    if (!formData.address.trim()) {
-      newErrors.address = 'Address is required';
-    }
-
-    if (!formData.serviceCategory.trim()) {
-      newErrors.serviceCategory = 'Service category is required';
-    }
-
-    if (!formData.skills || formData.skills.length === 0) {
-      newErrors.skills = 'At least one skill is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (!validate()) {
-      return;
-    }
-
+  const handleSubmit = async () => {
+    if (!validate()) return;
     try {
-      // Load existing profile to preserve stats (rating, totalJobs, completedJobs, photo)
-      const existingProfile = JSON.parse(localStorage.getItem('workerProfile') || '{}');
+      setSaving(true);
 
-      const updatedProfile = {
-        ...existingProfile,
-        // Update editable fields (use actual form values, even if empty)
-        name: formData.name.trim(),
-        phone: formData.phone.trim(),
-        email: formData.email.trim(),
-        address: formData.address.trim(),
-        serviceCategory: formData.serviceCategory.trim(),
+      // Prepare payload to match backend expectation
+      // Backend expects address object, skills array, etc.
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        serviceCategory: formData.serviceCategory,
         skills: formData.skills,
-        // Preserve stats and other fields
-        rating: existingProfile.rating ?? 4.7,
-        totalJobs: existingProfile.totalJobs ?? 0,
-        completedJobs: existingProfile.completedJobs ?? 0,
-        photo: existingProfile.photo ?? null,
-        updatedAt: new Date().toISOString(),
+        address: formData.address,
+        status: formData.status
       };
 
-      console.log('EditProfile - Saving profile:', updatedProfile);
-      localStorage.setItem('workerProfile', JSON.stringify(updatedProfile));
-      window.dispatchEvent(new Event('workerProfileUpdated'));
+      await workerService.updateProfile(payload);
+      toast.success('Profile updated successfully');
+
+      // Update local storage to keep session in sync if needed
+      const currentWorker = JSON.parse(localStorage.getItem('workerData') || '{}');
+      localStorage.setItem('workerData', JSON.stringify({
+        ...currentWorker,
+        name: payload.name,
+        email: payload.email,
+        serviceCategory: payload.serviceCategory,
+        skills: payload.skills,
+        address: payload.address,
+        status: payload.status
+      }));
+
       navigate('/worker/profile');
     } catch (error) {
-      console.error('Error saving profile:', error);
-      alert('Failed to save profile. Please try again.');
+      console.error('Update failed:', error);
+      toast.error(error.response?.data?.message || 'Update failed');
+    } finally {
+      setSaving(false);
     }
   };
 
+  // Find the selected category object to get its skills
+  const selectedCategoryObj = categories.find(c => c.title === formData.serviceCategory);
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm text-gray-500 font-medium">Loading...</p>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
+    <div className="min-h-screen bg-gray-50 pb-20">
       <Header title="Edit Profile" />
 
-      <main className="px-4 py-6">
-        <div className="space-y-6">
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <div
-                className="p-2 rounded-lg"
-                style={{
-                  background: `linear-gradient(135deg, ${themeColors.icon}25 0%, ${themeColors.icon}15 100%)`,
-                }}
-              >
-                <FiUser className="w-4 h-4" style={{ color: themeColors.icon }} />
-              </div>
-              <span>Name <span className="text-red-500">*</span></span>
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="Enter your name"
-              className={`w-full px-4 py-3 bg-white rounded-xl border focus:outline-none focus:ring-2 ${errors.name ? 'border-red-500' : 'border-gray-200'
-                }`}
-              style={{ focusRingColor: themeColors.button }}
-            />
-            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-          </div>
+      <main className="max-w-md mx-auto px-4 py-6 space-y-6">
 
-          {/* Phone */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <div
-                className="p-2 rounded-lg"
-                style={{
-                  background: `linear-gradient(135deg, ${themeColors.icon}25 0%, ${themeColors.icon}15 100%)`,
-                }}
-              >
-                <FiPhone className="w-4 h-4" style={{ color: themeColors.icon }} />
-              </div>
-              <span>Phone Number <span className="text-red-500">*</span></span>
-            </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              placeholder="Enter phone number"
-              className={`w-full px-4 py-3 bg-white rounded-xl border focus:outline-none focus:ring-2 ${errors.phone ? 'border-red-500' : 'border-gray-200'
-                }`}
-              style={{ focusRingColor: themeColors.button }}
-            />
-            {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <div
-                className="p-2 rounded-lg"
-                style={{
-                  background: `linear-gradient(135deg, ${themeColors.icon}25 0%, ${themeColors.icon}15 100%)`,
-                }}
-              >
-                <FiMail className="w-4 h-4" style={{ color: themeColors.icon }} />
-              </div>
-              <span>Email <span className="text-red-500">*</span></span>
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              placeholder="Enter email address"
-              className={`w-full px-4 py-3 bg-white rounded-xl border focus:outline-none focus:ring-2 ${errors.email ? 'border-red-500' : 'border-gray-200'
-                }`}
-              style={{ focusRingColor: themeColors.button }}
-            />
-            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
-          </div>
-
-          {/* Address */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <div
-                className="p-2 rounded-lg"
-                style={{
-                  background: `linear-gradient(135deg, ${themeColors.icon}25 0%, ${themeColors.icon}15 100%)`,
-                }}
-              >
-                <FiMapPin className="w-4 h-4" style={{ color: themeColors.icon }} />
-              </div>
-              <span>Address <span className="text-red-500">*</span></span>
-            </label>
-            <textarea
-              value={formData.address}
-              onChange={(e) => handleInputChange('address', e.target.value)}
-              placeholder="Enter your address"
-              rows={3}
-              className={`w-full px-4 py-3 bg-white rounded-xl border focus:outline-none focus:ring-2 resize-none ${errors.address ? 'border-red-500' : 'border-gray-200'
-                }`}
-              style={{ focusRingColor: themeColors.button }}
-            />
-            {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
-          </div>
-
-          {/* Service Category */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <div
-                className="p-2 rounded-lg"
-                style={{
-                  background: `linear-gradient(135deg, ${themeColors.icon}25 0%, ${themeColors.icon}15 100%)`,
-                }}
-              >
-                <FiTag className="w-4 h-4" style={{ color: themeColors.icon }} />
-              </div>
-              <span>Service Category <span className="text-red-500">*</span></span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {availableCategories.length === 0 ? (
-                <div className="w-full bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                  <p className="text-sm text-yellow-800">
-                    Loading categories... If this persists, please add categories in the admin panel.
-                  </p>
-                </div>
+        {/* Profile Photo */}
+        <div className="flex flex-col items-center">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-white border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
+              {formData.profilePhoto ? (
+                <img src={formData.profilePhoto} className="w-full h-full object-cover" alt="Profile" />
               ) : (
-                availableCategories.map((category) => {
-                  const isSelected = formData.serviceCategory === category;
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Category clicked:', category);
-                        handleCategoryChange(category);
-                      }}
-                      className="px-4 py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-95 cursor-pointer"
-                      style={{
-                        background: isSelected
-                          ? `linear-gradient(135deg, ${themeColors.icon} 0%, ${themeColors.icon}dd 100%)`
-                          : `linear-gradient(135deg, ${themeColors.icon}20 0%, ${themeColors.icon}10 100%)`,
-                        color: isSelected ? '#FFFFFF' : themeColors.icon,
-                        border: `1.5px solid ${isSelected ? themeColors.icon : `${themeColors.icon}40`}`,
-                        boxShadow: isSelected
-                          ? `0 2px 8px ${hexToRgba(themeColors.icon, 0.3)}`
-                          : `0 2px 6px ${hexToRgba(themeColors.icon, 0.15)}`,
-                        minWidth: '100px',
-                      }}
-                    >
-                      {category}
-                    </button>
-                  );
-                })
+                <div className="bg-gray-100 w-full h-full flex items-center justify-center">
+                  <FiUser className="w-10 h-10 text-gray-300" />
+                </div>
               )}
             </div>
-            {errors.serviceCategory && (
-              <p className="text-red-500 text-sm mt-1">{errors.serviceCategory}</p>
-            )}
-            {!formData.serviceCategory && !errors.serviceCategory && availableCategories.length > 0 && (
-              <p className="text-gray-500 text-xs mt-2">Select a service category</p>
-            )}
-            {formData.serviceCategory && (
-              <p className="text-green-600 text-xs mt-2">Selected: {formData.serviceCategory}</p>
-            )}
+            {/* Camera Icon - Visual only for now unless upload implemented */}
+            <div className="absolute bottom-0 right-0 p-2 bg-blue-600 rounded-full text-white ring-2 ring-white shadow-sm">
+              <FiCamera className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-2 font-medium">Tap to change photo</p>
+        </div>
+
+        {/* Availability Status */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 border border-gray-100">
+          <div className="flex items-center gap-2 mb-2">
+            <FiCheck className="text-blue-600" />
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Availability</h2>
           </div>
 
-          {/* Skills */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => handleInputChange('status', 'ONLINE')}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${formData.status === 'ONLINE'
+                ? 'bg-green-50 border-green-500 text-green-700'
+                : 'bg-white border-gray-200 text-gray-500'
+                }`}
+            >
+              Online
+            </button>
+            <button
+              onClick={() => handleInputChange('status', 'OFFLINE')}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${formData.status === 'OFFLINE'
+                ? 'bg-red-50 border-red-500 text-red-700'
+                : 'bg-white border-gray-200 text-gray-500'
+                }`}
+            >
+              Offline
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Set your status to receive new job assignments.
+          </p>
+        </div>
+
+        {/* Personal Details */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 border border-gray-100">
+          <div className="flex items-center gap-2 mb-2">
+            <FiUser className="text-blue-600" />
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Personal Details</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-500 mb-1 block ml-1">Full Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all ${errors.name ? 'border-red-500' : 'border-gray-200'}`}
+                placeholder="Enter name"
+              />
+              {errors.name && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.name}</p>}
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-500 mb-1 block ml-1">Email Address</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                placeholder="email@example.com"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-500 mb-1 block ml-1">Phone Number</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.phone}
+                  readOnly
+                  className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded">
+                  VERIFIED
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Work Category */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 border border-gray-100">
+          <div className="flex items-center gap-2 mb-2">
+            <FiBriefcase className="text-blue-600" />
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Work Profile</h2>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">Category</label>
+            <div className="relative">
+              <div
+                onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between cursor-pointer"
+              >
+                <span className={`font-medium ${formData.serviceCategory ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {formData.serviceCategory || 'Select a Category'}
+                </span>
+                <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
+              </div>
+
+              {isCategoryOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-60 overflow-y-auto">
+                  {categories.map((cat) => (
+                    <div
+                      key={cat._id}
+                      onClick={() => {
+                        handleCategoryChange(cat.title);
+                        setIsCategoryOpen(false);
+                      }}
+                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 font-medium text-gray-700"
+                    >
+                      {cat.title}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {errors.serviceCategory && <p className="text-red-500 text-[10px] mt-1">Required</p>}
+          </div>
+
           {formData.serviceCategory && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">Services (Skills)</label>
+
+              {/* Multi-select Dropdown for Services */}
+              <div className="relative mb-3">
                 <div
-                  className="p-2 rounded-lg"
-                  style={{
-                    background: `linear-gradient(135deg, ${themeColors.button}25 0%, ${themeColors.button}15 100%)`,
-                  }}
+                  onClick={() => setIsServicesOpen(!isServicesOpen)}
+                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between cursor-pointer"
                 >
-                  <FiTag className="w-4 h-4" style={{ color: themeColors.button }} />
+                  <span className="font-medium text-gray-400">
+                    Select Services...
+                  </span>
+                  <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isServicesOpen ? 'rotate-180' : ''}`} />
                 </div>
-                <span>Skills <span className="text-red-500">*</span></span>
-              </label>
-              {(!skillsByCategory[formData.serviceCategory] || skillsByCategory[formData.serviceCategory].length === 0) ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                  <p className="text-sm text-yellow-800">
-                    No skills available for this category. Please add skills in the admin panel.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    {(skillsByCategory[formData.serviceCategory] || []).map((skill) => {
-                      const isSelected = formData.skills.includes(skill);
-                      return (
-                        <button
-                          key={skill}
-                          type="button"
-                          onClick={() => handleSkillToggle(skill)}
-                          className="px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-95"
-                          style={{
-                            background: isSelected
-                              ? `linear-gradient(135deg, ${themeColors.button} 0%, ${themeColors.button}dd 100%)`
-                              : `linear-gradient(135deg, ${themeColors.button}20 0%, ${themeColors.button}10 100%)`,
-                            color: isSelected ? '#FFFFFF' : themeColors.button,
-                            border: `1.5px solid ${isSelected ? themeColors.button : `${themeColors.button}40`}`,
-                            boxShadow: isSelected
-                              ? `0 2px 8px ${hexToRgba(themeColors.button, 0.3)}`
-                              : `0 2px 6px ${hexToRgba(themeColors.button, 0.15)}`,
-                          }}
-                        >
-                          {skill}
-                        </button>
-                      );
-                    })}
+
+                {isServicesOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-60 overflow-y-auto">
+                    {selectedCategoryObj?.subServices && selectedCategoryObj.subServices.length > 0 ? (
+                      selectedCategoryObj.subServices.map((skill, idx) => {
+                        const skillName = typeof skill === 'string' ? skill : (skill.name || skill.title);
+                        const isSelected = formData.skills.includes(skillName);
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              toggleSkill(skillName);
+                              // Keep dropdown open for multiple selection
+                            }}
+                            className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 font-medium text-gray-700 flex items-center justify-between"
+                          >
+                            <span>{skillName}</span>
+                            {isSelected && <FiCheck className="w-5 h-5 text-blue-600" />}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="px-4 py-3 text-gray-400 text-sm italic">
+                        No services available for this category
+                      </div>
+                    )}
                   </div>
-                  {errors.skills && (
-                    <p className="text-red-500 text-sm mt-1">{errors.skills}</p>
-                  )}
-                  {formData.skills.length === 0 && !errors.skills && (
-                    <p className="text-gray-500 text-xs mt-2">Select at least one skill</p>
-                  )}
-                </>
-              )}
+                )}
+              </div>
+
+              {/* Selected Services Tags */}
+              <div className="flex flex-wrap gap-2">
+                {formData.skills.map((skill, idx) => (
+                  <div
+                    key={idx}
+                    className="pl-3 pr-2 py-1.5 rounded-full text-[11px] font-bold bg-blue-600 text-white flex items-center gap-1 shadow-sm"
+                  >
+                    {skill}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSkill(skill);
+                      }}
+                      className="p-0.5 hover:bg-white/20 rounded-full transition-colors"
+                    >
+                      <FiX className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {errors.skills && <p className="text-red-500 text-[10px] mt-1">Select at least one service</p>}
             </div>
           )}
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-8 flex gap-3">
+        <div className="pt-2 flex flex-col gap-3">
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm uppercase tracking-wider shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            {saving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <FiSave className="w-5 h-5" />
+                Save Profile
+              </>
+            )}
+          </button>
+
           <button
             onClick={() => navigate('/worker/profile')}
-            className="flex-1 py-4 rounded-xl font-semibold text-gray-700 bg-white border-2 border-gray-200 transition-all active:scale-95"
-            style={{
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            }}
+            className="w-full py-3.5 bg-white text-gray-500 border border-gray-200 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all"
           >
             Cancel
           </button>
-          <button
-            onClick={handleSubmit}
-            className="flex-1 py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95"
-            style={{
-              background: themeColors.button,
-              boxShadow: `0 4px 12px ${themeColors.button}40`,
-            }}
-          >
-            <FiSave className="w-5 h-5" />
-            Save Changes
-          </button>
         </div>
+
       </main>
 
       <BottomNav />
@@ -598,5 +424,3 @@ const EditProfile = () => {
 };
 
 export default EditProfile;
-
-

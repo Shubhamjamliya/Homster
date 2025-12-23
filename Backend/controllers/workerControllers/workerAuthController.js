@@ -1,6 +1,6 @@
-const Worker = require('../../models/Worker');
+// Searching...
 const { createOTPToken, verifyOTPToken, markTokenAsUsed } = require('../../services/otpService');
-const { generateTokenPair } = require('../../utils/tokenService');
+const { generateTokenPair, verifyRefreshToken } = require('../../utils/tokenService');
 const { TOKEN_TYPES, USER_ROLES } = require('../../utils/constants');
 const { validationResult } = require('express-validator');
 
@@ -29,6 +29,8 @@ const sendOTP = async (req, res) => {
       type: TOKEN_TYPES.PHONE_VERIFICATION,
       expiryMinutes: 10
     });
+
+    console.log('Worker sendOTP - Created token:', token, 'for phone:', phone);
 
     if (process.env.NODE_ENV === 'development' || process.env.USE_DEFAULT_OTP === 'true') {
       console.log(`[DEV MODE] Default OTP for worker ${phone}: ${otp}`);
@@ -66,16 +68,22 @@ const register = async (req, res) => {
 
     const { name, email, phone, aadhar, otp, token } = req.body;
 
+    console.log('Worker register request:', { name, email, phone, aadhar, otp, token });
+
     // Verify OTP
     const verification = await verifyOTPToken({ phone, otp, type: TOKEN_TYPES.PHONE_VERIFICATION });
     if (!verification.success) {
+      console.log('OTP verification failed:', verification.message);
       return res.status(400).json({
         success: false,
         message: verification.message
       });
     }
 
+    console.log('OTP verification successful. Token from DB:', verification.tokenDoc.token, 'Token from request:', token);
+
     if (verification.tokenDoc.token !== token) {
+      console.log('Token mismatch! DB token:', verification.tokenDoc.token, 'Request token:', token);
       return res.status(400).json({
         success: false,
         message: 'Invalid verification token'
@@ -93,7 +101,7 @@ const register = async (req, res) => {
 
     // Upload Aadhar document (assuming base64 or URL)
     const aadharDoc = req.body.aadharDocument || null;
-    // TODO: Upload to Cloudinary if it's a file
+    // TODO: Upload to local storage if it's a file
 
     // Create worker
     const worker = await Worker.create({
@@ -231,10 +239,70 @@ const logout = async (req, res) => {
   }
 };
 
+/**
+ * Refresh Access Token
+ */
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required'
+      });
+    }
+
+    // Verify refresh token
+    const decoded = verifyRefreshToken(refreshToken);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired refresh token'
+      });
+    }
+
+    // Check if worker exists
+    const worker = await Worker.findById(decoded.userId);
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message: 'Worker not found'
+      });
+    }
+
+    // Check status
+    if (!worker.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account is not active'
+      });
+    }
+
+    // Generate new token pair
+    const tokens = generateTokenPair({
+      userId: worker._id,
+      role: USER_ROLES.WORKER
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Token refreshed successfully',
+      ...tokens
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to refresh token'
+    });
+  }
+};
+
 module.exports = {
   sendOTP,
   register,
   login,
-  logout
+  logout,
+  refreshToken
 };
-

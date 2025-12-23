@@ -21,30 +21,38 @@ const uploadFile = async (file, options = {}) => {
     const {
       folder = 'appzeto',
       resource_type = 'auto',
-      transformation = []
+      transformation = [],
+      public_id,
+      ...restOptions
     } = options;
+
+    // Determine MIME type from public_id or default to png
+    let mimeType = 'image/png';
+    if (public_id) {
+      const ext = public_id.split('.').pop()?.toLowerCase();
+      if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+      else if (ext === 'gif') mimeType = 'image/gif';
+      else if (ext === 'webp') mimeType = 'image/webp';
+    }
 
     const uploadOptions = {
       folder,
-      resource_type,
+      resource_type: resource_type === 'auto' ? 'image' : resource_type,
       transformation,
-      ...options
+      ...restOptions
     };
+
+    // Remove public_id from uploadOptions if it exists (we'll handle it separately)
+    if (public_id) {
+      uploadOptions.public_id = public_id;
+    }
 
     let result;
     if (Buffer.isBuffer(file)) {
-      // Upload from buffer
-      return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          uploadOptions,
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-
-        Readable.from(file).pipe(uploadStream);
-      });
+      // Upload from buffer - convert to base64 data URI
+      const base64String = file.toString('base64');
+      const dataUri = `data:${mimeType};base64,${base64String}`;
+      result = await cloudinary.uploader.upload(dataUri, uploadOptions);
     } else {
       // Upload from base64 or URL
       result = await cloudinary.uploader.upload(file, uploadOptions);
@@ -63,7 +71,7 @@ const uploadFile = async (file, options = {}) => {
     console.error('Cloudinary upload error:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message || error.toString() || 'Unknown error'
     };
   }
 };

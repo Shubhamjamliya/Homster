@@ -6,6 +6,7 @@ import { workerTheme as themeColors } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
+import workerService from '../../../../services/workerService';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -14,6 +15,8 @@ const Settings = () => {
     soundAlerts: true,
     language: 'en',
   });
+
+  const [loading, setLoading] = useState(true);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -33,30 +36,58 @@ const Settings = () => {
   }, []);
 
   useEffect(() => {
-    const loadSettings = () => {
+    const loadSettings = async () => {
       try {
-        const savedSettings = JSON.parse(localStorage.getItem('workerSettings') || '{}');
-        if (Object.keys(savedSettings).length > 0) {
-          setSettings(prev => ({ ...prev, ...savedSettings }));
+        setLoading(true);
+        const res = await workerService.getProfile();
+        if (res.success && res.worker?.settings) {
+          setSettings(res.worker.settings);
+          // Sync with localStorage for legacy components
+          localStorage.setItem('workerSettings', JSON.stringify(res.worker.settings));
+
+          // Also sync workerData for global utility usage
+          const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+          localStorage.setItem('workerData', JSON.stringify({ ...workerData, settings: res.worker.settings }));
         }
+        setLoading(false);
       } catch (error) {
         console.error('Error loading settings:', error);
+        setLoading(false);
       }
     };
 
     loadSettings();
   }, []);
 
-  const handleToggle = (key) => {
-    const updated = { ...settings, [key]: !settings[key] };
-    setSettings(updated);
-    localStorage.setItem('workerSettings', JSON.stringify(updated));
+  const updateDBSettings = async (newSettings) => {
+    try {
+      const res = await workerService.updateProfile({ settings: newSettings });
+      if (res.success) {
+        localStorage.setItem('workerSettings', JSON.stringify(newSettings));
+
+        // Also sync workerData for global utility usage
+        const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+        localStorage.setItem('workerData', JSON.stringify({ ...workerData, settings: newSettings }));
+
+        return true;
+      }
+    } catch (error) {
+      console.error('Update settings failed:', error);
+      toast.error('Failed to sync settings with server');
+    }
+    return false;
   };
 
-  const handleLanguageChange = (lang) => {
+  const handleToggle = async (key) => {
+    const updated = { ...settings, [key]: !settings[key] };
+    setSettings(updated);
+    await updateDBSettings(updated);
+  };
+
+  const handleLanguageChange = async (lang) => {
     const updated = { ...settings, language: lang };
     setSettings(updated);
-    localStorage.setItem('workerSettings', JSON.stringify(updated));
+    await updateDBSettings(updated);
   };
 
   const handleLogout = async () => {
@@ -89,7 +120,7 @@ const Settings = () => {
           }}
         >
           <h3 className="font-bold text-gray-800 mb-4">Notifications</h3>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -98,21 +129,19 @@ const Settings = () => {
               </div>
               <button
                 onClick={() => handleToggle('notifications')}
-                className={`w-12 h-6 rounded-full transition-all ${
-                  settings.notifications ? '' : 'bg-gray-300'
-                }`}
+                className={`w-12 h-6 rounded-full transition-all ${settings.notifications ? '' : 'bg-gray-300'
+                  }`}
                 style={
                   settings.notifications
                     ? {
-                        background: themeColors.button,
-                      }
+                      background: themeColors.button,
+                    }
                     : {}
                 }
               >
                 <div
-                  className={`w-5 h-5 rounded-full bg-white transition-all ${
-                    settings.notifications ? 'translate-x-6' : 'translate-x-0.5'
-                  }`}
+                  className={`w-5 h-5 rounded-full bg-white transition-all ${settings.notifications ? 'translate-x-6' : 'translate-x-0.5'
+                    }`}
                   style={{
                     marginTop: '2px',
                   }}
@@ -127,21 +156,19 @@ const Settings = () => {
               </div>
               <button
                 onClick={() => handleToggle('soundAlerts')}
-                className={`w-12 h-6 rounded-full transition-all ${
-                  settings.soundAlerts ? '' : 'bg-gray-300'
-                }`}
+                className={`w-12 h-6 rounded-full transition-all ${settings.soundAlerts ? '' : 'bg-gray-300'
+                  }`}
                 style={
                   settings.soundAlerts
                     ? {
-                        background: themeColors.button,
-                      }
+                      background: themeColors.button,
+                    }
                     : {}
                 }
               >
                 <div
-                  className={`w-5 h-5 rounded-full bg-white transition-all ${
-                    settings.soundAlerts ? 'translate-x-6' : 'translate-x-0.5'
-                  }`}
+                  className={`w-5 h-5 rounded-full bg-white transition-all ${settings.soundAlerts ? 'translate-x-6' : 'translate-x-0.5'
+                    }`}
                   style={{
                     marginTop: '2px',
                   }}
@@ -162,7 +189,7 @@ const Settings = () => {
             <FiGlobe className="w-5 h-5" style={{ color: themeColors.icon }} />
             <h3 className="font-bold text-gray-800">Language</h3>
           </div>
-          
+
           <div className="space-y-2">
             {[
               { code: 'en', name: 'English' },
@@ -171,17 +198,16 @@ const Settings = () => {
               <button
                 key={lang.code}
                 onClick={() => handleLanguageChange(lang.code)}
-                className={`w-full py-3 px-4 rounded-lg text-left transition-all ${
-                  settings.language === lang.code
-                    ? 'text-white'
-                    : 'bg-gray-50 text-gray-700'
-                }`}
+                className={`w-full py-3 px-4 rounded-lg text-left transition-all ${settings.language === lang.code
+                  ? 'text-white'
+                  : 'bg-gray-50 text-gray-700'
+                  }`}
                 style={
                   settings.language === lang.code
                     ? {
-                        background: themeColors.button,
-                        boxShadow: `0 2px 8px ${themeColors.button}40`,
-                      }
+                      background: themeColors.button,
+                      boxShadow: `0 2px 8px ${themeColors.button}40`,
+                    }
                     : {}
                 }
               >

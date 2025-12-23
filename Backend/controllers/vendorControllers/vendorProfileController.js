@@ -114,8 +114,91 @@ const updateProfile = async (req, res) => {
   }
 };
 
+/**
+ * Update vendor address
+ */
+const updateAddress = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const vendorId = req.user.id;
+    const { fullAddress, lat, lng } = req.body;
+
+    if (!fullAddress || !lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: 'Full address and coordinates are required'
+      });
+    }
+
+    const vendor = await Vendor.findById(vendorId);
+
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found'
+      });
+    }
+
+    // Update address with coordinates
+    vendor.address = {
+      ...vendor.address,
+      fullAddress: fullAddress.trim(),
+      lat: parseFloat(lat),
+      lng: parseFloat(lng)
+    };
+
+    await vendor.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Address updated successfully',
+      address: vendor.address
+    });
+  } catch (error) {
+    console.error('Update vendor address error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update address. Please try again.'
+    });
+  }
+};
+
+/**
+ * Update vendor real-time location
+ */
+const updateLocation = async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    const { lat, lng } = req.body;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ success: false, message: 'Latitude and Longitude are required' });
+    }
+
+    // Update only the location field
+    await Vendor.findByIdAndUpdate(vendorId, {
+      location: { lat, lng, updatedAt: new Date() }
+    });
+
+    res.status(200).json({ success: true, message: 'Location updated' });
+  } catch (error) {
+    console.error('Vendor location update error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = {
   getProfile,
-  updateProfile
+  updateProfile,
+  updateAddress,
+  updateLocation
 };
 

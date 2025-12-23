@@ -4,17 +4,27 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Button from '../Button';
 import NotificationWindow from './NotificationWindow';
+import { adminAuthService } from '../../../../services/authService';
 
 const AdminHeader = ({ onMenuClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const handleLogout = () => {
-    // Clear admin auth
-    localStorage.removeItem('adminAuth');
-    toast.success('Logged out successfully');
-    navigate('/admin/login');
+  const handleLogout = async () => {
+    try {
+      await adminAuthService.logout();
+      toast.success('Logged out successfully');
+      navigate('/admin/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if API call fails, clear local storage and redirect
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('adminData');
+      toast.success('Logged out successfully');
+      navigate('/admin/login');
+    }
   };
 
   const toggleNotifications = () => {

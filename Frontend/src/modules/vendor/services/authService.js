@@ -1,45 +1,37 @@
+import api from '../../../services/api';
+
 /**
- * Authentication Service
- * Handles all authentication-related API calls
- * 
- * Note: This is a structure file for backend integration.
- * Replace localStorage calls with actual API endpoints.
+ * Send OTP for vendor authentication
+ * @param {string} phone - Phone number
+ * @returns {Promise<Object>} OTP response with token
  */
-
-const API_BASE_URL = '/api/vendor';
+export const sendOTP = async (phone) => {
+  try {
+    const response = await api.post('/vendors/auth/send-otp', { phone });
+    return response.data;
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    throw error;
+  }
+};
 
 /**
- * Login vendor
- * @param {Object} credentials - Login credentials (email/phone, password)
- * @returns {Promise<Object>} Auth response with token and user data
+ * Login vendor with OTP
+ * @param {Object} credentials - Login credentials (phone, otp, token)
+ * @returns {Promise<Object>} Auth response with token and vendor data
  */
 export const login = async (credentials) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(credentials),
-    // });
-    // const data = await response.json();
-    // 
-    // // Store token
-    // if (data.token) {
-    //   localStorage.setItem('vendorToken', data.token);
-    // }
-    // 
-    // return data;
-    
-    // Mock implementation
-    return {
-      success: true,
-      token: 'mock_token_' + Date.now(),
-      vendor: {
-        id: '1',
-        name: 'Vendor Name',
-        email: credentials.email,
-      },
-    };
+    const response = await api.post('/vendors/auth/login', credentials);
+
+    // Store tokens in localStorage
+    if (response.data.success && response.data.accessToken) {
+      localStorage.setItem('vendorAccessToken', response.data.accessToken);
+      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
+      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+    }
+
+    return response.data;
   } catch (error) {
     console.error('Error logging in:', error);
     throw error;
@@ -52,24 +44,20 @@ export const login = async (credentials) => {
  */
 export const logout = async () => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${localStorage.getItem('vendorToken')}`,
-    //   },
-    // });
-    // 
-    // // Clear token
-    // localStorage.removeItem('vendorToken');
-    // 
-    // return await response.json();
-    
-    // Mock implementation
-    localStorage.removeItem('vendorToken');
-    return { success: true };
+    const response = await api.post('/vendors/auth/logout');
+
+    // Clear tokens
+    localStorage.removeItem('vendorAccessToken');
+    localStorage.removeItem('vendorRefreshToken');
+    localStorage.removeItem('vendorData');
+
+    return response.data;
   } catch (error) {
     console.error('Error logging out:', error);
+    // Clear tokens anyway
+    localStorage.removeItem('vendorAccessToken');
+    localStorage.removeItem('vendorRefreshToken');
+    localStorage.removeItem('vendorData');
     throw error;
   }
 };
@@ -81,30 +69,10 @@ export const logout = async () => {
  */
 export const register = async (vendorData) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/auth/register`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(vendorData),
-    // });
-    // const data = await response.json();
-    // 
-    // // Store token
-    // if (data.token) {
-    //   localStorage.setItem('vendorToken', data.token);
-    // }
-    // 
-    // return data;
-    
-    // Mock implementation
-    return {
-      success: true,
-      token: 'mock_token_' + Date.now(),
-      vendor: {
-        id: Date.now().toString(),
-        ...vendorData,
-      },
-    };
+    console.log('Calling vendor register API with data:', vendorData);
+    const response = await api.post('/vendors/auth/register', vendorData);
+    console.log('Vendor register API response:', response.data);
+    return response.data;
   } catch (error) {
     console.error('Error registering vendor:', error);
     throw error;
@@ -124,7 +92,7 @@ export const getCurrentVendor = async () => {
     //   },
     // });
     // return await response.json();
-    
+
     // Mock implementation
     const profile = JSON.parse(localStorage.getItem('vendorProfile') || '{}');
     return profile;
@@ -151,7 +119,7 @@ export const updateProfile = async (profileData) => {
     //   body: JSON.stringify(profileData),
     // });
     // return await response.json();
-    
+
     // Mock implementation
     const existing = JSON.parse(localStorage.getItem('vendorProfile') || '{}');
     const updated = { ...existing, ...profileData, updatedAt: new Date().toISOString() };
@@ -180,7 +148,7 @@ export const changePassword = async (passwordData) => {
     //   body: JSON.stringify(passwordData),
     // });
     // return await response.json();
-    
+
     // Mock implementation
     return { success: true };
   } catch (error) {
@@ -203,7 +171,7 @@ export const requestPasswordReset = async (email) => {
     //   body: JSON.stringify({ email }),
     // });
     // return await response.json();
-    
+
     // Mock implementation
     return { success: true, message: 'Password reset email sent' };
   } catch (error) {
@@ -228,7 +196,7 @@ export const verifyToken = async () => {
     //   },
     // });
     // return response.ok;
-    
+
     // Mock implementation
     return !!localStorage.getItem('vendorToken');
   } catch (error) {

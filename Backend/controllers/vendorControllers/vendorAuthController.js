@@ -1,9 +1,8 @@
 const Vendor = require('../../models/Vendor');
 const { createOTPToken, verifyOTPToken, markTokenAsUsed } = require('../../services/otpService');
-const { generateTokenPair } = require('../../utils/tokenService');
+const { generateTokenPair, verifyRefreshToken } = require('../../utils/tokenService');
 const { TOKEN_TYPES, USER_ROLES, VENDOR_STATUS } = require('../../utils/constants');
 const { validationResult } = require('express-validator');
-const { uploadFile } = require('../../services/cloudinaryService');
 
 /**
  * Send OTP for vendor registration/login
@@ -56,8 +55,11 @@ const sendOTP = async (req, res) => {
  */
 const register = async (req, res) => {
   try {
+    console.log('Vendor register called with data:', req.body);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
@@ -93,14 +95,9 @@ const register = async (req, res) => {
     }
 
     // Upload documents (assuming they're sent as base64 or URLs)
-    // In production, use multer middleware for file uploads
     const aadharDoc = req.body.aadharDocument || null;
     const panDoc = req.body.panDocument || null;
     const otherDocs = req.body.otherDocuments || [];
-
-    // TODO: Upload documents to Cloudinary if they're files
-    // const aadharUpload = aadharDoc ? await uploadFile(aadharDoc, { folder: 'vendors/aadhar' }) : null;
-    // const panUpload = panDoc ? await uploadFile(panDoc, { folder: 'vendors/pan' }) : null;
 
     // Create vendor (pending approval)
     const vendor = await Vendor.create({
@@ -263,10 +260,70 @@ const logout = async (req, res) => {
   }
 };
 
+/**
+ * Refresh Access Token
+ */
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required'
+      });
+    }
+
+    // Verify refresh token
+    const decoded = verifyRefreshToken(refreshToken);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired refresh token'
+      });
+    }
+
+    // Check if vendor exists
+    const vendor = await Vendor.findById(decoded.userId);
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found'
+      });
+    }
+
+    // Check status
+    if (vendor.approvalStatus !== 'APPROVED' || !vendor.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account is not active'
+      });
+    }
+
+    // Generate new token pair
+    const tokens = generateTokenPair({
+      userId: vendor._id,
+      role: USER_ROLES.VENDOR
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Token refreshed successfully',
+      ...tokens
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to refresh token'
+    });
+  }
+};
+
 module.exports = {
   sendOTP,
   register,
   login,
-  logout
+  logout,
+  refreshToken
 };
-

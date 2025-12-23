@@ -4,7 +4,7 @@ import { FiBriefcase, FiCheckCircle, FiClock, FiTrendingUp, FiChevronRight, FiUs
 import { FaWallet } from 'react-icons/fa';
 import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
 import Header from '../../components/layout/Header';
-import { autoInitDummyData } from '../../utils/initDummyData';
+import workerService from '../../../../services/workerService';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -65,80 +65,79 @@ const Dashboard = () => {
     };
   }, []);
 
-  // Initialize dummy data and load from localStorage
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Load real data from API
   useEffect(() => {
-    autoInitDummyData();
-
-    const loadStats = () => {
+    const fetchDashboardData = async () => {
       try {
-        const savedStats = JSON.parse(localStorage.getItem('workerStats') || '{}');
-        setStats({
-          pendingJobs: savedStats.pendingJobs || 0,
-          acceptedJobs: savedStats.acceptedJobs || 0,
-          completedJobs: savedStats.completedJobs || 0,
-          totalEarnings: savedStats.totalEarnings || 0,
-          thisMonthEarnings: savedStats.thisMonthEarnings || 0,
-          rating: savedStats.rating || 0,
-        });
-      } catch (error) {
-        console.error('Error loading stats:', error);
-      }
-    };
+        setLoading(true);
 
-    const loadProfile = () => {
-      try {
-        const profile = JSON.parse(localStorage.getItem('workerProfile') || '{}');
-        if (Object.keys(profile).length > 0) {
+        // Fetch Profile and Jobs in parallel
+        const [profileRes, jobsRes] = await Promise.all([
+          workerService.getProfile(),
+          workerService.getAssignedJobs({ limit: 5 })
+        ]);
+
+        if (profileRes.success) {
+          const profile = profileRes.worker;
           setWorkerProfile({
             name: profile.name || 'Worker Name',
-            phone: profile.phone || '+91 9876543210',
-            photo: profile.photo || null,
-            category: profile.category || '',
+            phone: profile.phone || '',
+            photo: profile.profilePhoto || null,
+            category: profile.serviceCategory || '',
           });
-        }
-      } catch (error) {
-        console.error('Error loading profile:', error);
-      }
-    };
 
-    const loadRecentJobs = () => {
-      try {
-        const assignedJobs = JSON.parse(localStorage.getItem('workerAssignedJobs') || '[]');
-        const recent = assignedJobs
-          .filter(job => job.workerStatus === 'PENDING' || job.workerStatus === 'ACCEPTED')
-          .slice(0, 3)
-          .map(job => ({
-            id: job.id,
-            serviceType: job.serviceType,
-            customerName: job.user?.name || 'Customer',
-            location: job.location?.address || 'Location not available',
-            distance: job.location?.distance || '0 km',
-            price: job.price,
-            status: job.workerStatus,
-            time: job.timeSlot?.time || 'N/A',
-            assignedAt: job.assignedAt,
+          setStats(prev => ({
+            ...prev,
+            completedJobs: profile.completedJobs || 0,
+            rating: profile.rating || 0,
           }));
-        setRecentJobs(recent);
-      } catch (error) {
-        console.error('Error loading recent jobs:', error);
+        }
+
+        if (jobsRes.success) {
+          const jobs = jobsRes.data;
+
+          // Compute stats from jobs if not provided by profile
+          const pendingCount = jobs.filter(j => j.status === 'confirmed').length;
+          const acceptedCount = jobs.filter(j => j.status === 'in_progress').length;
+
+          setStats(prev => ({
+            ...prev,
+            pendingJobs: pendingCount,
+            acceptedJobs: acceptedCount,
+          }));
+
+          setRecentJobs(jobs.map(job => ({
+            id: job._id,
+            serviceType: job.serviceName,
+            customerName: job.userId?.name || 'Customer',
+            location: job.address?.city || 'Location N/A',
+            time: job.scheduledTime || 'N/A',
+            status: job.status,
+            price: job.finalAmount,
+          })));
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Dashboard fetch error:', err);
+        setError('Failed to load dashboard data');
+        setLoading(false);
       }
     };
 
-    loadStats();
-    loadProfile();
-    loadRecentJobs();
+    fetchDashboardData();
 
     // Listen for updates
     const handleUpdate = () => {
-      loadStats();
-      loadRecentJobs();
+      fetchDashboardData();
     };
     window.addEventListener('workerJobsUpdated', handleUpdate);
-    window.addEventListener('storage', handleUpdate);
 
     return () => {
       window.removeEventListener('workerJobsUpdated', handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
     };
   }, []);
 

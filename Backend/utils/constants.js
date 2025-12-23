@@ -30,11 +30,15 @@ const VENDOR_STATUS = {
 const WORKER_STATUS = {
   ACTIVE: 'active',
   INACTIVE: 'inactive',
-  SUSPENDED: 'suspended'
+  SUSPENDED: 'suspended',
+  ONLINE: 'ONLINE',
+  OFFLINE: 'OFFLINE'
 };
 
 // Booking Status
 const BOOKING_STATUS = {
+  SEARCHING: 'searching', // Initial search phase
+  REQUESTED: 'requested', // Waiting for vendor to accept
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
   IN_PROGRESS: 'in_progress',

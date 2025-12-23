@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -15,6 +15,13 @@ const AdminLogin = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Clear any existing admin tokens on page load
+  useEffect(() => {
+    localStorage.removeItem('adminAccessToken');
+    localStorage.removeItem('adminRefreshToken');
+    localStorage.removeItem('adminData');
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -25,7 +32,7 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.email || !formData.password) {
       toast.error('Please enter both email and password');
       return;
@@ -53,7 +60,7 @@ const AdminLogin = () => {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center px-4"
       style={{
         background: 'linear-gradient(135deg, #00a6a6 0%, #008a8a 50%, #006b6b 100%)'
@@ -64,7 +71,7 @@ const AdminLogin = () => {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {/* Icon */}
           <div className="flex justify-center mb-6">
-            <div 
+            <div
               className="w-16 h-16 rounded-xl flex items-center justify-center"
               style={{
                 background: `linear-gradient(135deg, ${themeColors.button} 0%, #008a8a 100%)`,
@@ -197,7 +204,7 @@ const AdminLogin = () => {
           </form>
 
           {/* Demo Credentials */}
-          <div 
+          <div
             className="mt-8 p-4 rounded-xl"
             style={{
               background: 'linear-gradient(135deg, rgba(0, 166, 166, 0.1) 0%, rgba(0, 138, 138, 0.05) 100%)',

@@ -1,5 +1,13 @@
 export const LS_KEY = "adminUserAppCatalog";
 
+export const toAssetUrl = (url) => {
+  if (!url) return '';
+  // For Cloudinary URLs, return as-is
+  if (url.startsWith('http')) return url;
+  // For any other URLs, return as-is (they should already be full URLs from Cloudinary)
+  return url;
+};
+
 export const slugify = (value) =>
   String(value || "")
     .trim()
@@ -156,6 +164,16 @@ export const ensureIds = (catalog) => {
         ratingValue: s.page?.ratingValue || "",
         bookingsText: s.page?.bookingsText || "",
         paymentOffersEnabled: s.page?.paymentOffersEnabled !== false,
+        paymentOffers: Array.isArray(s.page?.paymentOffers)
+          ? s.page.paymentOffers.map((o) => ({
+            id: o.id || `uoff-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            title: o.title || "",
+            description: o.description || "",
+            iconUrl: o.iconUrl || "",
+            discount: o.discount || "",
+            code: o.code || "",
+          }))
+          : [],
         serviceCategoriesGrid: Array.isArray(s.page?.serviceCategoriesGrid)
           ? s.page.serviceCategoriesGrid.map((g) => ({
             id: g.id || `ugrd-${Date.now()}-${Math.random().toString(16).slice(2)}`,

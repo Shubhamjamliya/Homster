@@ -4,6 +4,7 @@ import { FiMapPin, FiClock, FiDollarSign, FiUser, FiPhone, FiNavigation, FiArrow
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
+import { getBookingById, updateBookingStatus } from '../../services/bookingService';
 
 const BookingDetails = () => {
   const { id } = useParams();
@@ -30,39 +31,48 @@ const BookingDetails = () => {
 
   useEffect(() => {
     // Load booking from localStorage (mock data)
-    const loadBooking = () => {
+    // Load booking from API
+    const loadBooking = async () => {
       try {
-        const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-        const found = acceptedBookings.find(b => b.id === id) || {
-          id: id || '1',
-          serviceType: 'Fan Repairing',
-          user: {
-            name: 'John Doe',
-            phone: '+91 9876543210',
-          },
+        setLoading(true);
+        const response = await getBookingById(id);
+        const apiData = response.data || response;
+
+        // Map API response to Component State structure
+        const mappedBooking = {
+          ...apiData,
+          id: apiData._id || apiData.id,
+          user: apiData.userId || apiData.user || { name: apiData.customerName || 'Customer', phone: apiData.customerPhone || 'Hidden' },
+          customerName: apiData.userId?.name || apiData.customerName || 'Customer',
+          customerPhone: apiData.userId?.phone || apiData.customerPhone || 'Hidden',
+          serviceType: apiData.serviceId?.title || apiData.serviceName || apiData.serviceType || 'Service',
           location: {
-            address: '123 Main Street, Indore, Madhya Pradesh 452001',
-            lat: 22.7196,
-            lng: 75.8577,
-            distance: '2.5 km',
+            address: apiData.address?.addressLine1 || apiData.location?.address || 'Address not available',
+            lat: apiData.address?.lat || apiData.location?.lat || 0,
+            lng: apiData.address?.lng || apiData.location?.lng || 0,
+            distance: apiData.distance ? `${apiData.distance.toFixed(1)} km` : 'N/A'
           },
-          price: 500,
+          price: apiData.finalAmount || apiData.price || 0,
           timeSlot: {
-            date: 'Today',
-            time: '2:00 PM - 4:00 PM',
+            date: apiData.scheduledDate ? new Date(apiData.scheduledDate).toLocaleDateString() : 'Today',
+            time: apiData.scheduledTime || apiData.timeSlot?.start ? `${apiData.timeSlot.start} - ${apiData.timeSlot.end}` : 'Flexible'
           },
-          status: 'ACCEPTED',
-          description: 'Fan is not working properly, needs repair',
+          status: apiData.status,
+          description: apiData.description || apiData.notes || 'No description provided'
         };
-        setBooking(found);
+
+        setBooking(mappedBooking);
       } catch (error) {
         console.error('Error loading booking:', error);
+        // Fallback or Error UI could be handled here
+      } finally {
+        setLoading(false);
       }
     };
 
     loadBooking();
     window.addEventListener('vendorJobsUpdated', loadBooking);
-    
+
     return () => {
       window.removeEventListener('vendorJobsUpdated', loadBooking);
     };
@@ -78,7 +88,7 @@ const BookingDetails = () => {
       'ACCEPTED': ['ASSIGNED', 'VISITED'],
       'ASSIGNED': ['VISITED'],
       'VISITED': ['WORK_DONE'],
-      'WORK_DONE': workerPaymentDone 
+      'WORK_DONE': workerPaymentDone
         ? (finalSettlementDone ? ['COMPLETED'] : ['FINAL_SETTLEMENT', 'COMPLETED'])
         : [],
       'FINAL_SETTLEMENT': ['COMPLETED'],
@@ -92,9 +102,9 @@ const BookingDetails = () => {
   };
 
   const canDoFinalSettlement = (booking) => {
-    return booking?.status === 'WORK_DONE' && 
-           booking?.workerPaymentStatus === 'PAID' && 
-           booking?.finalSettlementStatus !== 'DONE';
+    return booking?.status === 'WORK_DONE' &&
+      booking?.workerPaymentStatus === 'PAID' &&
+      booking?.finalSettlementStatus !== 'DONE';
   };
 
   const handleStatusChange = async (newStatus) => {
@@ -112,39 +122,11 @@ const BookingDetails = () => {
 
     setLoading(true);
     try {
-      const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-      const updated = acceptedBookings.map(b =>
-        b.id === id
-          ? {
-              ...b,
-              status: newStatus,
-              [`${newStatus.toLowerCase()}At`]: new Date().toISOString(),
-              statusChangedBy: 'VENDOR',
-              statusChangedAt: new Date().toISOString(),
-            }
-          : b
-      );
-      localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-
-      // Update worker assigned job status if assigned
-      if (booking.assignedTo && booking.assignedTo !== 'SELF') {
-        const assignedJobs = JSON.parse(localStorage.getItem('workerAssignedJobs') || '[]');
-        const updatedWorkerJobs = assignedJobs.map(j =>
-          j.id === id || j.bookingId === id
-            ? {
-                ...j,
-                workerStatus: newStatus,
-                [`${newStatus.toLowerCase()}At`]: new Date().toISOString(),
-              }
-            : j
-        );
-        localStorage.setItem('workerAssignedJobs', JSON.stringify(updatedWorkerJobs));
-        window.dispatchEvent(new Event('workerJobsUpdated'));
-      }
-
+      await updateBookingStatus(id, newStatus);
       window.dispatchEvent(new Event('vendorJobsUpdated'));
-      setBooking(updated.find(b => b.id === id));
       alert(`Status updated to ${newStatus.replace('_', ' ')} successfully!`);
+      // Reload to get fresh data
+      window.location.reload();
     } catch (error) {
       console.error('Error updating status:', error);
       alert('Failed to update status. Please try again.');
@@ -162,50 +144,13 @@ const BookingDetails = () => {
 
     setLoading(true);
     try {
-      const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-      const updated = acceptedBookings.map(b =>
-        b.id === id
-          ? {
-              ...b,
-              workerPaymentStatus: 'PAID',
-              workerPaidAt: new Date().toISOString(),
-              workerPaidBy: 'VENDOR',
-            }
-          : b
-      );
-      localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-
-      // Update worker assigned job
-      if (booking.assignedTo && booking.assignedTo !== 'SELF') {
-        const assignedJobs = JSON.parse(localStorage.getItem('workerAssignedJobs') || '[]');
-        const updatedWorkerJobs = assignedJobs.map(j =>
-          j.id === id || j.bookingId === id
-            ? {
-                ...j,
-                paymentStatus: 'PAID',
-                paidAt: new Date().toISOString(),
-              }
-            : j
-        );
-        localStorage.setItem('workerAssignedJobs', JSON.stringify(updatedWorkerJobs));
-        window.dispatchEvent(new Event('workerJobsUpdated'));
-      }
-
-      // Add notification to worker
-      const workerNotifications = JSON.parse(localStorage.getItem('workerNotifications') || '[]');
-      workerNotifications.unshift({
-        id: `payment-${Date.now()}`,
-        type: 'payment',
-        message: `Payment received for ${booking.serviceType}: ₹${booking.price}`,
-        read: false,
-        timestamp: new Date().toISOString(),
+      await updateBookingStatus(id, booking.status, {
+        workerPaymentStatus: 'PAID',
+        workerPaidBy: 'VENDOR'
       });
-      localStorage.setItem('workerNotifications', JSON.stringify(workerNotifications));
-      window.dispatchEvent(new Event('workerNotificationsUpdated'));
-
       window.dispatchEvent(new Event('vendorJobsUpdated'));
-      setBooking(updated.find(b => b.id === id));
       alert('Worker payment completed successfully!');
+      window.location.reload();
     } catch (error) {
       console.error('Error processing payment:', error);
       alert('Failed to process payment. Please try again.');
@@ -223,21 +168,12 @@ const BookingDetails = () => {
 
     setLoading(true);
     try {
-      const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-      const updated = acceptedBookings.map(b =>
-        b.id === id
-          ? {
-              ...b,
-              finalSettlementStatus: 'DONE',
-              finalSettlementAt: new Date().toISOString(),
-            }
-          : b
-      );
-      localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-
+      await updateBookingStatus(id, booking.status, {
+        finalSettlementStatus: 'DONE'
+      });
       window.dispatchEvent(new Event('vendorJobsUpdated'));
-      setBooking(updated.find(b => b.id === id));
       alert('Final settlement marked as done!');
+      window.location.reload();
     } catch (error) {
       console.error('Error updating settlement:', error);
       alert('Failed to update settlement. Please try again.');
@@ -255,7 +191,12 @@ const BookingDetails = () => {
   }
 
   const handleCallUser = () => {
-    window.location.href = `tel:${booking.user.phone}`;
+    const phone = booking.user?.phone || booking.customerPhone;
+    if (phone) {
+      window.location.href = `tel:${phone}`;
+    } else {
+      alert('Phone number not available');
+    }
   };
 
   const handleViewTimeline = () => {
@@ -267,7 +208,13 @@ const BookingDetails = () => {
   };
 
   const handleStartJourney = () => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${booking.location.lat},${booking.location.lng}`;
+    let destination = '';
+    if (booking.location.lat && booking.location.lng && booking.location.lat !== 0) {
+      destination = `${booking.location.lat},${booking.location.lng}`;
+    } else {
+      destination = encodeURIComponent(booking.location.address);
+    }
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
     window.open(url, '_blank');
   };
 
@@ -318,8 +265,8 @@ const BookingDetails = () => {
                 <FiUser className="w-6 h-6" style={{ color: themeColors.icon }} />
               </div>
               <div>
-                <p className="font-semibold text-gray-800">{booking.user.name}</p>
-                <p className="text-sm text-gray-600">{booking.user.phone}</p>
+                <p className="font-semibold text-gray-800">{booking.user?.name || booking.customerName || 'Customer'}</p>
+                <p className="text-sm text-gray-600">{booking.user?.phone || booking.customerPhone || 'Phone hidden'}</p>
               </div>
             </div>
             <button
@@ -347,21 +294,39 @@ const BookingDetails = () => {
               <p className="text-sm text-gray-500 mt-1">{booking.location.distance} away</p>
             </div>
           </div>
-          
+
           {/* Map Embed */}
-          <div className="w-full h-48 rounded-lg overflow-hidden mb-3 bg-gray-200">
-            <iframe
-              width="100%"
-              height="100%"
-              frameBorder="0"
-              style={{ border: 0 }}
-              src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6d_s6L4c0ZO0xU0&q=${booking.location.lat},${booking.location.lng}`}
-              allowFullScreen
-            ></iframe>
+          <div className="w-full h-48 rounded-lg overflow-hidden mb-3 bg-gray-200 relative group cursor-pointer" onClick={() => navigate(`/vendor/booking/${booking.id}/map`)}>
+            {(() => {
+              const hasCoordinates = booking.location.lat && booking.location.lng && booking.location.lat !== 0 && booking.location.lng !== 0;
+              const mapQuery = hasCoordinates
+                ? `${booking.location.lat},${booking.location.lng}`
+                : encodeURIComponent(booking.location.address);
+
+              return (
+                <>
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    style={{ border: 0, pointerEvents: 'none' }}
+                    src={`https://maps.google.com/maps?q=${mapQuery}&z=15&output=embed`}
+                    allowFullScreen
+                    tabIndex="-1"
+                  ></iframe>
+                  {/* Overlay to intercept clicks */}
+                  <div className="absolute inset-0 bg-transparent group-hover:bg-black/5 transition-colors flex items-center justify-center">
+                    <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-gray-700 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                      View Full Map
+                    </span>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           <button
-            onClick={handleStartJourney}
+            onClick={() => navigate(`/vendor/booking/${booking.id}/map`)}
             className="w-full py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95"
             style={{
               background: themeColors.button,
@@ -438,11 +403,10 @@ const BookingDetails = () => {
                 {booking.workerResponse ? (
                   <div className="flex items-center gap-2 mt-1">
                     <span
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                        booking.workerResponse === 'ACCEPTED'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold ${booking.workerResponse === 'ACCEPTED'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}
                     >
                       {booking.workerResponse === 'ACCEPTED' ? '✓ Accepted' : '✗ Rejected'}
                     </span>

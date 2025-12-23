@@ -21,6 +21,11 @@ const workerSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
+  role: {
+    type: String,
+    enum: ['worker'],
+    default: 'worker'
+  },
   password: {
     type: String,
     select: false
@@ -50,7 +55,7 @@ const workerSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: Object.values(WORKER_STATUS),
-    default: WORKER_STATUS.ACTIVE
+    default: WORKER_STATUS.OFFLINE
   },
   profilePhoto: {
     type: String,
@@ -87,6 +92,43 @@ const workerSchema = new mongoose.Schema({
   isEmailVerified: {
     type: Boolean,
     default: false
+  },
+  // Wallet
+  wallet: {
+    balance: {
+      type: Number,
+      default: 0
+    }
+  },
+  // Settings
+  settings: {
+    notifications: {
+      type: Boolean,
+      default: true
+    },
+    soundAlerts: {
+      type: Boolean,
+      default: true
+    },
+    language: {
+      type: String,
+      default: 'en'
+    }
+  },
+  // Real-time Location
+  location: {
+    lat: Number,
+    lng: Number,
+    updatedAt: Date
+  },
+  // Additional Stats
+  cancelledJobs: {
+    type: Number,
+    default: 0
+  },
+  totalReviews: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

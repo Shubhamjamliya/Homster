@@ -5,6 +5,7 @@ import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import { autoInitDummyData } from '../../utils/initDummyData';
+import { getWalletBalance, getTransactions } from '../../services/walletService';
 
 const Wallet = () => {
   const navigate = useNavigate();
@@ -37,18 +38,35 @@ const Wallet = () => {
     // Initialize dummy data if needed
     autoInitDummyData();
 
-    const loadWallet = () => {
+    const loadWallet = async () => {
       try {
-        const vendorWallet = JSON.parse(localStorage.getItem('vendorWallet') || '{}');
-        const walletData = {
-          balance: vendorWallet.balance || 0,
-          pending: vendorWallet.pending || 0,
-          available: vendorWallet.available || 0,
-        };
-        setWallet(walletData);
+        const walletData = await getWalletBalance();
+        const txns = await getTransactions();
 
-        const txns = JSON.parse(localStorage.getItem('vendorTransactions') || '[]');
-        setTransactions(txns);
+        // Calculate pending from transactions
+        const pendingAmount = txns
+          .filter(t => t.type === 'withdrawal' && t.status === 'pending')
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+        const availableBalance = walletData.balance || 0;
+
+        setWallet({
+          balance: availableBalance + pendingAmount, // Total = Available + Pending
+          available: availableBalance,
+          pending: pendingAmount,
+        });
+
+        // Map transactions to UI format if needed (Backend returns standard format, assume it matches or is close enough)
+        // Backend Transaction model: type, amount, status, date(createdAt), description
+        // Frontend expects: type, amount, status, date, description
+
+        const formattedTxns = txns.map(t => ({
+          ...t,
+          date: new Date(t.createdAt).toLocaleDateString(),
+          amount: t.amount // Backend might store absolute or negative? Controller uses absolute in amount field.
+        }));
+
+        setTransactions(formattedTxns);
       } catch (error) {
         console.error('Error loading wallet:', error);
       }
@@ -57,7 +75,7 @@ const Wallet = () => {
     // Load immediately and after a delay
     loadWallet();
     setTimeout(loadWallet, 200);
-    
+
     window.addEventListener('vendorWalletUpdated', loadWallet);
 
     return () => {
@@ -210,20 +228,19 @@ const Wallet = () => {
             <button
               key={filterOption.id}
               onClick={() => setFilter(filterOption.id)}
-              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${
-                filter === filterOption.id
+              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${filter === filterOption.id
                   ? 'text-white'
                   : 'bg-white text-gray-700'
-              }`}
+                }`}
               style={
                 filter === filterOption.id
                   ? {
-                      background: themeColors.button,
-                      boxShadow: `0 2px 8px ${themeColors.button}40`,
-                    }
+                    background: themeColors.button,
+                    boxShadow: `0 2px 8px ${themeColors.button}40`,
+                  }
                   : {
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                    }
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  }
               }
             >
               {filterOption.label}
@@ -248,15 +265,15 @@ const Wallet = () => {
           ) : (
             <div className="space-y-4">
               {filteredTransactions.map((txn, index) => {
-                const txnColor = txn.type.toLowerCase() === 'earning' ? '#10B981' : 
-                                txn.type.toLowerCase() === 'withdrawal' ? '#EF4444' : '#F97316';
+                const txnColor = txn.type.toLowerCase() === 'earning' ? '#10B981' :
+                  txn.type.toLowerCase() === 'withdrawal' ? '#EF4444' : '#F97316';
                 const hexToRgba = (hex, alpha) => {
                   const r = parseInt(hex.slice(1, 3), 16);
                   const g = parseInt(hex.slice(3, 5), 16);
                   const b = parseInt(hex.slice(5, 7), 16);
                   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
                 };
-                
+
                 return (
                   <div
                     key={index}
@@ -274,7 +291,7 @@ const Wallet = () => {
                         background: `linear-gradient(180deg, ${txnColor} 0%, ${txnColor}dd 100%)`,
                       }}
                     />
-                    
+
                     <div className="relative z-10 pl-3">
                       <div className="flex items-center gap-4">
                         {/* Icon */}
@@ -287,7 +304,7 @@ const Wallet = () => {
                         >
                           {getTransactionIcon(txn.type)}
                         </div>
-                        
+
                         {/* Transaction Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
@@ -300,11 +317,10 @@ const Wallet = () => {
                           <div className="flex items-center gap-3">
                             <p className="text-xs text-gray-500">{txn.date}</p>
                             <span
-                              className={`text-xs font-bold px-2 py-1 rounded-full ${
-                                txn.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                                txn.status === 'pending' ? 'bg-orange-100 text-orange-700' : 
-                                'bg-gray-100 text-gray-600'
-                              }`}
+                              className={`text-xs font-bold px-2 py-1 rounded-full ${txn.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                  txn.status === 'pending' ? 'bg-orange-100 text-orange-700' :
+                                    'bg-gray-100 text-gray-600'
+                                }`}
                             >
                               {txn.status}
                             </span>

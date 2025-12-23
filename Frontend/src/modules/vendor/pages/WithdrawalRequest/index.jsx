@@ -4,6 +4,7 @@ import { FiDollarSign, FiArrowRight, FiCreditCard } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
+import { requestWithdrawal, getWalletBalance } from '../../services/walletService';
 
 const WithdrawalRequest = () => {
   const navigate = useNavigate();
@@ -30,10 +31,10 @@ const WithdrawalRequest = () => {
   }, []);
 
   useEffect(() => {
-    const loadWallet = () => {
+    const loadWallet = async () => {
       try {
-        const vendorWallet = JSON.parse(localStorage.getItem('vendorWallet') || '{}');
-        setWallet({ available: vendorWallet.available || 0 });
+        const vendorWallet = await getWalletBalance();
+        setWallet({ available: vendorWallet.balance || 0 });
       } catch (error) {
         console.error('Error loading wallet:', error);
       }
@@ -70,7 +71,7 @@ const WithdrawalRequest = () => {
     setError('');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const numAmount = parseInt(amount) || 0;
 
     if (!amount || numAmount === 0) {
@@ -94,42 +95,18 @@ const WithdrawalRequest = () => {
     }
 
     try {
-      // Create withdrawal request
-      const withdrawal = {
-        id: Date.now().toString(),
+      // API Call
+      await requestWithdrawal({
         amount: numAmount,
-        bankAccount: bankAccount,
-        status: 'pending',
-        requestedAt: new Date().toISOString(),
-      };
-
-      const withdrawals = JSON.parse(localStorage.getItem('vendorWithdrawals') || '[]');
-      withdrawals.push(withdrawal);
-      localStorage.setItem('vendorWithdrawals', JSON.stringify(withdrawals));
-
-      // Update wallet
-      const vendorWallet = JSON.parse(localStorage.getItem('vendorWallet') || '{}');
-      vendorWallet.available = (vendorWallet.available || 0) - numAmount;
-      vendorWallet.pending = (vendorWallet.pending || 0) + numAmount;
-      localStorage.setItem('vendorWallet', JSON.stringify(vendorWallet));
-
-      // Add transaction
-      const transactions = JSON.parse(localStorage.getItem('vendorTransactions') || '[]');
-      transactions.unshift({
-        type: 'withdrawal',
-        amount: numAmount,
-        description: `Withdrawal request to ${bankAccount.accountNumber.slice(-4)}`,
-        date: new Date().toLocaleDateString(),
-        status: 'pending',
+        bankDetails: bankAccount
       });
-      localStorage.setItem('vendorTransactions', JSON.stringify(transactions));
 
       window.dispatchEvent(new Event('vendorWalletUpdated'));
       alert('Withdrawal request submitted successfully!');
       navigate('/vendor/wallet');
     } catch (error) {
       console.error('Error submitting withdrawal:', error);
-      alert('Failed to submit withdrawal request. Please try again.');
+      alert(error.response?.data?.message || 'Failed to submit withdrawal request. Please try again.');
     }
   };
 
@@ -163,9 +140,8 @@ const WithdrawalRequest = () => {
               value={amount}
               onChange={(e) => handleAmountChange(e.target.value)}
               placeholder="Enter amount"
-              className={`w-full pl-12 pr-20 py-4 bg-white rounded-xl border focus:outline-none focus:ring-2 text-lg font-semibold ${
-                error ? 'border-red-500' : 'border-gray-200'
-              }`}
+              className={`w-full pl-12 pr-20 py-4 bg-white rounded-xl border focus:outline-none focus:ring-2 text-lg font-semibold ${error ? 'border-red-500' : 'border-gray-200'
+                }`}
               style={{ focusRingColor: themeColors.button }}
             />
             <button

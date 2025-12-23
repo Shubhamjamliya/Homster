@@ -43,7 +43,7 @@ const Profile = () => {
           const addressString = workerData.address
             ? `${workerData.address.addressLine1 || ''} ${workerData.address.addressLine2 || ''} ${workerData.address.city || ''} ${workerData.address.state || ''} ${workerData.address.pincode || ''}`.trim() || 'Not set'
             : 'Not set';
-          
+
           setProfile({
             name: workerData.name || 'Worker Name',
             phone: workerData.phone || '',

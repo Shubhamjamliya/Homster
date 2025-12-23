@@ -4,7 +4,7 @@ import { FiUsers, FiPlus, FiEdit2, FiTrash2, FiSearch, FiUser, FiBriefcase, FiPh
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
-import { autoInitDummyData } from '../../utils/initDummyData';
+import { getWorkers, deleteWorker } from '../../services/workerService';
 
 const WorkersList = () => {
   const navigate = useNavigate();
@@ -30,22 +30,20 @@ const WorkersList = () => {
   }, []);
 
   useEffect(() => {
-    // Initialize dummy data if needed
-    autoInitDummyData();
-
-    const loadWorkers = () => {
+    const loadWorkers = async () => {
       try {
-        const savedWorkers = JSON.parse(localStorage.getItem('vendorWorkers') || '[]');
-        setWorkers(savedWorkers);
+        const response = await getWorkers();
+        const mapped = (response.data || response).map(w => ({
+          ...w,
+          id: w._id || w.id
+        }));
+        setWorkers(mapped || []);
       } catch (error) {
         console.error('Error loading workers:', error);
       }
     };
 
-    // Load immediately and after a delay
     loadWorkers();
-    setTimeout(loadWorkers, 200);
-    
     window.addEventListener('vendorWorkersUpdated', loadWorkers);
 
     return () => {
@@ -53,24 +51,28 @@ const WorkersList = () => {
     };
   }, []);
 
-  const handleDelete = (workerId) => {
+  const handleDelete = async (workerId) => {
     if (window.confirm('Are you sure you want to delete this worker?')) {
-      const updated = workers.filter(w => w.id !== workerId);
-      localStorage.setItem('vendorWorkers', JSON.stringify(updated));
-      setWorkers(updated);
-      window.dispatchEvent(new Event('vendorWorkersUpdated'));
+      try {
+        await deleteWorker(workerId);
+        setWorkers(workers.filter(w => w.id !== workerId));
+        window.dispatchEvent(new Event('vendorWorkersUpdated'));
+      } catch (error) {
+        console.error('Error deleting worker:', error);
+        alert('Failed to delete worker');
+      }
     }
   };
 
   const filteredWorkers = workers.filter(worker => {
-    const matchesFilter = filter === 'all' || 
+    const matchesFilter = filter === 'all' ||
       (filter === 'online' && worker.availability === 'ONLINE') ||
       (filter === 'offline' && worker.availability === 'OFFLINE');
-    
-    const matchesSearch = searchQuery === '' || 
+
+    const matchesSearch = searchQuery === '' ||
       worker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       worker.phone.includes(searchQuery);
-    
+
     return matchesFilter && matchesSearch;
   });
 
@@ -104,20 +106,19 @@ const WorkersList = () => {
             <button
               key={filterOption.id}
               onClick={() => setFilter(filterOption.id)}
-              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${
-                filter === filterOption.id
-                  ? 'text-white'
-                  : 'bg-white text-gray-700'
-              }`}
+              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${filter === filterOption.id
+                ? 'text-white'
+                : 'bg-white text-gray-700'
+                }`}
               style={
                 filter === filterOption.id
                   ? {
-                      background: themeColors.button,
-                      boxShadow: `0 2px 8px ${themeColors.button}40`,
-                    }
+                    background: themeColors.button,
+                    boxShadow: `0 2px 8px ${themeColors.button}40`,
+                  }
                   : {
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                    }
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  }
               }
             >
               {filterOption.label}
@@ -155,7 +156,7 @@ const WorkersList = () => {
               const getAvailabilityColor = (availability) => {
                 return availability === 'ONLINE' ? themeColors.icon : '#94A3B8';
               };
-              
+
               const statusColor = getAvailabilityColor(worker.availability);
               const hexToRgba = (hex, alpha) => {
                 const r = parseInt(hex.slice(1, 3), 16);
@@ -163,7 +164,7 @@ const WorkersList = () => {
                 const b = parseInt(hex.slice(5, 7), 16);
                 return `rgba(${r}, ${g}, ${b}, ${alpha})`;
               };
-              
+
               return (
                 <div
                   key={worker.id}
@@ -181,7 +182,7 @@ const WorkersList = () => {
                       background: `linear-gradient(180deg, ${statusColor} 0%, ${statusColor}dd 100%)`,
                     }}
                   />
-                  
+
                   <div className="relative z-10 pl-2">
                     {/* Header Section */}
                     <div className="flex items-start justify-between mb-3">
@@ -241,7 +242,7 @@ const WorkersList = () => {
                         </div>
                         <span className="text-gray-700 font-medium">{worker.phone}</span>
                       </div>
-                      
+
                       {worker.skills && worker.skills.length > 0 && (
                         <div className="flex items-center gap-2 text-sm">
                           <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
@@ -268,7 +269,7 @@ const WorkersList = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       {worker.currentJob ? (
                         <div className="flex items-center gap-2 text-sm">
                           <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
@@ -286,7 +287,7 @@ const WorkersList = () => {
                           <span className="text-gray-700 font-medium">Available for assignment</span>
                         </div>
                       )}
-                      
+
                       {worker.stats && (
                         <div className="flex items-center gap-4 pt-1">
                           <div className="flex items-center gap-2">

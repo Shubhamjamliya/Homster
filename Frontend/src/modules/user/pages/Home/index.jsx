@@ -5,6 +5,9 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import SearchBar from './components/SearchBar';
 import ServiceCategories from './components/ServiceCategories';
+import { publicCatalogService } from '../../../../services/catalogService';
+import { cartService } from '../../../../services/cartService';
+import { toast } from 'react-hot-toast';
 
 // Lazy load heavy components for better initial load performance
 const PromoCarousel = lazy(() => import('./components/PromoCarousel'));
@@ -13,36 +16,27 @@ const MostBookedServices = lazy(() => import('./components/MostBookedServices'))
 const CuratedServices = lazy(() => import('./components/CuratedServices'));
 const ServiceSectionWithRating = lazy(() => import('./components/ServiceSectionWithRating'));
 const Banner = lazy(() => import('./components/Banner'));
-// Salon for Women Images
-import salon1Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-1.jpg';
-import salon2Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-2.jpg';
-import salon3Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-3.jpg';
-import salon4Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-4.jpg';
-import salon5Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-5.jpg';
-import salon6Image from '../../../../assets/images/pages/Home/ServiceCategorySection/SalonForWomen/salon-6.jpg';
 // Lazy load more heavy components
-const ServiceCategorySection = lazy(() => import('./components/ServiceCategorySection'));
-const HomeRepairSection = lazy(() => import('./components/HomeRepairSection'));
 const BannerWithRefer = lazy(() => import('./components/BannerWithRefer'));
 import ACApplianceModal from './components/ACApplianceModal';
 import CategoryModal from './components/CategoryModal';
-import acRepairImage from '../../../../assets/images/pages/Home/ServiceCategorySection/ApplianceServices/ac-repair.jpg';
-import washingMachineRepairImage from '../../../../assets/images/pages/Home/ServiceCategorySection/ApplianceServices/washing-machine-repair].jpg';
-import waterHeaterRepairImage from '../../../../assets/images/pages/Home/ServiceCategorySection/ApplianceServices/water heater repair.jpg';
-import refrigeratorRepairImage from '../../../../assets/images/pages/Home/ServiceCategorySection/ApplianceServices/refigrator-repair.jpg';
-import homeWiringInstallationImage from '../../../../assets/images/pages/Home/ServiceCategorySection/ElectricalServices/home-wiring.jpg';
-import panelUpgradeRepairImage from '../../../../assets/images/pages/Home/ServiceCategorySection/ElectricalServices/electrical-panel-upgrade.jpg';
-import smartHomeSetupImage from '../../../../assets/images/pages/Home/ServiceCategorySection/ElectricalServices/smart home setup.jpg';
-// Cleaning Essentials Images
-import intenseBathroom2Image from '../../../../assets/images/pages/Home/ServiceCategorySection/CleaningEssentials/intense-bathroom-2.jpg';
-import intenseBathroom3Image from '../../../../assets/images/pages/Home/ServiceCategorySection/CleaningEssentials/intense-bathroom-3.jpg';
-import bathroomCleaningImage from '../../../../assets/images/pages/Home/ServiceCategorySection/CleaningEssentials/bathroom-cleaning.png';
+
+const toAssetUrl = (url) => {
+  if (!url) return '';
+  const clean = url.replace('/api/upload', '/upload');
+  if (clean.startsWith('http')) return clean;
+  const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/api$/, '');
+  return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
+};
 
 const Home = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [address] = useState('New Palasia- Indore- Madhya Pradesh...');
   const [cartCount, setCartCount] = useState(0);
+  const [categories, setCategories] = useState([]);
+  const [homeContent, setHomeContent] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // Combined useLayoutEffect - Set background on mount only (optimized)
   useLayoutEffect(() => {
@@ -76,109 +70,139 @@ const Home = () => {
     }
   }, [location.state?.scrollToTop, location.pathname]);
 
-  // Load cart count from localStorage on mount and when cart changes (optimized)
+  // Load cart count from backend
   useEffect(() => {
-    let updateTimeout = null;
-    let lastCount = 0;
-    
-    const updateCartCount = () => {
-      // Debounce rapid updates
-      if (updateTimeout) clearTimeout(updateTimeout);
-      updateTimeout = setTimeout(() => {
-        try {
-          const cartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
-          const newCount = cartItems.length;
-          // Only update if count changed
-          if (newCount !== lastCount) {
-            lastCount = newCount;
-            setCartCount(newCount);
-          }
-        } catch (error) {
-          console.error('Error reading cart:', error);
+    const loadCartCount = async () => {
+      try {
+        // Check if user is logged in
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          setCartCount(0);
+          return;
         }
-      }, 100); // Debounce delay for better performance
+
+        const response = await cartService.getCart();
+        if (response.success) {
+          setCartCount((response.data || []).length);
+        }
+      } catch (error) {
+        // Silently fail if user not authenticated
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          setCartCount(0);
+        } else {
+          console.error('Error loading cart count:', error);
+          setCartCount(0);
+        }
+      }
     };
 
-    updateCartCount();
-
-    // Listen for storage changes (when cart is updated from other tabs/pages)
-    window.addEventListener('storage', updateCartCount);
-
-    // Custom event for same-tab updates
-    window.addEventListener('cartUpdated', updateCartCount);
-
-    return () => {
-      window.removeEventListener('storage', updateCartCount);
-      window.removeEventListener('cartUpdated', updateCartCount);
-      if (updateTimeout) clearTimeout(updateTimeout);
-    };
+    loadCartCount();
+    // Refresh cart count every 10 seconds
+    const interval = setInterval(loadCartCount, 10000);
+    return () => clearInterval(interval);
   }, []);
   const [isACModalOpen, setIsACModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
+  // Fetch categories and home content on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [categoriesRes, homeContentRes] = await Promise.all([
+          publicCatalogService.getCategories(),
+          publicCatalogService.getHomeContent()
+        ]);
+
+        if (categoriesRes.success) {
+          // Map API response to component format
+          const mappedCategories = categoriesRes.categories.map(cat => ({
+            id: cat.id,
+            title: cat.title,
+            slug: cat.slug,
+            icon: toAssetUrl(cat.icon),
+            hasSaleBadge: cat.hasSaleBadge,
+            badge: cat.badge
+          }));
+          setCategories(mappedCategories);
+        }
+
+        if (homeContentRes.success) {
+          setHomeContent(homeContentRes.homeContent);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load content. Please refresh the page.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleSearch = (query) => {
     // Navigate to search results page
   };
 
   const handleCategoryClick = (category) => {
-    // Navigate immediately without any delay
-    if (category.title === 'Electricity') {
-      navigate('/user/electrician');
-      return;
-    }
-
-    if (category.title === 'Massage for Men') {
-      navigate('/user/massage-for-men');
-      return;
-    }
-
-    // Open modal for AC & Appliance Repair - instant
-    if (category.title === 'AC & Appliance Repair') {
-      setIsACModalOpen(true);
-    } else {
-      // Open modal for other categories - instant
-      setSelectedCategory(category);
-      setIsCategoryModalOpen(true);
-    }
+    // Open modal for all categories - dynamically fetching its services
+    setSelectedCategory(category);
+    setIsCategoryModalOpen(true);
   };
 
   const handlePromoClick = (promo) => {
+    // Priority 1: Navigate by targetCategoryId if provided
+    if (promo.targetCategoryId) {
+      const cat = categories.find(c => c.id === promo.targetCategoryId);
+      if (cat) {
+        handleCategoryClick(cat);
+        return;
+      }
+    }
+
+    // Priority 2: Navigate by route/section (existing logic)
     if (promo.route) {
       if (promo.scrollToSection) {
-        // Navigate to page and scroll to specific section
-        navigate(promo.route, { 
-          state: { scrollToSection: promo.scrollToSection } 
+        navigate(promo.route, {
+          state: { scrollToSection: promo.scrollToSection }
         });
       } else {
-        // Navigate to page
         navigate(promo.route);
       }
     }
   };
 
   const handleServiceClick = (service) => {
-    if (!service || !service.title) return;
-    
-    const title = service.title.toLowerCase();
-    
-    // Map services to their respective pages
-    if (title.includes('bathroom') || title.includes('kitchen cleaning') || title.includes('intense cleaning')) {
-      navigate('/user/bathroom-kitchen-cleaning');
-    } else if (title.includes('salon') || title.includes('spa') || title.includes('waxing') || title.includes('facial') || title.includes('cleanup') || title.includes('pedicure') || title.includes('mani pedi') || title.includes('hair studio')) {
-      navigate('/user/salon-for-women');
-    } else if (title.includes('massage')) {
-      navigate('/user/massage-for-men');
-    } else if (title.includes('sofa') || title.includes('carpet') || title.includes('professional sofa')) {
-      navigate('/user/sofa-carpet-cleaning');
-    } else if (title.includes('ac') || title.includes('appliance') || title.includes('water purifier') || title.includes('native')) {
-      navigate('/user/ac-service');
-    } else if (title.includes('drill') || title.includes('hang') || title.includes('tap repair') || title.includes('fan repair') || title.includes('switch') || title.includes('socket') || title.includes('electrical') || title.includes('wiring') || title.includes('doorbell') || title.includes('mcb') || title.includes('inverter') || title.includes('appliance')) {
-      navigate('/user/electrician');
-    } else {
-      // Default: stay on home or navigate to a general page
-      // You can add more specific routes as needed
+    if (!service) return;
+
+    // Priority 1: Navigate by service slug (Dynamic Page)
+    if (service.slug) {
+      navigate(`/user/${service.slug}`);
+      return;
     }
+
+    // Priority 2: Navigate by targetCategoryId if provided from backend
+    if (service.targetCategoryId) {
+      const cat = categories.find(c => c.id === service.targetCategoryId);
+      if (cat) {
+        handleCategoryClick(cat);
+        return;
+      }
+    }
+
+    if (!service.title) return;
+    const title = service.title.toLowerCase();
+
+    // Priority 3: Dynamic slug-based navigation
+    const slug = service.slug || service.title.toLowerCase()
+      .replace(/[^\w\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+
+    navigate(`/user/${slug}`);
   };
 
 
@@ -186,71 +210,69 @@ const Home = () => {
     // Navigate to product page or checkout
   };
 
-  const handleSeeAllClick = (category) => {
-    // Navigate to category page based on category identifier
-    const categoryRoutes = {
-      'salon-women': '/user/salon-for-women',
-      'cleaning-essentials': '/user/bathroom-kitchen-cleaning',
-      'electrical': '/user/electrician',
-      'appliance': '/user/ac-service',
-      'home-repair': '/user/electrician',
-    };
-    
-    const route = categoryRoutes[category];
-    if (route) {
-      navigate(route);
-    }
-  };
 
-  const handleAddClick = (service) => {
-    // Add service to cart
+  const handleAddClick = async (service) => {
+    try {
+      // For services from Home page, navigate to category instead of adding to cart
+      // This is because Home page services don't have complete serviceId/categoryId data
+      if (service.targetCategoryId) {
+        const cat = categories.find(c => c.id === service.targetCategoryId);
+        if (cat) {
+          handleCategoryClick(cat);
+          return;
+        }
+      }
+
+      // If we have serviceId and categoryId, try to add to cart
+      if (service.serviceId && service.categoryId) {
+        const cartItemData = {
+          serviceId: service.serviceId,
+          categoryId: service.categoryId,
+          title: service.title,
+          description: service.subtitle || service.description || '',
+          icon: service.image || '',
+          category: service.category || 'Service',
+          price: parseInt(service.price?.toString().replace(/,/g, '') || 0),
+          originalPrice: service.originalPrice ? parseInt(service.originalPrice.toString().replace(/,/g, '')) : null,
+          unitPrice: parseInt(service.price?.toString().replace(/,/g, '') || 0),
+          serviceCount: 1,
+          rating: service.rating || "4.8",
+          reviews: service.reviews || "10k+",
+          vendorId: service.vendorId || null
+        };
+
+        const response = await cartService.addToCart(cartItemData);
+        if (response.success) {
+          toast.success(`${service.title} added to cart!`);
+          // Update cart count
+          const updatedCart = await cartService.getCart();
+          if (updatedCart.success) {
+            setCartCount((updatedCart.data || []).length);
+          }
+        } else {
+          toast.error(response.message || 'Failed to add to cart');
+        }
+      } else {
+        // Fallback: navigate to service page or category
+        if (service.slug) {
+          navigate(`/user/${service.slug}`);
+        } else if (service.targetCategoryId) {
+          const cat = categories.find(c => c.id === service.targetCategoryId);
+          if (cat) handleCategoryClick(cat);
+        } else {
+          toast.error('Unable to add this service to cart. Please browse the service page.');
+        }
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add to cart. Please try again.');
+    }
   };
 
   const handleReferClick = () => {
     navigate('/user/rewards');
   };
 
-  // Service category data
-  const electricalServices = [
-    {
-      id: 1,
-      title: 'Home Wiring Installation',
-      image: homeWiringInstallationImage,
-    },
-    {
-      id: 2,
-      title: 'Panel Upgrade & Repair',
-      image: panelUpgradeRepairImage,
-    },
-    {
-      id: 3,
-      title: 'Smart Home Setup',
-      image: smartHomeSetupImage,
-    },
-  ];
-
-  const applianceServices = [
-    {
-      id: 1,
-      title: 'AC Service and Repair',
-      image: acRepairImage,
-    },
-    {
-      id: 2,
-      title: 'Washing Machine Repair',
-      image: washingMachineRepairImage,
-    },
-    {
-      id: 3,
-      title: 'Water Heater Repair',
-      image: waterHeaterRepairImage,
-    },
-    {
-      id: 4,
-      title: 'Refrigerator Repair',
-      image: refrigeratorRepairImage,
-    },
-  ];
 
   const handleLocationClick = () => {
     // Open location selector modal
@@ -302,12 +324,24 @@ const Home = () => {
             />
 
             <ServiceCategories
+              categories={categories}
               onCategoryClick={handleCategoryClick}
               onSeeAllClick={() => { }}
             />
 
             <Suspense fallback={<div className="h-48" />}>
               <PromoCarousel
+                promos={(homeContent?.promos || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map(promo => ({
+                  id: promo.id || promo._id,
+                  title: promo.title || '',
+                  subtitle: promo.subtitle || promo.description || '',
+                  buttonText: promo.buttonText || 'Book now',
+                  className: promo.gradientClass || 'from-blue-600 to-blue-800',
+                  image: toAssetUrl(promo.imageUrl),
+                  targetCategoryId: promo.targetCategoryId,
+                  scrollToSection: promo.scrollToSection,
+                  route: '/'
+                }))}
                 onPromoClick={handlePromoClick}
               />
             </Suspense>
@@ -316,194 +350,109 @@ const Home = () => {
 
         <Suspense fallback={<div className="h-32" />}>
           <CuratedServices
+            services={(homeContent?.curated || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map(item => ({
+              id: item.id || item._id,
+              title: item.title,
+              gif: toAssetUrl(item.gifUrl)
+            }))}
             onServiceClick={handleServiceClick}
           />
         </Suspense>
 
         <Suspense fallback={<div className="h-32" />}>
           <NewAndNoteworthy
+            services={(homeContent?.noteworthy || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map(item => ({
+              id: item.id || item._id,
+              title: item.title,
+              image: toAssetUrl(item.imageUrl)
+            }))}
             onServiceClick={handleServiceClick}
           />
         </Suspense>
 
         <Suspense fallback={<div className="h-32" />}>
           <MostBookedServices
-            onServiceClick={handleServiceClick}
-          />
-        </Suspense>
-
-        <Suspense fallback={<div className="h-32" />}>
-          <ServiceSectionWithRating
-          title="Salon for Women"
-          subtitle="Pamper yourself at home"
-          services={[
-            {
-              id: 1,
-              title: 'Roll-on waxing (Full arms, legs & underarms)',
-              rating: '4.87',
-              reviews: '47K',
-              price: '799',
-              image: salon1Image,
-            },
-            {
-              id: 2,
-              title: 'Spatula waxing (Full arms, legs & underarms)',
-              rating: '4.86',
-              reviews: '31K',
-              price: '599',
-              image: salon2Image,
-            },
-            {
-              id: 3,
-              title: 'Sara Lightening glow facial',
-              rating: '4.84',
-              reviews: '140K',
-              price: '949',
-              image: salon3Image,
-            },
-            {
-              id: 4,
-              title: 'Sara fruit cleanup',
-              rating: '4.86',
-              reviews: '147K',
-              price: '699',
-              image: salon4Image,
-            },
-            {
-              id: 5,
-              title: 'Elysian Firming Wine glow',
-              rating: '4.85',
-              reviews: '111K',
-              price: '1,049',
-              image: salon5Image,
-            },
-            {
-              id: 6,
-              title: 'Elysian British rose pedicure',
-              rating: '4.83',
-              reviews: '225K',
-              price: '759',
-              image: salon6Image,
-            },
-            {
-              id: 7,
-              title: 'Mani pedi combo',
-              rating: '4.83',
-              reviews: '327K',
-              price: '1,309',
-              originalPrice: '1,408',
-              discount: '7%',
-              image: salon6Image, // Using salon-6 as placeholder for 7th service
-            },
-          ]}
-          onSeeAllClick={() => handleSeeAllClick('salon-women')}
-          onServiceClick={handleServiceClick}
-          />
-        </Suspense>
-
-        <Suspense fallback={<div className="h-32" />}>
-          <Banner
-            onBuyClick={handleBuyClick}
-          />
-        </Suspense>
-
-        <Suspense fallback={<div className="h-32" />}>
-          <ServiceSectionWithRating
-          title="Cleaning Essentials"
-          subtitle="Monthly cleaning essential services"
-          showTopBorder={false}
-          services={[
-            {
-              id: 1,
-              title: 'Intense cleaning (2 bathrooms)',
-              rating: '4.79',
-              reviews: '3.7M',
-              price: '950',
-              originalPrice: '1,038',
-              discount: '8%',
-              image: intenseBathroom2Image,
-            },
-            {
-              id: 2,
-              title: 'Intense cleaning (3 bathrooms)',
-              rating: '4.79',
-              reviews: '3.7M',
-              price: '1,381',
-              originalPrice: '1,557',
-              discount: '11%',
-              image: intenseBathroom3Image,
-            },
-            {
-              id: 3,
-              title: 'Classic cleaning (2 bathrooms)',
-              rating: '4.82',
-              reviews: '1.5M',
-              price: '785',
-              originalPrice: '858',
-              discount: '9%',
-              image: bathroomCleaningImage,
-            },
-            {
-              id: 4,
-              title: 'Classic cleaning (3 bathrooms)',
-              rating: '4.82',
-              reviews: '1.5M',
-              price: '1,141',
-              originalPrice: '1,287',
-              discount: '11%',
-              image: bathroomCleaningImage,
-            },
-            {
-              id: 5,
-              title: 'Dining table & chairs cleaning',
-              rating: '4.82',
-              reviews: '57K',
-              price: '299',
-              image: bathroomCleaningImage,
-            },
-            {
-              id: 6,
-              title: 'Chimney cleaning',
-              rating: '4.83',
-              reviews: '109K',
-              price: '599',
-              image: bathroomCleaningImage,
-            },
-          ]}
-          onSeeAllClick={() => handleSeeAllClick('cleaning-essentials')}
-          onServiceClick={handleServiceClick}
-          />
-        </Suspense>
-
-        <Suspense fallback={<div className="h-32" />}>
-          <ServiceCategorySection
-            title="Electrical Installation & Repair"
-            services={electricalServices}
-            onSeeAllClick={() => handleSeeAllClick('electrical')}
-            onServiceClick={handleServiceClick}
-          />
-        </Suspense>
-
-        <Suspense fallback={<div className="h-32" />}>
-          <ServiceCategorySection
-            title="Appliance repair & service"
-            services={applianceServices}
-            onSeeAllClick={() => handleSeeAllClick('appliance')}
-            onServiceClick={handleServiceClick}
-          />
-        </Suspense>
-
-        <Suspense fallback={<div className="h-32" />}>
-          <HomeRepairSection
-            onSeeAllClick={() => handleSeeAllClick('home-repair')}
+            services={(homeContent?.booked || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map(item => ({
+              id: item.id || item._id,
+              title: item.title,
+              rating: item.rating,
+              reviews: item.reviews,
+              price: item.price,
+              originalPrice: item.originalPrice,
+              discount: item.discount,
+              image: toAssetUrl(item.imageUrl),
+              targetCategoryId: item.targetCategoryId
+            }))}
             onServiceClick={handleServiceClick}
             onAddClick={handleAddClick}
           />
         </Suspense>
 
+        {/* Dynamic Banner 1 from Backend - Moved after Most Booked Services */}
+        <Suspense fallback={<div className="h-32" />}>
+          <Banner
+            imageUrl={homeContent?.banners?.[0] ? toAssetUrl(homeContent.banners[0].imageUrl) : null}
+            onClick={() => {
+              const b = homeContent?.banners?.[0];
+              if (b?.targetCategoryId) {
+                const cat = categories.find(c => c.id === b.targetCategoryId);
+                if (cat) handleCategoryClick(cat);
+              }
+            }}
+          />
+        </Suspense>
+
+        {/* Dynamic Category Sections from Backend */}
+        {(homeContent?.categorySections || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map((section, sIdx) => (
+          <Suspense key={section._id || sIdx} fallback={<div className="h-32" />}>
+            <ServiceSectionWithRating
+              title={section.title}
+              subtitle={section.subtitle}
+              services={section.cards?.map((card, cIdx) => {
+                const processedImage = toAssetUrl(card.imageUrl);
+                console.log(`Service ${card.title}: original=${card.imageUrl}, processed=${processedImage}`);
+                return {
+                  id: card._id || cIdx,
+                  title: card.title,
+                  rating: card.rating || "4.8",
+                  reviews: card.reviews || "10k+",
+                  price: card.price || "Contact for price",
+                  image: processedImage,
+                  targetCategoryId: card.targetCategoryId
+                };
+              }) || []}
+              onSeeAllClick={section.seeAllTargetCategoryId ? () => {
+                const cat = categories.find(c => c.id === section.seeAllTargetCategoryId);
+                if (cat) handleCategoryClick(cat);
+              } : null}
+              onServiceClick={(service) => {
+                if (service.targetCategoryId) {
+                  const cat = categories.find(c => c.id === service.targetCategoryId);
+                  if (cat) handleCategoryClick(cat);
+                } else {
+                  handleServiceClick(service);
+                }
+              }}
+              onAddClick={handleAddClick}
+            />
+          </Suspense>
+        ))}
+
+
+
+
+
+        {/* Dynamic Banner 2 from Backend */}
         <Suspense fallback={<div className="h-32" />}>
           <BannerWithRefer
-            onBuyClick={handleBuyClick}
+            imageUrl={homeContent?.banners?.[1] ? toAssetUrl(homeContent.banners[1].imageUrl) : null}
+            onBannerClick={() => {
+              const b = homeContent?.banners?.[1];
+              if (b?.targetCategoryId) {
+                const cat = categories.find(c => c.id === b.targetCategoryId);
+                if (cat) handleCategoryClick(cat);
+              }
+            }}
             onReferClick={handleReferClick}
           />
         </Suspense>

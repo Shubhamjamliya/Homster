@@ -1,34 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiClock, FiMapPin, FiCheckCircle, FiXCircle, FiLoader } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
 import BottomNav from '../../components/layout/BottomNav';
+import { bookingService } from '../../../../services/bookingService';
 
 const MyBookings = () => {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, confirmed, in-progress, completed, cancelled
 
   useEffect(() => {
-    const loadBookings = () => {
-      const saved = localStorage.getItem('bookings');
-      if (saved) {
-        try {
-          const bookingsList = JSON.parse(saved);
-          setBookings(bookingsList);
-        } catch (e) {
+    const loadBookings = async () => {
+      try {
+        setLoading(true);
+        const params = {};
+        if (filter !== 'all') {
+          params.status = filter;
+        }
+        const response = await bookingService.getUserBookings(params);
+        if (response.success) {
+          setBookings(response.data || []);
+        } else {
+          toast.error(response.message || 'Failed to load bookings');
           setBookings([]);
         }
+      } catch (error) {
+        console.error('Error loading bookings:', error);
+        toast.error('Failed to load bookings. Please try again.');
+        setBookings([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     loadBookings();
-    window.addEventListener('storage', loadBookings);
-
-    return () => {
-      window.removeEventListener('storage', loadBookings);
-    };
-  }, []);
+  }, [filter]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -75,12 +84,8 @@ const MyBookings = () => {
     }
   };
 
-  const filteredBookings = filter === 'all' 
-    ? bookings 
-    : bookings.filter(booking => booking.status === filter);
-
   const handleBookingClick = (booking) => {
-    navigate(`/booking/${booking.id}`, { state: { booking } });
+    navigate(`/user/booking/${booking._id || booking.id}`);
   };
 
   const formatDate = (dateString) => {
@@ -96,6 +101,14 @@ const MyBookings = () => {
   const formatTime = (timeString) => {
     if (!timeString) return 'N/A';
     return timeString;
+  };
+
+  const getAddressString = (address) => {
+    if (typeof address === 'string') return address;
+    if (address && typeof address === 'object') {
+      return `${address.addressLine1 || ''}${address.addressLine2 ? `, ${address.addressLine2}` : ''}, ${address.city || ''}, ${address.state || ''} - ${address.pincode || ''}`;
+    }
+    return 'N/A';
   };
 
   return (
@@ -143,7 +156,12 @@ const MyBookings = () => {
 
       {/* Bookings List */}
       <main className="px-4 py-4">
-        {filteredBookings.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <FiLoader className="w-16 h-16 text-gray-300 mb-4 animate-spin" />
+            <p className="text-gray-500 text-lg font-medium">Loading bookings...</p>
+          </div>
+        ) : bookings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <FiClock className="w-16 h-16 text-gray-300 mb-4" />
             <p className="text-gray-500 text-lg font-medium">No bookings found</p>
@@ -155,9 +173,9 @@ const MyBookings = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredBookings.map((booking) => (
+            {bookings.map((booking) => (
               <div
-                key={booking.id}
+                key={booking._id || booking.id}
                 onClick={() => handleBookingClick(booking)}
                 className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 cursor-pointer active:scale-[0.98] transition-transform"
                 style={{
@@ -169,14 +187,14 @@ const MyBookings = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-base font-bold text-black">
-                        {booking.category === 'All' ? 'Multiple Services' : booking.category}
+                        {booking.serviceName || booking.serviceCategory || 'Service'}
                       </h3>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(booking.status)}`}>
                         {getStatusLabel(booking.status)}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      Booking ID: {booking.id.substring(0, 12)}...
+                      Booking ID: {booking.bookingNumber || (booking._id || booking.id).substring(0, 12)}...
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -188,28 +206,23 @@ const MyBookings = () => {
                 <div className="space-y-2 mb-3">
                   <div className="flex items-start gap-2">
                     <FiMapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
-                    <p className="text-sm text-gray-700 line-clamp-2">{booking.address}</p>
+                    <p className="text-sm text-gray-700 line-clamp-2">
+                      {getAddressString(booking.address)}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <FiClock className="w-4 h-4 text-gray-400 shrink-0" />
                     <p className="text-sm text-gray-700">
-                      {booking.date} • {booking.time}
+                      {formatDate(booking.scheduledDate)} • {booking.scheduledTime || booking.timeSlot?.start || 'N/A'}
                     </p>
                   </div>
-                </div>
-
-                {/* Services Count */}
-                <div className="mb-3 pb-3 border-b border-gray-100">
-                  <p className="text-sm text-gray-600">
-                    {booking.items.length} {booking.items.length === 1 ? 'service' : 'services'}
-                  </p>
                 </div>
 
                 {/* Amount */}
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">Total Amount</span>
                   <span className="text-lg font-bold text-black">
-                    ₹{booking.totalAmount.toLocaleString('en-IN')}
+                    ₹{(booking.finalAmount || booking.totalAmount || 0).toLocaleString('en-IN')}
                   </span>
                 </div>
               </div>

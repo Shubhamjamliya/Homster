@@ -1,17 +1,19 @@
 import React, { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { autoInitDummyData } from '../utils/initDummyData';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+
 import PageTransition from '../components/common/PageTransition';
 import BottomNav from '../components/layout/BottomNav';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
+import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
 
-// Lazy load worker pages for code splitting with error handling
+// Lazy load wrapper with error handling
 const lazyLoad = (importFunc) => {
   return lazy(() => {
     return Promise.resolve(importFunc()).catch((error) => {
       console.error('Failed to load worker page:', error);
+      // Return a fallback component wrapped in a Promise
       return Promise.resolve({
         default: () => (
           <div className="flex items-center justify-center min-h-screen bg-white">
@@ -33,8 +35,9 @@ const lazyLoad = (importFunc) => {
   });
 };
 
-const Login = lazyLoad(() => import('../pages/login'));
-const Signup = lazyLoad(() => import('../pages/signup'));
+// Lazy load worker pages for code splitting
+const Login = lazy(() => import('../pages/login'));
+const Signup = lazy(() => import('../pages/signup'));
 const Dashboard = lazyLoad(() => import('../pages/Dashboard'));
 const AssignedJobs = lazyLoad(() => import('../pages/AssignedJobs'));
 const JobDetails = lazyLoad(() => import('../pages/JobDetails'));
@@ -42,6 +45,7 @@ const Profile = lazyLoad(() => import('../pages/Profile'));
 const EditProfile = lazyLoad(() => import('../pages/Profile/EditProfile'));
 const Settings = lazyLoad(() => import('../pages/Settings'));
 const Notifications = lazyLoad(() => import('../pages/Notifications'));
+const JobMap = lazyLoad(() => import('../pages/JobMap'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -54,21 +58,18 @@ const LoadingFallback = () => (
 );
 
 const WorkerRoutes = () => {
-  // Initialize dummy data when worker routes load
-  useEffect(() => {
-    try {
-      autoInitDummyData();
-    } catch (error) {
-      console.error('Failed to initialize worker data:', error);
-      setTimeout(() => {
-        try {
-          autoInitDummyData();
-        } catch (retryError) {
-          console.error('Retry failed to initialize worker data:', retryError);
-        }
-      }, 500);
-    }
-  }, []);
+  const location = useLocation();
+
+  // Enable global notifications for worker
+  useAppNotifications('worker');
+
+  // Check if current route should hide bottom nav
+  const shouldHideBottomNav =
+    location.pathname === '/worker/login' ||
+    location.pathname === '/worker/signup' ||
+    location.pathname.endsWith('/map');
+
+
 
   return (
     <ErrorBoundary>
@@ -78,12 +79,13 @@ const WorkerRoutes = () => {
             {/* Public routes */}
             <Route path="/login" element={<PublicRoute userType="worker"><Login /></PublicRoute>} />
             <Route path="/signup" element={<PublicRoute userType="worker"><Signup /></PublicRoute>} />
-            
+
             {/* Protected routes (auth required) */}
             <Route path="/" element={<ProtectedRoute userType="worker"><Navigate to="dashboard" replace /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute userType="worker"><Dashboard /></ProtectedRoute>} />
             <Route path="/jobs" element={<ProtectedRoute userType="worker"><AssignedJobs /></ProtectedRoute>} />
             <Route path="/job/:id" element={<ProtectedRoute userType="worker"><JobDetails /></ProtectedRoute>} />
+            <Route path="/job/:id/map" element={<ProtectedRoute userType="worker"><JobMap /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute userType="worker"><Profile /></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute userType="worker"><EditProfile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute userType="worker"><Settings /></ProtectedRoute>} />
@@ -91,7 +93,7 @@ const WorkerRoutes = () => {
           </Routes>
         </PageTransition>
       </Suspense>
-      <BottomNav />
+      {!shouldHideBottomNav && <BottomNav />}
     </ErrorBoundary>
   );
 };

@@ -1,71 +1,64 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload } from 'react-icons/fi';
+import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
+import vendorService from '../../services/vendorService';
 
 const Vendors = () => {
-  const [vendors, setVendors] = useState([
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      phone: '9876543210',
-      aadhar: '123456789012',
-      pan: 'ABCDE1234F',
-      service: 'AC Service',
-      approvalStatus: 'pending',
-      documents: {
-        aadhar: 'https://via.placeholder.com/300x200',
-        pan: 'https://via.placeholder.com/300x200',
-        other: null
-      },
-      createdAt: '2024-01-15T10:30:00Z'
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane@example.com',
-      phone: '9876543211',
-      aadhar: '123456789013',
-      pan: 'ABCDE1235F',
-      service: 'Electrician',
-      approvalStatus: 'approved',
-      documents: {
-        aadhar: 'https://via.placeholder.com/300x200',
-        pan: 'https://via.placeholder.com/300x200',
-        other: 'https://via.placeholder.com/300x200'
-      },
-      createdAt: '2024-01-10T14:20:00Z'
-    },
-    {
-      id: '3',
-      name: 'Bob Johnson',
-      email: 'bob@example.com',
-      phone: '9876543212',
-      aadhar: '123456789014',
-      pan: 'ABCDE1236F',
-      service: 'Plumber',
-      approvalStatus: 'rejected',
-      documents: {
-        aadhar: 'https://via.placeholder.com/300x200',
-        pan: 'https://via.placeholder.com/300x200',
-        other: null
-      },
-      createdAt: '2024-01-05T09:15:00Z'
-    }
-  ]);
-
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
+  // Load vendors from backend
+  useEffect(() => {
+    loadVendors();
+  }, []);
+
+  const loadVendors = async () => {
+    try {
+      setLoading(true);
+      const response = await vendorService.getAllVendors();
+      if (response.success) {
+        // Transform backend data to frontend format
+        const transformedVendors = response.data.map(vendor => ({
+          id: vendor._id,
+          name: vendor.name,
+          email: vendor.email,
+          phone: vendor.phone,
+          businessName: vendor.businessName,
+          service: vendor.service,
+          approvalStatus: vendor.approvalStatus,
+          aadhar: vendor.aadhar?.number,
+          pan: vendor.pan?.number,
+          documents: {
+            aadhar: vendor.aadhar?.document,
+            pan: vendor.pan?.document,
+            other: vendor.otherDocuments?.[0]
+          },
+          createdAt: vendor.createdAt,
+          isActive: vendor.isActive
+        }));
+        setVendors(transformedVendors);
+      } else {
+        toast.error(response.message || 'Failed to load vendors');
+      }
+    } catch (error) {
+      console.error('Error loading vendors:', error);
+      toast.error('Failed to load vendors. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredVendors = useMemo(() => {
     return vendors.filter(vendor => {
       const matchesStatus = filterStatus === 'all' || vendor.approvalStatus === filterStatus;
-      const matchesSearch = 
+      const matchesSearch =
         vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         vendor.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         vendor.phone.includes(searchQuery) ||
@@ -75,23 +68,37 @@ const Vendors = () => {
   }, [vendors, filterStatus, searchQuery]);
 
   const handleApprove = async (vendorId) => {
-    // TODO: Replace with actual API call
-    // await vendorService.approveVendor(vendorId);
-    
-    setVendors(prev => prev.map(v => 
-      v.id === vendorId ? { ...v, approvalStatus: 'approved' } : v
-    ));
-    toast.success('Vendor approved successfully!');
+    try {
+      const response = await vendorService.approveVendor(vendorId);
+      if (response.success) {
+        setVendors(prev => prev.map(v =>
+          v.id === vendorId ? { ...v, approvalStatus: 'approved' } : v
+        ));
+        toast.success('Vendor approved successfully!');
+      } else {
+        toast.error(response.message || 'Failed to approve vendor');
+      }
+    } catch (error) {
+      console.error('Error approving vendor:', error);
+      toast.error('Failed to approve vendor. Please try again.');
+    }
   };
 
   const handleReject = async (vendorId) => {
-    // TODO: Replace with actual API call
-    // await vendorService.rejectVendor(vendorId);
-    
-    setVendors(prev => prev.map(v => 
-      v.id === vendorId ? { ...v, approvalStatus: 'rejected' } : v
-    ));
-    toast.success('Vendor rejected.');
+    try {
+      const response = await vendorService.rejectVendor(vendorId);
+      if (response.success) {
+        setVendors(prev => prev.map(v =>
+          v.id === vendorId ? { ...v, approvalStatus: 'rejected' } : v
+        ));
+        toast.success('Vendor rejected successfully.');
+      } else {
+        toast.error(response.message || 'Failed to reject vendor');
+      }
+    } catch (error) {
+      console.error('Error rejecting vendor:', error);
+      toast.error('Failed to reject vendor. Please try again.');
+    }
   };
 
   const handleViewDetails = (vendor) => {
@@ -105,7 +112,7 @@ const Vendors = () => {
       approved: 'bg-green-100 text-green-800 border-green-300',
       rejected: 'bg-red-100 text-red-800 border-red-300'
     };
-    
+
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status] || styles.pending}`}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -166,41 +173,37 @@ const Vendors = () => {
           <div className="flex gap-2">
             <button
               onClick={() => setFilterStatus('all')}
-              className={`px-4 py-3 rounded-xl font-semibold transition-all ${
-                filterStatus === 'all'
+              className={`px-4 py-3 rounded-xl font-semibold transition-all ${filterStatus === 'all'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setFilterStatus('pending')}
-              className={`px-4 py-3 rounded-xl font-semibold transition-all ${
-                filterStatus === 'pending'
+              className={`px-4 py-3 rounded-xl font-semibold transition-all ${filterStatus === 'pending'
                   ? 'bg-yellow-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               Pending
             </button>
             <button
               onClick={() => setFilterStatus('approved')}
-              className={`px-4 py-3 rounded-xl font-semibold transition-all ${
-                filterStatus === 'approved'
+              className={`px-4 py-3 rounded-xl font-semibold transition-all ${filterStatus === 'approved'
                   ? 'bg-green-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               Approved
             </button>
             <button
               onClick={() => setFilterStatus('rejected')}
-              className={`px-4 py-3 rounded-xl font-semibold transition-all ${
-                filterStatus === 'rejected'
+              className={`px-4 py-3 rounded-xl font-semibold transition-all ${filterStatus === 'rejected'
                   ? 'bg-red-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               Rejected
             </button>
@@ -209,68 +212,75 @@ const Vendors = () => {
 
         {/* Vendors Table */}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b-2 border-gray-200">
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">#</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Service</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredVendors.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
-                    No vendors found
-                  </td>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <FiLoader className="w-8 h-8 text-gray-400 animate-spin mr-3" />
+              <span className="text-gray-600">Loading vendors...</span>
+            </div>
+          ) : (
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b-2 border-gray-200">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">#</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Service</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
                 </tr>
-              ) : (
-                filteredVendors.map((vendor, index) => (
-                  <tr key={vendor.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-4 text-sm text-gray-700">{index + 1}</td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900">{vendor.name}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700">{vendor.email}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700">{vendor.phone}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700">{vendor.service}</td>
-                    <td className="px-4 py-4">{getStatusBadge(vendor.approvalStatus)}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleViewDetails(vendor)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="View Details"
-                        >
-                          <FiEye className="w-4 h-4" />
-                        </button>
-                        {vendor.approvalStatus === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(vendor.id)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Approve"
-                            >
-                              <FiCheck className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleReject(vendor.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Reject"
-                            >
-                              <FiX className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
+              </thead>
+              <tbody>
+                {filteredVendors.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                      No vendors found
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredVendors.map((vendor, index) => (
+                    <tr key={vendor.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-4 text-sm text-gray-700">{index + 1}</td>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900">{vendor.name}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">{vendor.email}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">{vendor.phone}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">{vendor.service}</td>
+                      <td className="px-4 py-4">{getStatusBadge(vendor.approvalStatus)}</td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewDetails(vendor)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <FiEye className="w-4 h-4" />
+                          </button>
+                          {vendor.approvalStatus === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handleApprove(vendor.id)}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Approve"
+                              >
+                                <FiCheck className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleReject(vendor.id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Reject"
+                              >
+                                <FiX className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </CardShell>
 
@@ -300,6 +310,10 @@ const Vendors = () => {
                 <div className="text-gray-900">{selectedVendor.phone}</div>
               </div>
               <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Business Name</label>
+                <div className="text-gray-900">{selectedVendor.businessName || 'N/A'}</div>
+              </div>
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Service</label>
                 <div className="text-gray-900">{selectedVendor.service}</div>
               </div>
@@ -314,6 +328,12 @@ const Vendors = () => {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
                 <div>{getStatusBadge(selectedVendor.approvalStatus)}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Active</label>
+                <div className={`text-sm font-semibold ${selectedVendor.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                  {selectedVendor.isActive ? 'Active' : 'Inactive'}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Registered</label>
@@ -386,8 +406,8 @@ const Vendors = () => {
             {selectedVendor.approvalStatus === 'pending' && (
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button
-                  onClick={() => {
-                    handleApprove(selectedVendor.id);
+                  onClick={async () => {
+                    await handleApprove(selectedVendor.id);
                     setIsViewModalOpen(false);
                     setSelectedVendor(null);
                   }}
@@ -397,8 +417,8 @@ const Vendors = () => {
                   Approve Vendor
                 </button>
                 <button
-                  onClick={() => {
-                    handleReject(selectedVendor.id);
+                  onClick={async () => {
+                    await handleReject(selectedVendor.id);
                     setIsViewModalOpen(false);
                     setSelectedVendor(null);
                   }}

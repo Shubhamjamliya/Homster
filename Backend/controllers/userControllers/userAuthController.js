@@ -1,6 +1,6 @@
 const User = require('../../models/User');
 const Token = require('../../models/Token');
-const { generateTokenPair } = require('../../utils/tokenService');
+const { generateTokenPair, verifyRefreshToken } = require('../../utils/tokenService');
 const { createOTPToken, verifyOTPToken, markTokenAsUsed } = require('../../services/otpService');
 const { sendOTPEmail } = require('../../services/emailService');
 const { TOKEN_TYPES, USER_ROLES } = require('../../utils/constants');
@@ -36,7 +36,6 @@ const sendOTP = async (req, res) => {
     });
 
     // Send OTP via SMS (simulated) or Email
-    // TODO: Integrate SMS service
     if (process.env.NODE_ENV === 'development' || process.env.USE_DEFAULT_OTP === 'true') {
       console.log(`[DEV MODE] Default OTP for ${phone}: ${otp}`);
     } else {
@@ -228,8 +227,6 @@ const login = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-    // In a stateless JWT system, logout is handled client-side
-    // But you can implement token blacklisting here if needed
     res.status(200).json({
       success: true,
       message: 'Logged out successfully'
@@ -243,10 +240,70 @@ const logout = async (req, res) => {
   }
 };
 
+/**
+ * Refresh Access Token
+ */
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required'
+      });
+    }
+
+    // Verify refresh token
+    const decoded = verifyRefreshToken(refreshToken);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired refresh token'
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check status
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account is not active'
+      });
+    }
+
+    // Generate new token pair
+    const tokens = generateTokenPair({
+      userId: user._id,
+      role: USER_ROLES.USER
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Token refreshed successfully',
+      ...tokens
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to refresh token'
+    });
+  }
+};
+
 module.exports = {
   sendOTP,
   register,
   login,
-  logout
+  logout,
+  refreshToken
 };
-

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminLayout from '../components/layout/AdminLayout';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
+import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
 
 // Login page (not lazy loaded for faster initial access)
 import Login from '../pages/login';
@@ -30,12 +31,15 @@ const LoadingFallback = () => (
 );
 
 const AdminRoutes = () => {
+  // Enable global notifications for admin
+  useAppNotifications('admin');
+
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         {/* Login route - outside of layout (public) */}
         <Route path="/login" element={<PublicRoute userType="admin"><Login /></PublicRoute>} />
-        
+
         {/* Protected routes - inside layout */}
         <Route path="/" element={
           <ProtectedRoute userType="admin">

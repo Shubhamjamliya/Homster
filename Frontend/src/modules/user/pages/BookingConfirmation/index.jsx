@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
 import { 
   FiCheckCircle, 
@@ -9,33 +10,72 @@ import {
   FiPackage,
   FiDollarSign,
   FiHome,
-  FiArrowRight
+  FiArrowRight,
+  FiLoader
 } from 'react-icons/fi';
 import BottomNav from '../../components/layout/BottomNav';
+import { bookingService } from '../../../../services/bookingService';
 
 const BookingConfirmation = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [booking, setBooking] = useState(location.state?.booking || null);
+  const { id } = useParams();
+  const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // If booking not in state, try to load from localStorage using ID from URL
-    if (!booking) {
-      const bookingId = window.location.pathname.split('/').pop();
-      const saved = localStorage.getItem('bookings');
-      if (saved) {
-        try {
-          const bookings = JSON.parse(saved);
-          const foundBooking = bookings.find(b => b.id === bookingId);
-          if (foundBooking) {
-            setBooking(foundBooking);
-          }
-        } catch (e) {
-          console.error('Error loading booking:', e);
+    const loadBooking = async () => {
+      try {
+        setLoading(true);
+        const response = await bookingService.getById(id);
+        if (response.success) {
+          setBooking(response.data);
+        } else {
+          toast.error(response.message || 'Booking not found');
+          navigate('/user/my-bookings');
         }
+      } catch (error) {
+        console.error('Error loading booking:', error);
+        toast.error('Failed to load booking details');
+        navigate('/user/my-bookings');
+      } finally {
+        setLoading(false);
       }
+    };
+
+    if (id) {
+      loadBooking();
     }
-  }, []);
+  }, [id, navigate]);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', { 
+      weekday: 'long',
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  };
+
+  const getAddressString = (address) => {
+    if (typeof address === 'string') return address;
+    if (address && typeof address === 'object') {
+      return `${address.addressLine1 || ''}${address.addressLine2 ? `, ${address.addressLine2}` : ''}, ${address.city || ''}, ${address.state || ''} - ${address.pincode || ''}`;
+    }
+    return 'N/A';
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <FiLoader className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading booking details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!booking) {
     return (
@@ -55,7 +95,7 @@ const BookingConfirmation = () => {
   }
 
   const handleViewDetails = () => {
-    navigate(`/user/booking/${booking.id}`, { state: { booking } });
+    navigate(`/user/booking/${booking._id || booking.id}`);
   };
 
   const handleGoHome = () => {
@@ -81,7 +121,7 @@ const BookingConfirmation = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500 mb-1">Booking ID</p>
-              <p className="text-base font-bold text-black">{booking.id}</p>
+              <p className="text-base font-bold text-black">{booking.bookingNumber || booking._id || booking.id}</p>
             </div>
             <div className="px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200">
               <span className="text-sm font-semibold">Confirmed</span>
@@ -99,7 +139,7 @@ const BookingConfirmation = () => {
               </div>
               <div className="flex-1">
                 <p className="text-xs text-gray-500 mb-1">Service Address</p>
-                <p className="text-sm text-gray-700">{booking.address}</p>
+                <p className="text-sm text-gray-700">{getAddressString(booking.address)}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -108,29 +148,23 @@ const BookingConfirmation = () => {
               </div>
               <div className="flex-1">
                 <p className="text-xs text-gray-500 mb-1">Date & Time</p>
-                <p className="text-sm text-gray-700">{booking.date} • {booking.time}</p>
+                <p className="text-sm text-gray-700">
+                  {formatDate(booking.scheduledDate)} • {booking.scheduledTime || booking.timeSlot?.start || 'N/A'}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Services Summary Card */}
+        {/* Service Summary Card */}
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-bold text-black">Services</h3>
-            <span className="text-sm text-gray-600">{booking.items.length} {booking.items.length === 1 ? 'service' : 'services'}</span>
-          </div>
+          <h3 className="text-base font-bold text-black mb-3">Service Details</h3>
           <div className="space-y-2">
-            {booking.items.slice(0, 3).map((item, index) => (
-              <div key={item.id || index} className="flex items-center gap-2">
-                <FiPackage className="w-4 h-4 text-gray-400 shrink-0" />
-                <p className="text-sm text-gray-700 flex-1">{item.title} × {item.serviceCount || 1}</p>
-                <p className="text-sm font-semibold text-black">₹{(item.price || 0).toLocaleString('en-IN')}</p>
-              </div>
-            ))}
-            {booking.items.length > 3 && (
-              <p className="text-xs text-gray-500 mt-2">+ {booking.items.length - 3} more services</p>
-            )}
+            <div className="flex items-center gap-2">
+              <FiPackage className="w-4 h-4 text-gray-400 shrink-0" />
+              <p className="text-sm text-gray-700 flex-1">{booking.serviceName || 'Service'}</p>
+              <p className="text-sm font-semibold text-black">₹{(booking.finalAmount || booking.basePrice || 0).toLocaleString('en-IN')}</p>
+            </div>
           </div>
         </div>
 
@@ -139,18 +173,8 @@ const BookingConfirmation = () => {
           <h3 className="text-base font-bold text-black mb-3">Payment Summary</h3>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Subtotal</span>
-              <span className="text-sm font-semibold text-black">₹{booking.subtotal.toLocaleString('en-IN')}</span>
-            </div>
-            {booking.tip > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Tip</span>
-                <span className="text-sm font-semibold text-black">₹{booking.tip.toLocaleString('en-IN')}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Visited Fee</span>
-              <span className="text-sm font-semibold text-black">₹{booking.visitedFee.toLocaleString('en-IN')}</span>
+              <span className="text-sm text-gray-600">Base Price</span>
+              <span className="text-sm font-semibold text-black">₹{(booking.basePrice || 0).toLocaleString('en-IN')}</span>
             </div>
             {booking.discount > 0 && (
               <div className="flex items-center justify-between">
@@ -158,19 +182,27 @@ const BookingConfirmation = () => {
                 <span className="text-sm font-semibold text-green-600">-₹{booking.discount.toLocaleString('en-IN')}</span>
               </div>
             )}
+            {booking.tax > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Tax</span>
+                <span className="text-sm font-semibold text-black">₹{booking.tax.toLocaleString('en-IN')}</span>
+              </div>
+            )}
             <div className="border-t border-gray-200 pt-2 mt-2">
               <div className="flex items-center justify-between">
                 <span className="text-base font-bold text-black">Total Paid</span>
-                <span className="text-lg font-bold text-black">₹{booking.totalAmount.toLocaleString('en-IN')}</span>
+                <span className="text-lg font-bold text-black">₹{(booking.finalAmount || booking.totalAmount || 0).toLocaleString('en-IN')}</span>
               </div>
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <FiDollarSign className="w-3 h-3" />
-              <span>Payment ID: {booking.paymentId}</span>
+          {booking.paymentId && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <FiDollarSign className="w-3 h-3" />
+                <span>Payment ID: {booking.paymentId}</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Action Buttons */}

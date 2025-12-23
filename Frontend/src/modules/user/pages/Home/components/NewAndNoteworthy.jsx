@@ -34,14 +34,14 @@ const NewAndNoteworthy = React.memo(({ services, onServiceClick }) => {
     },
   ];
 
-  const serviceList = services || defaultServices;
+  const serviceList = (services && services.length > 0) ? services : defaultServices;
 
   // Defer GSAP scroll animations until after initial render for better performance
   useEffect(() => {
     // Skip animations on initial load to improve performance
-    const shouldAnimate = typeof window !== 'undefined' && 
+    const shouldAnimate = typeof window !== 'undefined' &&
       (window.requestIdleCallback || window.setTimeout);
-    
+
     if (!shouldAnimate || !sectionRef.current || !titleRef.current || !cardsRef.current) {
       // Show content immediately without animation
       if (titleRef.current) titleRef.current.style.opacity = '1';
@@ -108,7 +108,7 @@ const NewAndNoteworthy = React.memo(({ services, onServiceClick }) => {
   return (
     <div ref={sectionRef} className="mb-6">
       <div ref={titleRef} className="px-4 mb-5" style={{ opacity: 1 }}>
-        <h2 
+        <h2
           className="text-xl font-bold text-black"
         >
           New and noteworthy

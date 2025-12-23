@@ -19,6 +19,11 @@ const userSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
   password: {
     type: String,
     select: false
@@ -60,6 +65,30 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Settings
+  settings: {
+    notifications: {
+      type: Boolean,
+      default: true
+    },
+    language: {
+      type: String,
+      default: 'en'
+    }
+  },
+  // Statistics
+  totalBookings: {
+    type: Number,
+    default: 0
+  },
+  completedBookings: {
+    type: Number,
+    default: 0
+  },
+  cancelledBookings: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

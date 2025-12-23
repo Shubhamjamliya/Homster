@@ -21,6 +21,11 @@ const vendorSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
+  role: {
+    type: String,
+    enum: ['vendor'],
+    default: 'vendor'
+  },
   password: {
     type: String,
     select: false
@@ -75,12 +80,21 @@ const vendorSchema = new mongoose.Schema({
     default: null
   },
   address: {
+    fullAddress: String,
     addressLine1: String,
     addressLine2: String,
     city: String,
     state: String,
     pincode: String,
-    landmark: String
+    landmark: String,
+    lat: {
+      type: Number,
+      default: null
+    },
+    lng: {
+      type: Number,
+      default: null
+    }
   },
   wallet: {
     balance: {
@@ -99,6 +113,60 @@ const vendorSchema = new mongoose.Schema({
   isEmailVerified: {
     type: Boolean,
     default: false
+  },
+  // Settings
+  settings: {
+    notifications: {
+      type: Boolean,
+      default: true
+    },
+    soundAlerts: {
+      type: Boolean,
+      default: true
+    },
+    language: {
+      type: String,
+      default: 'en'
+    }
+  },
+  // Real-time Location
+  location: {
+    lat: Number,
+    lng: Number,
+    updatedAt: Date
+  },
+  // Rating & Stats
+  rating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  totalJobs: {
+    type: Number,
+    default: 0
+  },
+  completedJobs: {
+    type: Number,
+    default: 0
+  },
+  cancelledJobs: {
+    type: Number,
+    default: 0
+  },
+  totalReviews: {
+    type: Number,
+    default: 0
+  },
+  // Business Hours
+  businessHours: {
+    monday: { open: String, close: String, isOpen: { type: Boolean, default: true } },
+    tuesday: { open: String, close: String, isOpen: { type: Boolean, default: true } },
+    wednesday: { open: String, close: String, isOpen: { type: Boolean, default: true } },
+    thursday: { open: String, close: String, isOpen: { type: Boolean, default: true } },
+    friday: { open: String, close: String, isOpen: { type: Boolean, default: true } },
+    saturday: { open: String, close: String, isOpen: { type: Boolean, default: true } },
+    sunday: { open: String, close: String, isOpen: { type: Boolean, default: false } }
   }
 }, {
   timestamps: true

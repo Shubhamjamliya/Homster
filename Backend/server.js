@@ -1,8 +1,10 @@
+// Server Entry Point
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path = require('path');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const rateLimiter = require('./middleware/rateLimiter');
@@ -16,8 +18,10 @@ connectDB();
 // Initialize Express app
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware - allow cross-origin resource loading (images) for user app
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 
 // CORS configuration
 app.use(cors({
@@ -31,6 +35,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {
@@ -55,15 +61,18 @@ app.use('/api/users/auth', require('./routes/user-routes/auth.routes'));
 app.use('/api/users', require('./routes/user-routes/profile.routes'));
 app.use('/api/user/wallet', require('./routes/user-routes/userWallet.routes'));
 app.use('/api/users/bookings', require('./routes/user-routes/booking.routes'));
+app.use('/api/users', require('./routes/user-routes/cart.routes'));
 
 // Vendor routes
 app.use('/api/vendors/auth', require('./routes/vendor-routes/auth.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/profile.routes'));
+app.use('/api/vendors', require('./routes/vendor-routes/settings.routes'));
+app.use('/api/vendors', require('./routes/vendor-routes/wallet.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/dashboard.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/service.routes'));
-app.use('/api/vendor/wallet', require('./routes/vendor-routes/vendorWallet.routes'));
 app.use('/api/vendors/bookings', require('./routes/vendor-routes/booking.routes'));
 app.use('/api/vendors/workers', require('./routes/vendor-routes/worker.routes'));
+
 
 // Worker routes
 app.use('/api/workers/auth', require('./routes/worker-routes/auth.routes'));
@@ -80,16 +89,20 @@ app.use('/api/admin', require('./routes/admin-routes/serviceManagement.routes'))
 app.use('/api/admin', require('./routes/admin-routes/homePageManagement.routes'));
 app.use('/api/admin', require('./routes/admin-routes/bookingManagement.routes'));
 app.use('/api/admin', require('./routes/admin-routes/paymentManagement.routes'));
+app.use('/api/admin', require('./routes/admin-routes/upload.routes'));
 
 // Booking routes
 app.use('/api/bookings', require('./routes/booking-routes/userBooking.routes'));
-app.use('/api/vendors/bookings', require('./routes/booking-routes/vendorBooking.routes'));
+// app.use('/api/vendors/bookings', require('./routes/booking-routes/vendorBooking.routes')); - Removed duplicate
 
 // Payment routes
 app.use('/api/payments', require('./routes/payment-routes/payment.routes'));
 
 // Notification routes
 app.use('/api/notifications', require('./routes/notification.routes'));
+
+// Public routes (no authentication required)
+app.use('/api/public', require('./routes/public-routes/catalog.routes'));
 
 // 404 handler
 app.use((req, res) => {
@@ -121,8 +134,11 @@ if (process.env.VERCEL !== '1' && !process.env.VERCEL_ENV) {
   });
 
   // Initialize Socket.io
-  const { initializeSocket } = require('./sockets');
+  const { initializeSocket, getIO } = require('./sockets');
   initializeSocket(server);
+
+  // Make io instance available in request
+  app.set('io', getIO());
 
   // Handle unhandled promise rejections
   process.on('unhandledRejection', (err) => {

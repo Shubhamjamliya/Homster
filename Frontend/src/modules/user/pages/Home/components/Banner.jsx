@@ -1,14 +1,14 @@
 import React from 'react';
 import homepageBanner from '../../../../../assets/images/pages/Home/Banner/homepage-banner.png';
 
-const Banner = ({ onBuyClick }) => {
+const Banner = ({ imageUrl, onClick }) => {
   return (
-    <div className="mb-6">
-      <div 
+    <div className="mb-6 cursor-pointer" onClick={onClick}>
+      <div
         className="relative overflow-hidden shadow-xl"
         style={{
           borderRadius: '0',
-          backgroundImage: `url(${homepageBanner})`,
+          backgroundImage: imageUrl ? `url(${imageUrl})` : `url(${homepageBanner})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',

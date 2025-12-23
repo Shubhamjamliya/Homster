@@ -24,7 +24,7 @@ const PromoCarousel = memo(({ promos, onPromoClick }) => {
       buttonText: 'Explore',
       className: 'from-blue-600 to-blue-800',
       image: promo2,
-      route: '/electrician',
+      route: '/user/electrician-services',
     },
     {
       id: 3,
@@ -33,7 +33,7 @@ const PromoCarousel = memo(({ promos, onPromoClick }) => {
       buttonText: 'Call Now',
       className: 'from-orange-600 to-orange-800',
       image: promo3,
-      route: '/ac-service',
+      route: '/user/ac-service',
     },
     {
       id: 4,
@@ -42,7 +42,7 @@ const PromoCarousel = memo(({ promos, onPromoClick }) => {
       buttonText: 'Book now',
       className: 'from-blue-600 to-blue-800',
       image: promo4,
-      route: '/salon-for-women',
+      route: '/user/salon-for-women',
     },
     {
       id: 5,
@@ -51,7 +51,7 @@ const PromoCarousel = memo(({ promos, onPromoClick }) => {
       buttonText: 'Explore',
       className: 'from-indigo-600 to-indigo-800',
       image: promo5,
-      route: '/salon-for-women',
+      route: '/user/salon-for-women',
     },
     {
       id: 6,

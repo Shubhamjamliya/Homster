@@ -13,26 +13,37 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
 
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem('accessToken');
-      let userData = null;
+      let tokenKey = 'accessToken';
+      let refreshTokenKey = 'refreshToken';
+      let dataKey = 'userData';
 
-      // Check for user data based on userType
+      // Determine keys based on userType
       switch (userType) {
-        case 'user':
-          userData = localStorage.getItem('userData');
-          break;
         case 'vendor':
-          userData = localStorage.getItem('vendorData');
+          tokenKey = 'vendorAccessToken';
+          refreshTokenKey = 'vendorRefreshToken';
+          dataKey = 'vendorData';
           break;
         case 'worker':
-          userData = localStorage.getItem('workerData');
+          tokenKey = 'workerAccessToken';
+          refreshTokenKey = 'workerRefreshToken';
+          dataKey = 'workerData';
           break;
         case 'admin':
-          userData = localStorage.getItem('adminData');
+          tokenKey = 'adminAccessToken';
+          refreshTokenKey = 'adminRefreshToken';
+          dataKey = 'adminData';
           break;
+        case 'user':
         default:
-          userData = localStorage.getItem('userData');
+          tokenKey = 'accessToken';
+          refreshTokenKey = 'refreshToken';
+          dataKey = 'userData';
+          break;
       }
+
+      const token = localStorage.getItem(tokenKey);
+      const userData = localStorage.getItem(dataKey);
 
       // If token exists, verify it's not expired (basic check)
       if (token && userData) {
@@ -42,18 +53,17 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
           if (parts.length === 3) {
             const payload = JSON.parse(atob(parts[1]));
             const currentTime = Date.now() / 1000;
-            
+
             if (payload.exp && payload.exp > currentTime) {
               setIsAuthenticated(true);
             } else {
               // Token expired
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
-              if (userType === 'user') localStorage.removeItem('userData');
-              if (userType === 'vendor') localStorage.removeItem('vendorData');
-              if (userType === 'worker') localStorage.removeItem('workerData');
-              if (userType === 'admin') localStorage.removeItem('adminData');
+              console.log('Token expired, clearing auth data for:', userType);
+              localStorage.removeItem(tokenKey);
+              localStorage.removeItem(refreshTokenKey);
+              localStorage.removeItem(dataKey);
               setIsAuthenticated(false);
+              toast.error('Session expired. Please login again.');
             }
           } else {
             // Invalid token format
@@ -67,7 +77,7 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
       } else {
         setIsAuthenticated(false);
       }
-      
+
       setIsLoading(false);
     };
 
@@ -85,7 +95,7 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
     );
   }
 
-  if (!isAuthenticated) {
+  if (isAuthenticated === false) {
     // Determine redirect path
     const defaultRedirects = {
       user: '/user/login',
@@ -93,10 +103,12 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
       worker: '/worker/login',
       admin: '/admin/login'
     };
-    
+
     const redirectPath = redirectTo || defaultRedirects[userType] || '/user/login';
-    
-    toast.error('Please login to continue');
+
+    // Toast removed from render phase to prevent "Cannot update a component while rendering" error
+    // If you need a toast, trigger it in useEffect before setting isAuthenticated(false) or rely on LoginPage to show "Please login"
+
     return <Navigate to={redirectPath} state={{ from: location }} replace />;
   }
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiShoppingCart, FiTrash2, FiPlus, FiMinus } from 'react-icons/fi';
+import { FiArrowLeft, FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiLoader } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
 import BottomNav from '../../components/layout/BottomNav';
+import { cartService } from '../../../../services/cartService';
 import electricianIcon from '../../../../assets/images/icons/services/electrician.png';
 import womensSalonIcon from '../../../../assets/images/icons/services/womens-salon-spa-icon.png';
 import massageMenIcon from '../../../../assets/images/icons/services/massage-men-icon.png';
@@ -11,57 +13,31 @@ import acApplianceRepairIcon from '../../../../assets/images/icons/services/ac-a
 
 const Cart = () => {
   const navigate = useNavigate();
-  
-  // Load cart items from localStorage
-  const [cartItems, setCartItems] = useState(() => {
-    const saved = localStorage.getItem('cartItems');
-    if (saved) {
-      try {
-        const items = JSON.parse(saved);
-        // Ensure all items have unitPrice calculated
-        return items.map(item => {
-          if (!item.unitPrice) {
-            item.unitPrice = item.price / (item.serviceCount || 1);
-          }
-          return item;
-        });
-      } catch (e) {
-        return [];
-      }
-    }
-    return [];
-  });
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sync with localStorage changes (from other tabs/components)
+  // Load cart items from backend
   useEffect(() => {
-    const updateCart = () => {
-      const saved = localStorage.getItem('cartItems');
-      if (saved) {
-        try {
-          const items = JSON.parse(saved);
-          // Ensure all items have unitPrice calculated
-          const itemsWithUnitPrice = items.map(item => {
-            if (!item.unitPrice) {
-              item.unitPrice = item.price / (item.serviceCount || 1);
-            }
-            return item;
-          });
-          setCartItems(itemsWithUnitPrice);
-        } catch (e) {
+    const loadCart = async () => {
+      try {
+        setLoading(true);
+        const response = await cartService.getCart();
+        if (response.success) {
+          setCartItems(response.data || []);
+        } else {
+          toast.error(response.message || 'Failed to load cart');
           setCartItems([]);
         }
-      } else {
+      } catch (error) {
+        console.error('Error loading cart:', error);
+        toast.error('Failed to load cart');
         setCartItems([]);
+      } finally {
+        setLoading(false);
       }
     };
 
-    window.addEventListener('cartUpdated', updateCart);
-    window.addEventListener('storage', updateCart);
-    
-    return () => {
-      window.removeEventListener('cartUpdated', updateCart);
-      window.removeEventListener('storage', updateCart);
-    };
+    loadCart();
   }, []);
 
   // Category icon mapping
@@ -101,58 +77,71 @@ const Cart = () => {
     navigate(-1);
   };
 
-  const handleDeleteCategory = (category) => {
-    const updatedItems = cartItems.filter(item => item.category !== category);
-    setCartItems(updatedItems);
-    localStorage.setItem('cartItems', JSON.stringify(updatedItems));
-    window.dispatchEvent(new Event('cartUpdated'));
-  };
-
-  const handleDelete = (itemId) => {
-    const updatedItems = cartItems.filter(item => item.id !== itemId);
-    setCartItems(updatedItems);
-    localStorage.setItem('cartItems', JSON.stringify(updatedItems));
-    window.dispatchEvent(new Event('cartUpdated'));
-  };
-
-  const handleQuantityChange = (itemId, change) => {
-    const updatedItems = cartItems.map(item => {
-      if (item.id === itemId) {
-        const newCount = Math.max(1, (item.serviceCount || 1) + change);
-        const unitPrice = item.unitPrice || (item.price / (item.serviceCount || 1));
-        const newPrice = unitPrice * newCount;
-        return { 
-          ...item, 
-          serviceCount: newCount, 
-          price: newPrice,
-          unitPrice: unitPrice
-        };
+  const handleDeleteCategory = async (category) => {
+    try {
+      const response = await cartService.removeCategoryItems(category);
+      if (response.success) {
+        setCartItems(response.data || []);
+        toast.success('Category items removed');
+      } else {
+        toast.error(response.message || 'Failed to remove category items');
       }
-      return item;
-    });
-    setCartItems(updatedItems);
-    localStorage.setItem('cartItems', JSON.stringify(updatedItems));
-    window.dispatchEvent(new Event('cartUpdated'));
+    } catch (error) {
+      console.error('Error removing category items:', error);
+      toast.error('Failed to remove category items');
+    }
+  };
+
+  const handleDelete = async (itemId) => {
+    try {
+      const response = await cartService.removeItem(itemId);
+      if (response.success) {
+        setCartItems(response.data || []);
+        toast.success('Item removed from cart');
+      } else {
+        toast.error(response.message || 'Failed to remove item');
+      }
+    } catch (error) {
+      console.error('Error removing item:', error);
+      toast.error('Failed to remove item');
+    }
+  };
+
+  const handleQuantityChange = async (itemId, change) => {
+    try {
+      const item = cartItems.find(i => (i._id || i.id) === itemId);
+      if (!item) return;
+
+      const newCount = Math.max(1, (item.serviceCount || 1) + change);
+      const response = await cartService.updateItem(itemId, newCount);
+      
+      if (response.success) {
+        setCartItems(response.data || []);
+      } else {
+        toast.error(response.message || 'Failed to update quantity');
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      toast.error('Failed to update quantity');
+    }
   };
 
   const handleAddServices = (category) => {
-    // Navigate to category page based on category name
-    const categoryRoutes = {
-      'Electrician': '/electrician',
-      'Electricity': '/electrician',
-      "Women's Salon & Spa": '/salon-for-women',
-      'Salon for Women': '/salon-for-women',
-      'Salon Prime': '/salon-for-women',
-      'Massage for Men': '/massage-for-men',
-      'Bathroom & Kitchen Cleaning': '/bathroom-kitchen-cleaning',
-      'Sofa & Carpet Cleaning': '/sofa-carpet-cleaning',
-      'AC Service and Repair': '/ac-service',
-      'AC & Appliance Repair': '/ac-service',
+    // Navigate to dynamic service page using category slug
+    const slugMap = {
+      'Electrician': 'electrician-services',
+      'Electricity': 'electrician-services',
+      "Women's Salon & Spa": 'salon-for-women',
+      'Salon for Women': 'salon-for-women',
+      'Salon Prime': 'salon-for-women',
+      'Massage for Men': 'massage-for-men',
+      'Bathroom & Kitchen Cleaning': 'bathroom-kitchen-cleaning',
+      'Sofa & Carpet Cleaning': 'sofa-carpet-cleaning',
+      'AC Service and Repair': 'ac-service',
+      'AC & Appliance Repair': 'ac-service',
     };
-    const route = categoryRoutes[category];
-    if (route) {
-      navigate(route);
-    }
+    const slug = slugMap[category] || category.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    navigate(`/user/${slug}`);
   };
 
   const handleCategoryCheckout = (category) => {
@@ -197,7 +186,12 @@ const Cart = () => {
 
       {/* Cart Items - Grouped by Category */}
       <main className="px-4 py-4" style={{ paddingBottom: cartItems.length > 0 ? '70px' : '100px' }}>
-        {cartItems.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <FiLoader className="w-16 h-16 text-gray-300 mb-4 animate-spin" />
+            <p className="text-gray-500 text-lg font-medium">Loading cart...</p>
+          </div>
+        ) : cartItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <FiShoppingCart className="w-16 h-16 text-gray-300 mb-4" />
             <p className="text-gray-500 text-lg font-medium">Your cart is empty</p>
@@ -274,7 +268,7 @@ const Cart = () => {
                   {/* Services List */}
                   <div className="mb-4 space-y-2">
                     {items.map((item) => (
-                      <div key={item.id} className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">
+                      <div key={item._id || item.id} className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">
                         <div className="flex-1">
                           <p className="text-sm text-gray-800 font-medium">
                             {item.title} X {item.serviceCount || 1}
@@ -288,7 +282,7 @@ const Cart = () => {
                             ₹{(item.price || 0).toLocaleString('en-IN')}
                           </span>
                           <button
-                            onClick={() => handleDelete(item.id)}
+                            onClick={() => handleDelete(item._id || item.id)}
                             className="p-1 hover:bg-red-50 rounded transition-colors"
                           >
                             <FiTrash2 className="w-4 h-4 text-red-500" />

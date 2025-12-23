@@ -1,11 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/authMiddleware');
+const { isUser, isVendor, isWorker, isAdmin } = require('../middleware/roleMiddleware');
+const {
+  getUserNotifications,
+  getVendorNotifications,
+  getWorkerNotifications,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification
+} = require('../controllers/notificationControllers/notificationController');
 
-// Placeholder routes - to be implemented
-router.get('/', authenticate, (req, res) => {
-  res.json({ success: true, message: 'Notification route' });
-});
+// Routes
+router.get('/user', authenticate, isUser, getUserNotifications);
+router.get('/vendor', authenticate, isVendor, getVendorNotifications);
+router.get('/worker', authenticate, isWorker, getWorkerNotifications);
+router.put('/:id/read', authenticate, markAsRead);
+router.put('/read-all', authenticate, markAllAsRead);
+router.delete('/:id', authenticate, deleteNotification);
 
 module.exports = router;
 

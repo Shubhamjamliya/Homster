@@ -32,6 +32,7 @@ const getProfile = async (req, res) => {
         completedJobs: worker.completedJobs || 0,
         status: worker.status,
         profilePhoto: worker.profilePhoto || null,
+        settings: worker.settings || { notifications: true, language: 'en' },
         isPhoneVerified: worker.isPhoneVerified || false,
         isEmailVerified: worker.isEmailVerified || false,
         createdAt: worker.createdAt,
@@ -62,7 +63,7 @@ const updateProfile = async (req, res) => {
     }
 
     const workerId = req.user.id;
-    const { name, serviceCategory, skills, address } = req.body;
+    const { name, serviceCategory, skills, address, status } = req.body;
 
     const worker = await Worker.findById(workerId);
 
@@ -87,6 +88,15 @@ const updateProfile = async (req, res) => {
         landmark: address.landmark || worker.address?.landmark || ''
       };
     }
+    if (status) worker.status = status;
+
+    if (req.body.settings) {
+      worker.settings = {
+        notifications: req.body.settings.notifications !== undefined ? req.body.settings.notifications : (worker.settings?.notifications ?? true),
+        soundAlerts: req.body.settings.soundAlerts !== undefined ? req.body.settings.soundAlerts : (worker.settings?.soundAlerts ?? true),
+        language: req.body.settings.language || worker.settings?.language || 'en'
+      };
+    }
 
     await worker.save();
 
@@ -105,6 +115,7 @@ const updateProfile = async (req, res) => {
         totalJobs: worker.totalJobs,
         completedJobs: worker.completedJobs,
         status: worker.status,
+        settings: worker.settings,
         isPhoneVerified: worker.isPhoneVerified,
         isEmailVerified: worker.isEmailVerified
       }
@@ -118,8 +129,33 @@ const updateProfile = async (req, res) => {
   }
 };
 
+/**
+ * Update worker real-time location
+ */
+const updateLocation = async (req, res) => {
+  try {
+    const workerId = req.user.id;
+    const { lat, lng } = req.body;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ success: false, message: 'Latitude and Longitude are required' });
+    }
+
+    // Update only the location field for performance
+    await Worker.findByIdAndUpdate(workerId, {
+      location: { lat, lng, updatedAt: new Date() }
+    });
+
+    res.status(200).json({ success: true, message: 'Location updated' });
+  } catch (error) {
+    console.error('Location update error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = {
   getProfile,
-  updateProfile
+  updateProfile,
+  updateLocation
 };
 

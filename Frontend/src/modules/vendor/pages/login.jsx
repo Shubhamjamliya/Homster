@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FiPhone } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../theme';
-import { vendorAuthService } from '../../../services/authService';
+import { sendOTP, login } from '../services/authService';
 
 const VendorLogin = () => {
   const navigate = useNavigate();
@@ -13,6 +13,16 @@ const VendorLogin = () => {
   const [otpToken, setOtpToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Clear any existing vendor tokens on page load
+  // Clear any existing vendor tokens on page load
+  useEffect(() => {
+    // Force clear vendor tokens when accessing login page to prevent auto-redirect
+    // do NOT clear user/worker tokens to allow multi-role sessions
+    localStorage.removeItem('vendorAccessToken');
+    localStorage.removeItem('vendorRefreshToken');
+    localStorage.removeItem('vendorData');
+  }, []);
+
   const handlePhoneSubmit = async (e) => {
     e.preventDefault();
     if (!phoneNumber || phoneNumber.length < 10) {
@@ -21,7 +31,7 @@ const VendorLogin = () => {
     }
     setIsLoading(true);
     try {
-      const response = await vendorAuthService.sendOTP(phoneNumber);
+      const response = await sendOTP(phoneNumber);
       if (response.success) {
         setOtpToken(response.token);
         setIsLoading(false);
@@ -70,7 +80,7 @@ const VendorLogin = () => {
     }
     setIsLoading(true);
     try {
-      const response = await vendorAuthService.login({
+      const response = await login({
         phone: phoneNumber,
         otp: otpValue,
         token: otpToken
@@ -93,7 +103,7 @@ const VendorLogin = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Top Section with Teal Gradient */}
-      <div 
+      <div
         className="relative h-64 overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, #00a6a6 0%, #008a8a 50%, #006b6b 100%)'
@@ -201,7 +211,7 @@ const VendorLogin = () => {
               type="button"
               onClick={async () => {
                 try {
-                  const response = await vendorAuthService.sendOTP(phoneNumber);
+                  const response = await sendOTP(phoneNumber);
                   if (response.success) {
                     setOtpToken(response.token);
                     toast.success('OTP resent!');

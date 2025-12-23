@@ -4,7 +4,11 @@ import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, 
 import { FaWallet } from 'react-icons/fa';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
-import { autoInitDummyData } from '../../utils/initDummyData';
+import { vendorDashboardService } from '../../services/dashboardService';
+import { acceptBooking, rejectBooking } from '../../services/bookingService';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -33,6 +37,8 @@ const Dashboard = () => {
   });
   const [recentJobs, setRecentJobs] = useState([]);
   const [pendingBookings, setPendingBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Set background gradient
   useLayoutEffect(() => {
@@ -52,98 +58,213 @@ const Dashboard = () => {
     };
   }, []);
 
-  // Initialize dummy data and load from localStorage
+  // Load dashboard data from API
   useEffect(() => {
-    // Initialize dummy data first (if not already present)
-    autoInitDummyData();
-
-    // Then load all data
-    const loadStats = () => {
+    const loadDashboardData = async () => {
       try {
-        const vendorStats = JSON.parse(localStorage.getItem('vendorStats') || '{}');
-        const statsData = {
-          todayEarnings: vendorStats.todayEarnings || 0,
-          activeJobs: vendorStats.activeJobs || 0,
-          pendingAlerts: vendorStats.pendingAlerts || 0,
-          workersOnline: vendorStats.workersOnline || 0,
-          totalEarnings: vendorStats.totalEarnings || 0,
-          completedJobs: vendorStats.completedJobs || 0,
-          rating: vendorStats.rating || 0,
-        };
-        setStats(statsData);
-      } catch (error) {
-        console.error('Error loading stats:', error);
-      }
-    };
+        setLoading(true);
+        setError(null);
 
-    const loadProfile = () => {
-      try {
-        const profile = JSON.parse(localStorage.getItem('vendorProfile') || '{}');
-        if (Object.keys(profile).length > 0) {
-          const profileData = {
+        // Fetch dashboard stats from API
+        const response = await vendorDashboardService.getDashboardStats();
+
+        if (response.success) {
+          const { stats: apiStats, recentBookings } = response.data;
+
+          // Update stats
+          setStats({
+            todayEarnings: apiStats.vendorEarnings || 0,
+            activeJobs: apiStats.inProgressBookings || 0,
+            pendingAlerts: apiStats.pendingBookings || 0,
+            workersOnline: 0, // Will be calculated from worker data
+            totalEarnings: apiStats.vendorEarnings || 0,
+            completedJobs: apiStats.completedBookings || 0,
+            rating: 4.8, // Default rating, could be calculated from reviews
+          });
+
+          // Separate REQUESTED bookings from other bookings
+          const requestedBookings = (recentBookings || []).filter(booking => booking.status === 'REQUESTED');
+          const otherBookings = (recentBookings || []).filter(booking => booking.status !== 'REQUESTED');
+
+          // Update recent jobs from API data (show recent non-requested bookings)
+          const recentJobsData = otherBookings.slice(0, 3).map(booking => ({
+            id: booking._id,
+            serviceType: booking.serviceId?.title || 'Service',
+            customerName: booking.userId?.name || 'Customer',
+            location: booking.address?.addressLine1 || 'Address not available',
+            price: booking.finalAmount || booking.baseAmount || 0,
+            timeSlot: {
+              date: new Date(booking.scheduledDate).toLocaleDateString(),
+              time: booking.scheduledTimeSlot || 'Time not set'
+            },
+            status: booking.status,
+            assignedTo: booking.workerId ? { name: booking.workerId.name } : null,
+          }));
+          setRecentJobs(recentJobsData);
+
+          // Update pending bookings with REQUESTED bookings
+          const pendingBookingsData = requestedBookings.slice(0, 5).map(booking => ({
+            id: booking._id,
+            serviceType: booking.serviceId?.title || 'Service Request',
+            customerName: booking.userId?.name || 'Customer',
+            location: {
+              address: booking.address?.addressLine1 || 'Address not available',
+              distance: 'N/A' // Would need to calculate distance
+            },
+            price: booking.finalAmount || booking.baseAmount || 0,
+            timeSlot: {
+              date: new Date(booking.scheduledDate).toLocaleDateString(),
+              time: booking.scheduledTimeSlot || 'Time not set'
+            },
+            status: booking.status,
+          }));
+          setPendingBookings(pendingBookingsData);
+
+          // Load vendor profile from localStorage (for now)
+          const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
+          setVendorProfile({
             name: profile.name || 'Vendor Name',
             businessName: profile.businessName || 'Business Name',
-            photo: profile.photo || null,
-          };
-          setVendorProfile(profileData);
+            photo: profile.profilePhoto || null,
+          });
+        } else {
+          throw new Error(response.message || 'Failed to load dashboard data');
         }
-      } catch (error) {
-        console.error('Error loading profile:', error);
+      } catch (err) {
+        console.error('Error loading dashboard data:', err);
+        setError(String(err.message || 'Failed to load dashboard data'));
+
+        // Fallback to localStorage if API fails
+        const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
+        setVendorProfile({
+          name: profile.name || 'Vendor Name',
+          businessName: profile.businessName || 'Business Name',
+          photo: profile.profilePhoto || null,
+        });
+
+        // Load fallback data from localStorage
+        try {
+          const vendorStats = JSON.parse(localStorage.getItem('vendorStats') || '{}');
+          setStats({
+            todayEarnings: vendorStats.todayEarnings || 0,
+            activeJobs: vendorStats.activeJobs || 0,
+            pendingAlerts: vendorStats.pendingAlerts || 0,
+            workersOnline: vendorStats.workersOnline || 0,
+            totalEarnings: vendorStats.totalEarnings || 0,
+            completedJobs: vendorStats.completedJobs || 0,
+            rating: vendorStats.rating || 0,
+          });
+
+          const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
+          const recent = acceptedBookings
+            .filter(job => job.status && !['COMPLETED', 'SETTLEMENT_PENDING'].includes(job.status))
+            .slice(0, 3);
+          setRecentJobs(recent);
+
+          const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+          setPendingBookings(pendingJobs.slice(0, 2));
+        } catch (fallbackError) {
+          console.error('Error loading fallback data:', fallbackError);
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
-    const loadRecentJobs = () => {
-      try {
-        const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-        const recent = acceptedBookings
-          .filter(job => job.status && !['COMPLETED', 'SETTLEMENT_PENDING'].includes(job.status))
-          .slice(0, 3)
-          .map(job => ({
-            id: job.id,
-            serviceType: job.serviceType || 'Service',
-            customerName: job.user?.name || job.customerName || 'Customer',
-            location: job.location?.address || job.location || 'Location',
-            status: job.status,
-            time: job.timeSlot?.time || 'N/A',
-          }));
-        setRecentJobs(recent);
-      } catch (error) {
-        console.error('Error loading recent jobs:', error);
+    loadDashboardData();
+  }, []);
+
+  // Socket.IO Listener for Real-time Booking Alerts
+  useEffect(() => {
+    // Get vendor ID from profile
+    const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
+    const vendorId = profile.id || profile._id;
+
+    if (!vendorId) return;
+
+    // Connect to Socket.IO
+    const socket = io(SOCKET_URL, {
+      auth: {
+        token: localStorage.getItem('vendorAccessToken'),
+        vendorId: vendorId
+      },
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      console.log('✅ Vendor Dashboard: Connected to Socket.IO');
+      socket.emit('join_vendor_room', vendorId);
+    });
+
+    // Listen for new booking requests (within 10km)
+    socket.on('new_booking_request', (data) => {
+      console.log('🔔 New Booking Request:', data);
+
+      // 1. Create a pending job object
+      const newJob = {
+        id: data.bookingId,
+        serviceType: data.serviceName,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        location: {
+          address: 'Location shared', // Will be fetched in detail page
+          distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Near you'
+        },
+        price: data.price,
+        timeSlot: {
+          date: new Date(data.scheduledDate).toLocaleDateString(),
+          time: data.scheduledTime
+        },
+        status: 'REQUESTED',
+        createdAt: new Date().toISOString()
+      };
+
+      // 2. Save to localStorage temporarily (BookingAlert page reads this)
+      const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+      // Avoid duplicates
+      if (!pendingJobs.find(job => job.id === newJob.id)) {
+        pendingJobs.unshift(newJob);
+        localStorage.setItem('vendorPendingJobs', JSON.stringify(pendingJobs));
+
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          pendingAlerts: (prev.pendingAlerts || 0) + 1
+        }));
       }
-    };
 
-    const loadPendingBookings = () => {
-      try {
-        const pending = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-        setPendingBookings(pending.slice(0, 2));
-      } catch (error) {
-        console.error('Error loading pending bookings:', error);
-      }
-    };
+      // 3. Update pending bookings list immediately
+      setPendingBookings(prev => {
+        const exists = prev.find(b => b.id === data.bookingId);
+        if (exists) return prev;
 
-    // Load data immediately (optimized - no duplicate loading)
-    loadStats();
-    loadProfile();
-    loadRecentJobs();
-    loadPendingBookings();
+        return [{
+          id: data.bookingId,
+          serviceType: data.serviceName,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          location: {
+            address: 'Location shared',
+            distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Near you'
+          },
+          price: data.price,
+          timeSlot: {
+            date: new Date(data.scheduledDate).toLocaleDateString(),
+            time: data.scheduledTime
+          },
+          status: 'REQUESTED'
+        }, ...prev];
+      });
 
-    // Listen for updates
-    window.addEventListener('vendorStatsUpdated', loadStats);
-    window.addEventListener('vendorProfileUpdated', loadProfile);
-    window.addEventListener('vendorJobsUpdated', () => {
-      loadRecentJobs();
-      loadPendingBookings();
+      // 4. Redirect to BookingAlert page immediately!
+      // This will trigger the ring sound and 60s timer
+      navigate(`/vendor/booking-alert/${data.bookingId}`);
     });
 
     return () => {
-      window.removeEventListener('vendorStatsUpdated', loadStats);
-      window.removeEventListener('vendorProfileUpdated', loadProfile);
-      window.removeEventListener('vendorJobsUpdated', () => {
-        loadRecentJobs();
-        loadPendingBookings();
-      });
+      socket.disconnect();
     };
-  }, []);
+  }, [navigate]);
 
   const quickActions = [
     {
@@ -194,6 +315,56 @@ const Dashboard = () => {
     };
     return labels[status] || status;
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen pb-20 flex items-center justify-center" style={{ background: themeColors.backgroundGradient }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen pb-20 flex items-center justify-center" style={{ background: themeColors.backgroundGradient }}>
+        <div className="text-center px-6">
+          <div className="text-red-400 text-6xl mb-4">⚠️</div>
+          <h2 className="text-white text-xl font-semibold mb-2">Failed to Load Dashboard</h2>
+          <p className="text-gray-300 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-white text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error && error.length > 0 && !loading) {
+    return (
+      <div className="min-h-screen pb-20 flex items-center justify-center" style={{ background: themeColors.backgroundGradient }}>
+        <div className="text-center px-6">
+          <div className="text-red-400 text-6xl mb-4">⚠️</div>
+          <h2 className="text-white text-xl font-semibold mb-2">Failed to Load Dashboard</h2>
+          <p className="text-gray-300 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-white text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
@@ -470,37 +641,90 @@ const Dashboard = () => {
                 {pendingBookings.map((booking) => (
                   <div
                     key={booking.id}
-                    onClick={() => navigate(`/vendor/booking-alert/${booking.id}`)}
                     className="bg-white rounded-xl p-4 shadow-md cursor-pointer active:scale-98 transition-transform border-l-4"
                     style={{
-                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)',
-                      borderLeftColor: '#EF4444',
-                      borderTop: '1px solid rgba(239, 68, 68, 0.2)',
-                      borderRight: '1px solid rgba(239, 68, 68, 0.2)',
-                      borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
+                      boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)', // Orange for REQUESTED
+                      borderLeftColor: '#F59E0B',
+                      borderTop: '1px solid rgba(245, 158, 11, 0.2)',
+                      borderRight: '1px solid rgba(245, 158, 11, 0.2)',
+                      borderBottom: '1px solid rgba(245, 158, 11, 0.2)',
                     }}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <p className="font-semibold text-gray-800">{booking.serviceType || 'New Booking'}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-semibold text-gray-800">{booking.serviceType || 'New Booking Request'}</p>
+                          <span className="text-xs font-bold px-2 py-1 rounded-full bg-yellow-100 text-yellow-600">
+                            REQUEST
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600">{booking.customerName || 'Customer'}</p>
                         <p className="text-sm text-gray-600 mt-1">{booking.location?.address || 'Location'}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <FiBell className="w-5 h-5" style={{ color: '#EF4444' }} />
-                        <span className="text-xs font-bold px-2 py-1 rounded-full bg-red-100 text-red-600">
-                          NEW
-                        </span>
+                        <FiBell className="w-5 h-5 animate-pulse" style={{ color: '#F59E0B' }} />
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
                         <FiClock className="w-4 h-4" />
                         <span>{booking.timeSlot?.time || 'N/A'}</span>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
                         <FiMapPin className="w-4 h-4" />
-                        <span>{booking.location?.distance || booking.distance || '0'} km</span>
+                        <span>{booking.location?.distance || 'N/A'} km</span>
                       </div>
+                      <div className="text-sm font-bold text-gray-800">
+                        ₹{booking.price || 0}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await acceptBooking(booking.id);
+
+                            // Remove this booking from pending list
+                            setPendingBookings(prev => prev.filter(b => b.id !== booking.id));
+
+                            // Sync localStorage
+                            const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+                            const updated = pendingJobs.filter(b => b.id !== booking.id);
+                            localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+
+                            // Navigate
+                            navigate(`/vendor/booking/${booking.id}`);
+                          } catch (error) {
+                            console.error('Error accepting:', error);
+                            alert('Failed to accept booking');
+                          }
+                        }}
+                        className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await rejectBooking(booking.id, 'Vendor Dashboard Reject');
+
+                            setPendingBookings(prev => prev.filter(b => b.id !== booking.id));
+
+                            // Sync localStorage
+                            const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+                            const updated = pendingJobs.filter(b => b.id !== booking.id);
+                            localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+                          } catch (error) {
+                            console.error('Error rejecting:', error);
+                            alert('Failed to reject booking');
+                          }
+                        }}
+                        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
+                      >
+                        Reject
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -656,7 +880,7 @@ const Dashboard = () => {
                           background: `linear-gradient(180deg, ${accentColor} 0%, ${accentColor}dd 100%)`,
                         }}
                       />
-                      
+
                       {/* Compact Content - All in one row */}
                       <div className="px-3 py-2.5">
                         <div className="flex items-center gap-3">
@@ -688,7 +912,7 @@ const Dashboard = () => {
                                 {job.serviceType || 'Service'}
                               </span>
                             </div>
-                            
+
                             {/* Address, Time, Status in one line */}
                             <div className="flex items-center gap-2 flex-wrap">
                               <div

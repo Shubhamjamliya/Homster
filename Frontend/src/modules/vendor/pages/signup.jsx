@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../theme';
-import { vendorAuthService } from '../../../services/authService';
+import { sendOTP as sendVendorOTP, register } from '../services/authService';
 
 const VendorSignup = () => {
   const navigate = useNavigate();
@@ -21,6 +21,16 @@ const VendorSignup = () => {
   const [otpToken, setOtpToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [documentPreview, setDocumentPreview] = useState({});
+
+  // Clear any existing tokens on page load
+  useEffect(() => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('vendorData');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('workerData');
+    localStorage.removeItem('adminData');
+  }, []);
 
   // Sample services - this should come from API
   const services = [
@@ -121,7 +131,7 @@ const VendorSignup = () => {
 
     setIsLoading(true);
     try {
-      const response = await vendorAuthService.sendOTP(formData.phoneNumber, formData.email);
+      const response = await sendVendorOTP(formData.phoneNumber);
       if (response.success) {
         setOtpToken(response.token);
         setIsLoading(false);
@@ -175,7 +185,7 @@ const VendorSignup = () => {
       const panDoc = formData.documents.find(d => d.type === 'pan')?.url || null;
       const otherDocs = formData.documents.filter(d => d.type === 'other').map(d => d.url);
 
-      const response = await vendorAuthService.register({
+      const registerData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phoneNumber,
@@ -187,7 +197,12 @@ const VendorSignup = () => {
         otherDocuments: otherDocs,
         otp: otpValue,
         token: otpToken
-      });
+      };
+
+      console.log('Sending register data:', registerData);
+
+      const response = await register(registerData);
+
       if (response.success) {
         setIsLoading(false);
         toast.success('Registration successful! Your account is pending admin approval.');
@@ -556,7 +571,7 @@ const VendorSignup = () => {
               type="button"
               onClick={async () => {
                 try {
-                  const response = await vendorAuthService.sendOTP(formData.phoneNumber, formData.email);
+                  const response = await sendVendorOTP(formData.phoneNumber);
                   if (response.success) {
                     setOtpToken(response.token);
                     toast.success('OTP resent!');

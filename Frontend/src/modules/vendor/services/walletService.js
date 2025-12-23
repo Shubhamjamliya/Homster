@@ -6,7 +6,7 @@
  * Replace localStorage calls with actual API endpoints.
  */
 
-const API_BASE_URL = '/api/vendor';
+import api from '../../../services/api';
 
 /**
  * Get wallet balance
@@ -14,13 +14,8 @@ const API_BASE_URL = '/api/vendor';
  */
 export const getWalletBalance = async () => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/wallet/balance`);
-    // return await response.json();
-    
-    // Mock implementation
-    const wallet = JSON.parse(localStorage.getItem('vendorWallet') || '{}');
-    return wallet;
+    const response = await api.get('/vendors/wallet');
+    return response.data.data;
   } catch (error) {
     console.error('Error fetching wallet balance:', error);
     throw error;
@@ -34,13 +29,8 @@ export const getWalletBalance = async () => {
  */
 export const getTransactions = async (filters = {}) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/wallet/transactions?${new URLSearchParams(filters)}`);
-    // return await response.json();
-    
-    // Mock implementation
-    const transactions = JSON.parse(localStorage.getItem('vendorTransactions') || '[]');
-    return transactions;
+    const response = await api.get('/vendors/transactions', { params: filters });
+    return response.data.data;
   } catch (error) {
     console.error('Error fetching transactions:', error);
     throw error;
@@ -54,33 +44,8 @@ export const getTransactions = async (filters = {}) => {
  */
 export const requestWithdrawal = async (withdrawalData) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/wallet/withdraw`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(withdrawalData),
-    // });
-    // return await response.json();
-    
-    // Mock implementation
-    const withdrawals = JSON.parse(localStorage.getItem('vendorWithdrawals') || '[]');
-    const wallet = JSON.parse(localStorage.getItem('vendorWallet') || '{}');
-    
-    const newWithdrawal = {
-      id: Date.now().toString(),
-      ...withdrawalData,
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-    };
-    
-    withdrawals.push(newWithdrawal);
-    localStorage.setItem('vendorWithdrawals', JSON.stringify(withdrawals));
-    
-    // Update wallet
-    wallet.available = (wallet.available || 0) - withdrawalData.amount;
-    localStorage.setItem('vendorWallet', JSON.stringify(wallet));
-    
-    return newWithdrawal;
+    const response = await api.post('/vendors/withdraw', withdrawalData);
+    return response.data;
   } catch (error) {
     console.error('Error requesting withdrawal:', error);
     throw error;
@@ -97,7 +62,7 @@ export const getWithdrawalHistory = async (filters = {}) => {
     // TODO: Replace with actual API call
     // const response = await fetch(`${API_BASE_URL}/wallet/withdrawals?${new URLSearchParams(filters)}`);
     // return await response.json();
-    
+
     // Mock implementation
     const withdrawals = JSON.parse(localStorage.getItem('vendorWithdrawals') || '[]');
     return withdrawals;
@@ -116,7 +81,7 @@ export const getBankAccount = async () => {
     // TODO: Replace with actual API call
     // const response = await fetch(`${API_BASE_URL}/wallet/bank-account`);
     // return await response.json();
-    
+
     // Mock implementation
     const bankAccount = JSON.parse(localStorage.getItem('vendorBankAccount') || '{}');
     return bankAccount;
@@ -140,7 +105,7 @@ export const saveBankAccount = async (bankAccountData) => {
     //   body: JSON.stringify(bankAccountData),
     // });
     // return await response.json();
-    
+
     // Mock implementation
     localStorage.setItem('vendorBankAccount', JSON.stringify(bankAccountData));
     return bankAccountData;

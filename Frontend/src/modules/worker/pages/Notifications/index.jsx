@@ -4,10 +4,13 @@ import { FiBell, FiCheck, FiBriefcase, FiChevronRight } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
+import workerService from '../../../../services/workerService';
+import { toast } from 'react-hot-toast';
 
 const Notifications = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
   useLayoutEffect(() => {
@@ -27,73 +30,89 @@ const Notifications = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const loadNotifications = () => {
-      try {
-        const workerNotifications = JSON.parse(localStorage.getItem('workerNotifications') || '[]');
-        // Add time formatted for display
-        const processNotifications = workerNotifications.map(n => ({
-          ...n,
-          time: new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-        }));
-        setNotifications(processNotifications);
-      } catch (error) {
-        console.error('Error loading notifications:', error);
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const response = await workerService.getNotifications();
+      if (response.success) {
+        setNotifications(response.data);
       }
-    };
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setLoading(false);
+    }
+  };
 
-    loadNotifications();
-    window.addEventListener('workerNotificationsUpdated', loadNotifications);
+  useEffect(() => {
+    fetchNotifications();
+
+    const handleUpdate = () => {
+      fetchNotifications();
+    };
+    window.addEventListener('workerNotificationsUpdated', handleUpdate);
 
     return () => {
-      window.removeEventListener('workerNotificationsUpdated', loadNotifications);
+      window.removeEventListener('workerNotificationsUpdated', handleUpdate);
     };
   }, []);
 
-  const handleMarkAsRead = (id) => {
-    const updated = notifications.map(n =>
-      n.id === id ? { ...n, read: true } : n
-    );
-    setNotifications(updated);
-    localStorage.setItem('workerNotifications', JSON.stringify(updated));
+  const handleMarkAsRead = async (id) => {
+    try {
+      const response = await workerService.markNotificationAsRead(id);
+      if (response.success) {
+        setNotifications(notifications.map(n =>
+          n._id === id ? { ...n, isRead: true } : n
+        ));
+      }
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
   };
 
-  const handleClearAll = () => {
-    if (window.confirm('Clear all notifications?')) {
-      localStorage.setItem('workerNotifications', JSON.stringify([]));
-      setNotifications([]);
+  const handleClearAll = async () => {
+    if (window.confirm('Mark all as read?')) {
+      try {
+        const response = await workerService.markAllNotificationsAsRead();
+        if (response.success) {
+          setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+          toast.success('All marked as read');
+        }
+      } catch (error) {
+        console.error('Error marking all as read:', error);
+      }
     }
   };
 
   const filteredNotifications = notifications.filter(notif => {
     if (filter === 'all') return true;
-    return notif.type.toLowerCase() === filter;
+    // Simple filter since actual notification types might vary
+    if (filter === 'job') return notif.type?.toLowerCase().includes('job') || notif.type?.toLowerCase().includes('booking');
+    if (filter === 'payment') return notif.type?.toLowerCase().includes('payment');
+    return true;
   });
 
-  const getNotificationIcon = (type) => {
-    switch (type.toLowerCase()) {
-      case 'alert':
-        return <FiBell className="w-5 h-5" />;
-      case 'job':
-        return <FiBriefcase className="w-5 h-5" />;
-      case 'payment':
-        return <span className="text-lg font-bold">₹</span>;
-      default:
-        return <FiBell className="w-5 h-5" />;
-    }
+  const getNotificationIcon = (type = '') => {
+    const t = type.toLowerCase();
+    if (t.includes('job') || t.includes('booking')) return <FiBriefcase className="w-5 h-5" />;
+    if (t.includes('payment')) return <span className="text-lg font-bold">₹</span>;
+    return <FiBell className="w-5 h-5" />;
   };
 
-  const getNotificationColor = (type) => {
-    switch (type.toLowerCase()) {
-      case 'alert':
-        return themeColors.button;
-      case 'job':
-        return '#3B82F6';
-      case 'payment':
-        return '#10B981';
-      default:
-        return '#6B7280';
-    }
+  const getNotificationColor = (type = '') => {
+    const t = type.toLowerCase();
+    if (t.includes('job') || t.includes('booking')) return '#3B82F6';
+    if (t.includes('payment')) return '#10B981';
+    return themeColors.button;
+  };
+
+  const formatTime = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -122,7 +141,7 @@ const Notifications = () => {
                     boxShadow: `0 2px 8px ${themeColors.button}40`,
                   }
                   : {
-                    border: '1px solid rgba(0,0,0,0.05)',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
                   }
               }
             >
@@ -132,19 +151,23 @@ const Notifications = () => {
         </div>
 
         {/* Clear All Button */}
-        {notifications.length > 0 && (
+        {notifications.some(n => !n.isRead) && (
           <div className="flex justify-end mb-4">
             <button
               onClick={handleClearAll}
               className="text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-80"
               style={{ color: themeColors.button }}
             >
-              Clear All
+              Mark All As Read
             </button>
           </div>
         )}
 
-        {filteredNotifications.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: themeColors.button }}></div>
+          </div>
+        ) : filteredNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <FiBell className="w-8 h-8 text-gray-400" />
@@ -156,14 +179,14 @@ const Notifications = () => {
           <div className="space-y-4">
             {filteredNotifications.map((notif) => {
               const iconColor = getNotificationColor(notif.type);
-              const isUnread = !notif.read;
+              const isUnread = !notif.isRead;
 
               return (
                 <div
-                  key={notif.id}
-                  className={`relative overflow-hidden bg-white rounded-2xl transition-all duration-300 ${isUnread ? 'shadow-md' : 'shadow-sm opacity-90'}`}
+                  key={notif._id}
+                  className={`relative overflow-hidden bg-white rounded-2xl transition-all duration-300 ${isUnread ? 'shadow-md border-b-2' : 'shadow-sm opacity-90'}`}
                   style={{
-                    border: isUnread ? 'none' : '1px solid #F3F4F6',
+                    borderColor: isUnread ? iconColor + '40' : '#F3F4F6',
                     transform: isUnread ? 'scale(1.01)' : 'scale(1)',
                   }}
                 >
@@ -191,17 +214,18 @@ const Notifications = () => {
                           <h4 className={`text-base ${isUnread ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>
                             {notif.title}
                           </h4>
-                          <span className="text-xs text-gray-400 whitespace-nowrap ml-2 font-medium">{notif.time}</span>
+                          <span className="text-xs text-gray-400 whitespace-nowrap ml-2 font-medium">
+                            {formatTime(notif.createdAt)}
+                          </span>
                         </div>
                         <p className={`text-sm leading-relaxed mb-3 ${isUnread ? 'text-gray-600' : 'text-gray-500'}`}>
                           {notif.message}
                         </p>
 
                         <div className="flex items-center justify-between mt-2">
-                          {/* Add relevant actions */}
-                          {notif.type.toLowerCase() === 'job' && notif.jobId ? (
+                          {(notif.relatedId && notif.relatedType === 'booking') ? (
                             <button
-                              onClick={() => navigate(`/worker/job/${notif.jobId}`)}
+                              onClick={() => navigate(`/worker/job/${notif.relatedId}`)}
                               className="text-xs font-bold uppercase tracking-wide flex items-center gap-1 transition-colors hover:opacity-80"
                               style={{ color: iconColor }}
                             >
@@ -213,7 +237,7 @@ const Notifications = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleMarkAsRead(notif.id);
+                                handleMarkAsRead(notif._id);
                               }}
                               className="text-xs font-medium text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-gray-50"
                             >
@@ -225,7 +249,7 @@ const Notifications = () => {
                     </div>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         )}
@@ -237,4 +261,3 @@ const Notifications = () => {
 };
 
 export default Notifications;
-

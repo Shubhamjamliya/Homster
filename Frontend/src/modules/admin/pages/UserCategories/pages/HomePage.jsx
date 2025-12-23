@@ -1,8 +1,11 @@
-﻿import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState, useEffect } from "react";
 import { FiGrid, FiPlus, FiTrash2, FiSave, FiEdit2 } from "react-icons/fi";
+import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
-import { ensureIds, saveCatalog, slugify } from "../utils";
+import { ensureIds, saveCatalog, slugify, toAssetUrl } from "../utils";
+
+import { homeContentService, serviceService } from "../../../../../services/catalogService";
 
 const HomePage = ({ catalog, setCatalog }) => {
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
@@ -25,6 +28,23 @@ const HomePage = ({ catalog, setCatalog }) => {
   const [bookedForm, setBookedForm] = useState({ title: "", rating: "", reviews: "", price: "", originalPrice: "", discount: "", imageUrl: "", targetCategoryId: "" });
   const [editingBookedId, setEditingBookedId] = useState(null);
 
+  const [isCategorySectionModalOpen, setIsCategorySectionModalOpen] = useState(false);
+  const [categorySectionForm, setCategorySectionForm] = useState({ title: "", seeAllTargetCategoryId: "", cards: [] });
+  const [editingCategorySectionId, setEditingCategorySectionId] = useState(null);
+
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [cardForm, setCardForm] = useState({
+    title: "",
+    imageUrl: "",
+    rating: "",
+    reviews: "",
+    price: "",
+    originalPrice: "",
+    discount: "",
+    targetCategoryId: ""
+  });
+  const [editingCardId, setEditingCardId] = useState(null);
+
   const categories = useMemo(() => {
     const list = ensureIds(catalog).categories || [];
     return [...list].sort((a, b) => {
@@ -37,10 +57,56 @@ const HomePage = ({ catalog, setCatalog }) => {
 
   const home = ensureIds(catalog).home;
 
+  // Fetch home content from API on mount
+  useEffect(() => {
+    const fetchHomeContent = async () => {
+      try {
+        const response = await homeContentService.get();
+        if (response.success && response.homeContent) {
+          const hc = response.homeContent;
+
+          // Helper function to add IDs to items if they don't have them and convert ObjectIds to strings
+          const addIds = (items) => {
+            return items.map((item, idx) => ({
+              ...item,
+              id: item.id || (item._id ? item._id.toString() : `item-${Date.now()}-${idx}`),
+              targetCategoryId: item.targetCategoryId ? (typeof item.targetCategoryId === 'object' ? item.targetCategoryId.toString() : item.targetCategoryId) : item.targetCategoryId,
+              seeAllTargetCategoryId: item.seeAllTargetCategoryId ? (typeof item.seeAllTargetCategoryId === 'object' ? item.seeAllTargetCategoryId.toString() : item.seeAllTargetCategoryId) : item.seeAllTargetCategoryId,
+              // For category sections cards
+              cards: item.cards ? item.cards.map(card => ({
+                ...card,
+                targetCategoryId: card.targetCategoryId ? (typeof card.targetCategoryId === 'object' ? card.targetCategoryId.toString() : card.targetCategoryId) : card.targetCategoryId
+              })) : item.cards
+            }));
+          };
+
+          // Map API response to component's expected format
+          const next = ensureIds(catalog);
+          next.home = {
+            banners: addIds(hc.banners || []),
+            promoCarousel: addIds(hc.promos || []), // API returns 'promos', component expects 'promoCarousel'
+            curatedServices: addIds(hc.curated || []), // API returns 'curated', component expects 'curatedServices'
+            newAndNoteworthy: addIds(hc.noteworthy || []), // API returns 'noteworthy', component expects 'newAndNoteworthy'
+            mostBooked: addIds(hc.booked || []), // API returns 'booked', component expects 'mostBooked'
+            categorySections: addIds(hc.categorySections || [])
+          };
+          setCatalog(next);
+          saveCatalog(next);
+        }
+      } catch (error) {
+        console.error("Error fetching home content:", error);
+        toast.error("Failed to load home content");
+      }
+    };
+    fetchHomeContent();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const getCategoryTitle = (id) => {
     const found = categories.find((c) => c.id === id);
     return found?.title || "";
   };
+
+
 
   const CategoryRedirectSelect = ({ value, onChange, label = "Redirect to service page", help }) => (
     <div>
@@ -88,11 +154,30 @@ const HomePage = ({ catalog, setCatalog }) => {
     saveCatalog(next);
   };
 
+  const syncHomeToBackend = async (homeData) => {
+    try {
+      const payload = {
+        banners: homeData.banners,
+        promos: homeData.promoCarousel,
+        curated: homeData.curatedServices,
+        noteworthy: homeData.newAndNoteworthy,
+        booked: homeData.mostBooked,
+        categorySections: homeData.categorySections,
+      };
+      await homeContentService.update(payload);
+    } catch (error) {
+      console.error('Failed to sync home content:', error);
+      const msg = error.response?.data?.message || error.message || 'Failed to save changes to server';
+      toast.error(msg);
+    }
+  };
+
   const setHomeBanners = (banners) => {
     const next = ensureIds(catalog);
     next.home = { ...(next.home || { banners: [] }), banners };
     setCatalog(next);
     saveCatalog(next);
+    syncHomeToBackend(next.home);
   };
 
   const patchHome = (patch) => {
@@ -100,6 +185,7 @@ const HomePage = ({ catalog, setCatalog }) => {
     next.home = { ...(next.home || {}), ...patch };
     setCatalog(next);
     saveCatalog(next);
+    syncHomeToBackend(next.home);
   };
 
   // Banner handlers
@@ -185,6 +271,80 @@ const HomePage = ({ catalog, setCatalog }) => {
       patchHome({ mostBooked: [...booked, { id: `hmb-${Date.now()}`, ...bookedForm }] });
     }
     resetBookedForm();
+  };
+
+  // Category Section handlers
+  const resetCategorySectionForm = () => {
+    setEditingCategorySectionId(null);
+    setCategorySectionForm({ title: "", seeAllTargetCategoryId: "", cards: [] });
+    setIsCategorySectionModalOpen(false);
+  };
+
+  const saveCategorySection = () => {
+    const title = categorySectionForm.title.trim();
+    if (!title) return alert("Section title required");
+
+    const sections = home?.categorySections || [];
+    if (editingCategorySectionId) {
+      patchHome({
+        categorySections: sections.map((s) =>
+          s.id === editingCategorySectionId ? { ...s, ...categorySectionForm } : s
+        ),
+      });
+    } else {
+      patchHome({
+        categorySections: [
+          ...sections,
+          { id: `hsec-${Date.now()}`, ...categorySectionForm },
+        ],
+      });
+    }
+    resetCategorySectionForm();
+  };
+
+  // Card handlers for category sections
+  const resetCardForm = () => {
+    setEditingCardId(null);
+    setCardForm({
+      title: "",
+      imageUrl: "",
+      rating: "",
+      reviews: "",
+      price: "",
+      originalPrice: "",
+      discount: "",
+      targetCategoryId: ""
+    });
+    setIsCardModalOpen(false);
+  };
+
+  const saveCard = () => {
+    const title = cardForm.title.trim();
+    if (!title) {
+      toast.error("Card title is required");
+      return;
+    }
+
+    const cards = categorySectionForm.cards || [];
+    if (editingCardId) {
+      setCategorySectionForm((prev) => ({
+        ...prev,
+        cards: cards.map((c) => (c.id === editingCardId ? { ...c, ...cardForm } : c)),
+      }));
+    } else {
+      setCategorySectionForm((prev) => ({
+        ...prev,
+        cards: [...cards, { id: `hcard-${Date.now()}`, ...cardForm }],
+      }));
+    }
+    resetCardForm();
+  };
+
+  const removeCardFromSection = (cardId) => {
+    setCategorySectionForm((prev) => ({
+      ...prev,
+      cards: prev.cards.filter((c) => c.id !== cardId),
+    }));
   };
 
   return (
@@ -701,14 +861,10 @@ const HomePage = ({ catalog, setCatalog }) => {
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  patchHome({
-                    categorySections: [
-                      ...(home.categorySections || []),
-                      { id: `hsec-${Date.now()}`, title: "", seeAllTargetCategoryId: "", cards: [] },
-                    ],
-                  })
-                }
+                onClick={() => {
+                  resetCategorySectionForm();
+                  setIsCategorySectionModalOpen(true);
+                }}
                 className="px-5 py-3 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
                 style={{
                   display: 'flex',
@@ -758,8 +914,19 @@ const HomePage = ({ catalog, setCatalog }) => {
                             <button
                               type="button"
                               onClick={() => {
-                                // TODO: Open modal to edit section and cards
-                                alert("Edit section functionality - to be implemented with modal");
+                                const section = home.categorySections.find((s) => s.id === sec.id);
+                                if (section) {
+                                  setEditingCategorySectionId(sec.id);
+                                  // Find the category ID from cards if available
+                                  const categoryIdFromCards = section.cards?.[0]?.targetCategoryId || section.seeAllTargetCategoryId || "";
+                                  setCategorySectionForm({
+                                    title: section.title || "",
+                                    seeAllTargetCategoryId: section.seeAllTargetCategoryId || "",
+                                    selectedCategoryId: categoryIdFromCards,
+                                    cards: section.cards || [],
+                                  });
+                                  setIsCategorySectionModalOpen(true);
+                                }
                               }}
                               className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
                               title="Edit"
@@ -791,95 +958,82 @@ const HomePage = ({ catalog, setCatalog }) => {
       </CardShell>
 
       <CardShell icon={FiGrid} title="Home Categories">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm text-gray-600">{categories.length} categories</div>
+        </div>
         {categories.length === 0 ? (
           <div className="text-center py-8 text-gray-500">No categories yet</div>
         ) : (
-          <div className="space-y-4">
-            {categories.map((c) => (
-              <div key={c.id} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-bold text-gray-800 truncate">{c.title || "Untitled"}</div>
-                    <div className="text-base text-gray-600 truncate">{c.slug || "—"}</div>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => moveCategory(c.id, "up")}
-                      className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-base font-semibold"
-                      title="Move up"
-                    >
-                      Up
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveCategory(c.id, "down")}
-                      className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-base font-semibold"
-                      title="Move down"
-                    >
-                      Down
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="flex items-center gap-3">
-                    <input
-                      id={`showOnHome-${c.id}`}
-                      type="checkbox"
-                      checked={c.showOnHome !== false}
-                      onChange={(e) => updateCategory(c.id, { showOnHome: e.target.checked })}
-                      className="h-4 w-4"
-                    />
-                    <label htmlFor={`showOnHome-${c.id}`} className="text-base font-semibold text-gray-700">
-                      Show on home
-                    </label>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-600 mb-1">Home Icon</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            updateCategory(c.id, { homeIconUrl: reader.result });
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                    />
-                    {c.homeIconUrl && (
-                      <img src={c.homeIconUrl} alt="Icon Preview" className="h-12 w-12 object-cover rounded-lg border border-gray-200 mt-2" />
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-600 mb-1">Home Badge</label>
-                    <input
-                      value={c.homeBadge || ""}
-                      onChange={(e) => updateCategory(c.id, { homeBadge: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
-                      placeholder="NEW / SALE"
-                    />
-                  </div>
-                  <div className="flex items-center gap-3 pt-5">
-                    <input
-                      id={`hasSaleBadge-${c.id}`}
-                      type="checkbox"
-                      checked={Boolean(c.hasSaleBadge)}
-                      onChange={(e) => updateCategory(c.id, { hasSaleBadge: e.target.checked })}
-                      className="h-4 w-4"
-                    />
-                    <label htmlFor={`hasSaleBadge-${c.id}`} className="text-base font-semibold text-gray-700">
-                      Sale badge
-                    </label>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-12">#</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-20">Icon</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Name</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Slug</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Badge</th>
+                  <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 w-32">Status</th>
+                  <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 w-40">Order</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories.map((c, idx) => (
+                  <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-4 text-sm font-semibold text-gray-600">{idx + 1}</td>
+                    <td className="py-4 px-4">
+                      {c.homeIconUrl ? (
+                        <img src={c.homeIconUrl} alt={c.title} className="h-12 w-12 object-cover rounded-lg border border-gray-200" />
+                      ) : (
+                        <div className="h-12 w-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                          <span className="text-xs text-gray-400">No icon</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="font-bold text-gray-900">{c.title || "Untitled"}</div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="text-sm text-gray-600">{c.slug || "—"}</div>
+                    </td>
+                    <td className="py-4 px-4">
+                      {c.homeBadge ? (
+                        <span className="inline-block px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-700 rounded">{c.homeBadge}</span>
+                      ) : (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className={`inline-block px-3 py-1 text-xs font-bold rounded ${c.showOnHome !== false ? "bg-green-500 text-white" : "bg-gray-300 text-gray-700"}`}>
+                        {c.showOnHome !== false ? "VISIBLE" : "HIDDEN"}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => moveCategory(c.id, "up")}
+                          className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs font-semibold"
+                          title="Move up"
+                          disabled={idx === 0}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveCategory(c.id, "down")}
+                          className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs font-semibold"
+                          title="Move down"
+                          disabled={idx === categories.length - 1}
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </CardShell>
@@ -894,14 +1048,19 @@ const HomePage = ({ catalog, setCatalog }) => {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setBannerForm((p) => ({ ...p, imageUrl: reader.result }));
-                  };
-                  reader.readAsDataURL(file);
+                  try {
+                    const response = await serviceService.uploadImage(file);
+                    if (response.success) {
+                      setBannerForm((p) => ({ ...p, imageUrl: response.imageUrl }));
+                    }
+                  } catch (error) {
+                    console.error('Banner upload error:', error);
+                    const msg = error.response?.data?.message || error.message || "Failed to upload image";
+                    toast.error(msg);
+                  }
                 }
               }}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
@@ -965,14 +1124,19 @@ const HomePage = ({ catalog, setCatalog }) => {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setPromoForm((p) => ({ ...p, imageUrl: reader.result }));
-                  };
-                  reader.readAsDataURL(file);
+                  try {
+                    const response = await serviceService.uploadImage(file);
+                    if (response.success) {
+                      setPromoForm((p) => ({ ...p, imageUrl: response.imageUrl }));
+                    }
+                  } catch (error) {
+                    console.error('Promo upload error:', error);
+                    const msg = error.response?.data?.message || error.message || "Failed to upload image";
+                    toast.error(msg);
+                  }
                 }
               }}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
@@ -1076,14 +1240,18 @@ const HomePage = ({ catalog, setCatalog }) => {
             <input
               type="file"
               accept="image/gif,video/*"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setCuratedForm((p) => ({ ...p, gifUrl: reader.result }));
-                  };
-                  reader.readAsDataURL(file);
+                  try {
+                    const response = await serviceService.uploadImage(file);
+                    if (response.success) {
+                      setCuratedForm((p) => ({ ...p, gifUrl: response.imageUrl }));
+                    }
+                  } catch (error) {
+                    console.error('Curated upload error:', error);
+                    toast.error("Failed to upload image/video");
+                  }
                 }
               }}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
@@ -1153,14 +1321,19 @@ const HomePage = ({ catalog, setCatalog }) => {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setNoteworthyForm((p) => ({ ...p, imageUrl: reader.result }));
-                  };
-                  reader.readAsDataURL(file);
+                  try {
+                    const response = await serviceService.uploadImage(file);
+                    if (response.success) {
+                      setNoteworthyForm((p) => ({ ...p, imageUrl: response.imageUrl }));
+                    }
+                  } catch (error) {
+                    console.error('Noteworthy upload error:', error);
+                    const msg = error.response?.data?.message || error.message || "Failed to upload image";
+                    toast.error(msg);
+                  }
                 }
               }}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
@@ -1216,14 +1389,19 @@ const HomePage = ({ catalog, setCatalog }) => {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setBookedForm((p) => ({ ...p, imageUrl: reader.result }));
-                  };
-                  reader.readAsDataURL(file);
+                  try {
+                    const response = await serviceService.uploadImage(file);
+                    if (response.success) {
+                      setBookedForm((p) => ({ ...p, imageUrl: response.imageUrl }));
+                    }
+                  } catch (error) {
+                    console.error('Booked upload error:', error);
+                    const msg = error.response?.data?.message || error.message || "Failed to upload image";
+                    toast.error(msg);
+                  }
                 }
               }}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
@@ -1297,6 +1475,283 @@ const HomePage = ({ catalog, setCatalog }) => {
             </button>
             <button
               onClick={resetBookedForm}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Category Section Modal */}
+      <Modal
+        isOpen={isCategorySectionModalOpen}
+        onClose={resetCategorySectionForm}
+        title={editingCategorySectionId ? "Edit Category Section" : "Add Category Section"}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Section Title</label>
+            <input
+              value={categorySectionForm.title}
+              onChange={(e) => setCategorySectionForm((p) => ({ ...p, title: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+              placeholder="e.g. Cleaning Essentials"
+            />
+          </div>
+          <CategoryRedirectSelect
+            value={categorySectionForm.seeAllTargetCategoryId}
+            onChange={(seeAllTargetCategoryId) => setCategorySectionForm((p) => ({ ...p, seeAllTargetCategoryId }))}
+            label="See All Redirect (Category)"
+            help="When user clicks 'See All', redirect to this category"
+          />
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-base font-bold text-gray-900">Cards ({categorySectionForm.cards.length})</label>
+              <button
+                type="button"
+                onClick={() => {
+                  resetCardForm();
+                  setIsCardModalOpen(true);
+                }}
+                className="px-4 py-2 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+                style={{
+                  background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <FiPlus className="w-4 h-4" />
+                <span>Add Card</span>
+              </button>
+            </div>
+            {categorySectionForm.cards.length === 0 ? (
+              <div className="text-sm text-gray-500 text-center py-4 border border-gray-200 rounded-lg">
+                No cards added. Select a category above to add.
+              </div>
+            ) : (
+              <div className="space-y-2 border border-gray-200 rounded-lg p-3 max-h-96 overflow-y-auto">
+                {categorySectionForm.cards.map((card) => {
+                  const category = categories.find((c) => c.id === card.targetCategoryId);
+                  return (
+                    <div key={card.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3 flex-1">
+                        {card.imageUrl ? (
+                          <img src={card.imageUrl} alt={card.title} className="h-12 w-12 object-cover rounded-lg border border-gray-200" />
+                        ) : (
+                          <div className="h-12 w-12 bg-gray-200 rounded-lg border border-gray-200 flex items-center justify-center">
+                            <span className="text-xs text-gray-400">No img</span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <div className="text-sm font-semibold text-gray-900">{card.title || "Untitled"}</div>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            {card.rating && (
+                              <span className="text-xs text-gray-600">⭐ {card.rating}</span>
+                            )}
+                            {card.reviews && (
+                              <span className="text-xs text-gray-500">{card.reviews}</span>
+                            )}
+                            {card.price && (
+                              <span className="text-xs font-semibold text-gray-900">₹{card.price}</span>
+                            )}
+                            {card.originalPrice && (
+                              <span className="text-xs text-gray-400 line-through">₹{card.originalPrice}</span>
+                            )}
+                            {card.discount && (
+                              <span className="text-xs font-semibold text-green-600">{card.discount} off</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCardId(card.id);
+                            setCardForm({
+                              title: card.title || "",
+                              imageUrl: card.imageUrl || "",
+                              rating: card.rating || "",
+                              reviews: card.reviews || "",
+                              price: card.price || "",
+                              originalPrice: card.originalPrice || "",
+                              discount: card.discount || "",
+                              targetCategoryId: card.targetCategoryId || "",
+                            });
+                            setIsCardModalOpen(true);
+                          }}
+                          className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                          title="Edit"
+                        >
+                          <FiEdit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeCardFromSection(card.id)}
+                          className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                          title="Remove"
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={saveCategorySection}
+              className="flex-1 py-3.5 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+              style={{ backgroundColor: '#2874F0' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#1e5fd4'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#2874F0'}
+            >
+              <FiSave className="w-5 h-5" />
+              {editingCategorySectionId ? "Update Section" : "Add Section"}
+            </button>
+            <button
+              onClick={resetCategorySectionForm}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Card Modal for Category Sections */}
+      <Modal
+        isOpen={isCardModalOpen}
+        onClose={resetCardForm}
+        title={editingCardId ? "Edit Card" : "Add Card"}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Card Title *</label>
+            <input
+              value={cardForm.title}
+              onChange={(e) => setCardForm((p) => ({ ...p, title: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+              placeholder="e.g. Salon for Women"
+            />
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  try {
+                    const response = await serviceService.uploadImage(file);
+                    if (response.success) {
+                      setCardForm((p) => ({ ...p, imageUrl: response.imageUrl }));
+                    }
+                  } catch (error) {
+                    console.error('Card upload error:', error);
+                    toast.error("Failed to upload image");
+                  }
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+            />
+            {cardForm.imageUrl && (
+              <div className="mt-2">
+                <img src={cardForm.imageUrl} alt="Preview" className="h-24 w-24 object-cover rounded-lg border border-gray-200" />
+              </div>
+            )}
+            <input
+              type="text"
+              value={cardForm.imageUrl}
+              onChange={(e) => setCardForm((p) => ({ ...p, imageUrl: e.target.value }))}
+              className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Or paste image URL"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-base font-bold text-gray-900 mb-2">Rating (optional)</label>
+              <input
+                type="text"
+                value={cardForm.rating}
+                onChange={(e) => setCardForm((p) => ({ ...p, rating: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+                placeholder="e.g. 4.79"
+              />
+            </div>
+            <div>
+              <label className="block text-base font-bold text-gray-900 mb-2">Reviews (optional)</label>
+              <input
+                type="text"
+                value={cardForm.reviews}
+                onChange={(e) => setCardForm((p) => ({ ...p, reviews: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+                placeholder="e.g. 3.7M"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-base font-bold text-gray-900 mb-2">Price *</label>
+              <input
+                type="text"
+                value={cardForm.price}
+                onChange={(e) => setCardForm((p) => ({ ...p, price: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+                placeholder="e.g. 950"
+              />
+            </div>
+            <div>
+              <label className="block text-base font-bold text-gray-900 mb-2">Original Price (optional)</label>
+              <input
+                type="text"
+                value={cardForm.originalPrice}
+                onChange={(e) => setCardForm((p) => ({ ...p, originalPrice: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+                placeholder="e.g. 1,038"
+              />
+            </div>
+            <div>
+              <label className="block text-base font-bold text-gray-900 mb-2">Discount (optional)</label>
+              <input
+                type="text"
+                value={cardForm.discount}
+                onChange={(e) => setCardForm((p) => ({ ...p, discount: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+                placeholder="e.g. 8%"
+              />
+            </div>
+          </div>
+
+          <CategoryRedirectSelect
+            value={cardForm.targetCategoryId}
+            onChange={(targetCategoryId) => setCardForm((p) => ({ ...p, targetCategoryId }))}
+            label="Target Category (optional)"
+            help="When user clicks this card, redirect to this category"
+          />
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={saveCard}
+              className="flex-1 py-3.5 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+              style={{ backgroundColor: '#2874F0' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#1e5fd4'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#2874F0'}
+            >
+              <FiSave className="w-5 h-5" />
+              {editingCardId ? "Update Card" : "Add Card"}
+            </button>
+            <button
+              onClick={resetCardForm}
               className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
             >
               Cancel

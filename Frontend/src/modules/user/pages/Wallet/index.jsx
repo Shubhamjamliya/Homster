@@ -1,51 +1,42 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiChevronRight } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronRight, FiLoader } from 'react-icons/fi';
 import { MdAccountBalanceWallet } from 'react-icons/md';
+import { toast } from 'react-hot-toast';
+import { walletService } from '../../../../services/walletService';
 
 const Wallet = () => {
   const navigate = useNavigate();
-  const walletBalance = 0;
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample wallet items/transactions
-  const walletItems = [
-    {
-      id: 1,
-      type: 'credit',
-      title: 'Referral Bonus',
-      description: 'Earned from friend referral',
-      amount: 100,
-      date: '2 days ago',
-      status: 'completed'
-    },
-    {
-      id: 2,
-      type: 'debit',
-      title: 'Service Payment',
-      description: 'Electrician service booking',
-      amount: 500,
-      date: '5 days ago',
-      status: 'completed'
-    },
-    {
-      id: 3,
-      type: 'credit',
-      title: 'Cashback',
-      description: 'Cashback on salon booking',
-      amount: 50,
-      date: '1 week ago',
-      status: 'completed'
-    },
-    {
-      id: 4,
-      type: 'debit',
-      title: 'Service Payment',
-      description: 'AC service booking',
-      amount: 800,
-      date: '2 weeks ago',
-      status: 'completed'
-    }
-  ];
+  useEffect(() => {
+    const loadWalletData = async () => {
+      try {
+        setLoading(true);
+        const [balanceResponse, transactionsResponse] = await Promise.all([
+          walletService.getBalance(),
+          walletService.getTransactions()
+        ]);
+
+        if (balanceResponse.success) {
+          setWalletBalance(balanceResponse.data.balance || 0);
+        }
+
+        if (transactionsResponse.success) {
+          setTransactions(transactionsResponse.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading wallet data:', error);
+        toast.error('Failed to load wallet data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadWalletData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white pb-4">
@@ -110,46 +101,58 @@ const Wallet = () => {
         <div>
           <h3 className="text-base font-bold text-black mb-3">Wallet Activity</h3>
           <div className="space-y-0">
-            {walletItems.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <FiLoader className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Loading transactions...</p>
+              </div>
+            ) : transactions.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-sm text-gray-500">No wallet activity yet</p>
               </div>
             ) : (
-              walletItems.map((item, index) => (
-                <div
-                  key={item.id}
-                  className={`flex items-center justify-between py-4 ${
-                    index !== walletItems.length - 1 ? 'border-b border-gray-200' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        item.type === 'credit' ? 'bg-green-50' : 'bg-red-50'
-                      }`}
-                    >
-                      <span className={`text-lg ${item.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-                        {item.type === 'credit' ? '+' : '-'}
-                      </span>
+              transactions.map((item, index) => {
+                const date = new Date(item.date);
+                const formattedDate = date.toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                });
+                
+                return (
+                  <div
+                    key={item.id || index}
+                    className={`flex items-center justify-between py-4 ${
+                      index !== transactions.length - 1 ? 'border-b border-gray-200' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          item.type === 'credit' ? 'bg-green-50' : 'bg-red-50'
+                        }`}
+                      >
+                        <span className={`text-lg ${item.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                          {item.type === 'credit' ? '+' : '-'}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-black">{item.description || item.title || 'Transaction'}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{formattedDate}</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-black">{item.title}</p>
-                      <p className="text-xs text-gray-600">{item.description}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{item.date}</p>
+                    <div className="text-right">
+                      <p
+                        className={`text-sm font-bold ${
+                          item.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {item.type === 'credit' ? '+' : '-'}₹{item.amount.toLocaleString('en-IN')}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p
-                      className={`text-sm font-bold ${
-                        item.type === 'credit' ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {item.type === 'credit' ? '+' : '-'}₹{item.amount.toLocaleString('en-IN')}
-                    </p>
-                    <p className="text-xs text-gray-500 capitalize">{item.status}</p>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

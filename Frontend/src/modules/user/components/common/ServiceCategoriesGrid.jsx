@@ -19,7 +19,7 @@ const ServiceCategoriesGrid = ({ categories = [], onCategoryClick, layout = 'gri
                 onClick={() => onCategoryClick?.(category)}
                 className="flex flex-col items-center cursor-pointer active:scale-95 transition-transform w-full"
               >
-                <div className="relative w-full aspect-square max-w-[80px] mx-auto rounded-lg overflow-hidden mb-2" style={{ backgroundColor: '#f5f5f5' }}>
+                <div className="relative w-full aspect-square mx-auto rounded-lg overflow-hidden mb-2 border border-gray-200 shadow-sm" style={{ backgroundColor: '#f5f5f5' }}>
                   {category.image ? (
                     <img
                       src={category.image}
@@ -43,7 +43,7 @@ const ServiceCategoriesGrid = ({ categories = [], onCategoryClick, layout = 'gri
                     </div>
                   )}
                 </div>
-                <span className="text-[10px] text-center text-gray-700 font-medium leading-tight px-1">
+                <span className="text-[11px] text-center text-gray-800 font-medium leading-tight px-1 line-clamp-2 min-h-[2.5em]">
                   {category.title}
                 </span>
               </div>
@@ -64,7 +64,7 @@ const ServiceCategoriesGrid = ({ categories = [], onCategoryClick, layout = 'gri
             className="flex flex-col items-center cursor-pointer active:scale-95 transition-transform flex-shrink-0"
             onClick={() => onCategoryClick?.(category)}
           >
-            <div className="relative w-20 h-20 rounded-lg overflow-hidden mb-2" style={{ backgroundColor: '#f5f5f5' }}>
+            <div className="relative w-20 h-20 rounded-lg overflow-hidden mb-2 border border-gray-200 shadow-sm" style={{ backgroundColor: '#f5f5f5' }}>
               {category.image ? (
                 <img
                   src={category.image}

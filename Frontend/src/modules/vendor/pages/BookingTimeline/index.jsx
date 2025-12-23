@@ -4,6 +4,7 @@ import { FiCheck, FiClock, FiUser, FiMapPin, FiTool, FiDollarSign, FiFileText, F
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
+import { getBookingById, updateBookingStatus } from '../../services/bookingService';
 
 const BookingTimeline = () => {
   const { id } = useParams();
@@ -29,31 +30,47 @@ const BookingTimeline = () => {
   }, []);
 
   useEffect(() => {
-    // Load booking from localStorage
-    const loadBooking = () => {
+    const loadBooking = async () => {
       try {
-        const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-        const found = acceptedBookings.find(b => b.id === id) || {
-          id: id || '1',
-          serviceType: 'Fan Repairing',
-          status: 'ACCEPTED',
-          assignedTo: null,
-          timeline: [],
+        const response = await getBookingById(id);
+        const apiData = response.data || response;
+
+        const mappedBooking = {
+          ...apiData,
+          id: apiData._id || apiData.id,
+          assignedTo: apiData.workerId ? { name: apiData.workerId.name } : null,
+          location: {
+            address: apiData.address?.addressLine1 || apiData.location?.address || 'Address not available',
+            lat: apiData.address?.lat || apiData.location?.lat,
+            lng: apiData.address?.lng || apiData.location?.lng
+          },
+          status: apiData.status,
+          // Timeline mapping if backend supports it, otherwise derived from status/timestamps
+          timeline: [
+            { stage: 1, timestamp: apiData.createdAt },
+            { stage: 2, timestamp: apiData.acceptedAt },
+            { stage: 3, timestamp: apiData.assignedAt },
+            { stage: 4, timestamp: apiData.startedAt }, // Assuming started means visited for now? Or keep null
+            { stage: 5, timestamp: apiData.completedAt }, // Simplified mapping
+          ]
         };
-        setBooking(found);
-        
+        setBooking(mappedBooking);
+
         // Determine current stage based on status
         const statusMap = {
           'REQUESTED': 1,
+          'SEARCHING': 1,
           'ACCEPTED': 2,
-          'ASSIGNED': 3,
-          'VISITED': 4,
+          'ASSIGNED': 3, // Worker assigned but not visited
+          'IN_PROGRESS': 4, // Visited/Started
+          'VISITED': 4, // Explicit visited status if used
           'WORK_DONE': 5,
           'WORKER_PAID': 6,
           'SETTLEMENT_PENDING': 7,
           'COMPLETED': 8,
         };
-        setCurrentStage(statusMap[found.status] || 2);
+        // Mapping might need adjustment based on validTransitions in backend
+        setCurrentStage(statusMap[apiData.status] || 2);
       } catch (error) {
         console.error('Error loading booking:', error);
       }
@@ -121,39 +138,40 @@ const BookingTimeline = () => {
     },
   ];
 
-  function handleVisitSite() {
+  async function handleVisitSite() {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${booking.location?.lat || 22.7196},${booking.location?.lng || 75.8577}`;
     window.open(url, '_blank');
-    
-    // Update status
-    const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-    const updated = acceptedBookings.map(b => 
-      b.id === id ? { ...b, status: 'VISITED', timeline: [...(b.timeline || []), { stage: 4, timestamp: new Date().toISOString() }] } : b
-    );
-    localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-    setCurrentStage(4);
-    window.dispatchEvent(new Event('vendorJobsUpdated'));
+
+    try {
+      // Assuming 'in_progress' covers the visit stage in backend
+      await updateBookingStatus(id, 'in_progress');
+      setCurrentStage(4);
+      // Reload booking to get latest state
+      const response = await getBookingById(id);
+      setBooking(prev => ({ ...prev, status: response.data.status }));
+    } catch (error) {
+      console.error('Error updating status to visited:', error);
+      // alert('Failed to update status');
+    }
   }
 
-  function handleWorkDone() {
-    // In real app, this would open a modal for image upload
-    const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-    const updated = acceptedBookings.map(b => 
-      b.id === id ? { ...b, status: 'WORK_DONE', timeline: [...(b.timeline || []), { stage: 5, timestamp: new Date().toISOString() }] } : b
-    );
-    localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-    setCurrentStage(5);
-    window.dispatchEvent(new Event('vendorJobsUpdated'));
+  async function handleWorkDone() {
+    try {
+      // Try to mark as completed or work_done if backend supports it
+      // Currently backend supports IN_PROGRESS -> COMPLETED
+      await updateBookingStatus(id, 'completed');
+      setCurrentStage(8); // Jump to completed for now as simplified flow
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating status to work done:', error);
+      alert('Failed to update status. Please follow valid status flow.');
+    }
   }
 
-  function handleWorkerPayment() {
-    const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-    const updated = acceptedBookings.map(b => 
-      b.id === id ? { ...b, status: 'WORKER_PAID', timeline: [...(b.timeline || []), { stage: 6, timestamp: new Date().toISOString() }] } : b
-    );
-    localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-    setCurrentStage(6);
-    window.dispatchEvent(new Event('vendorJobsUpdated'));
+  async function handleWorkerPayment() {
+    // This requires specific API for payments which might be different than status update
+    // For now just alert or log
+    alert('Worker payment integration pending backend support.');
   }
 
   if (!booking) {
@@ -200,9 +218,8 @@ const BookingTimeline = () => {
                   <div className="flex items-start gap-4">
                     {/* Icon Circle */}
                     <div
-                      className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        isCompleted ? 'bg-white' : isCurrent ? 'bg-white' : 'bg-gray-100'
-                      }`}
+                      className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isCompleted ? 'bg-white' : isCurrent ? 'bg-white' : 'bg-gray-100'
+                        }`}
                       style={{
                         border: `3px solid ${isCompleted || isCurrent ? themeColors.button : '#E5E7EB'}`,
                         boxShadow: isCurrent ? `0 0 0 4px ${themeColors.button}20` : 'none',
@@ -224,9 +241,8 @@ const BookingTimeline = () => {
                     <div className="flex-1 pt-1">
                       <div className="flex items-center justify-between mb-1">
                         <h3
-                          className={`font-semibold ${
-                            isCompleted || isCurrent ? 'text-gray-800' : 'text-gray-400'
-                          }`}
+                          className={`font-semibold ${isCompleted || isCurrent ? 'text-gray-800' : 'text-gray-400'
+                            }`}
                         >
                           {stage.title}
                         </h3>

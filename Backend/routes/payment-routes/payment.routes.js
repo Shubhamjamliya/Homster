@@ -1,11 +1,42 @@
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
 const { authenticate } = require('../../middleware/authMiddleware');
+const { isUser } = require('../../middleware/roleMiddleware');
+const {
+  createPaymentOrder,
+  verifyPaymentWebhook,
+  processWalletPayment,
+  processRefund,
+  getPaymentHistory
+} = require('../../controllers/paymentControllers/paymentController');
 
-// Placeholder routes - to be implemented
-router.get('/', authenticate, (req, res) => {
-  res.json({ success: true, message: 'Payment route' });
-});
+// Validation rules
+const createOrderValidation = [
+  body('bookingId').isMongoId().withMessage('Valid booking ID is required')
+];
+
+const verifyPaymentValidation = [
+  body('razorpay_order_id').trim().notEmpty().withMessage('Order ID is required'),
+  body('razorpay_payment_id').trim().notEmpty().withMessage('Payment ID is required'),
+  body('razorpay_signature').trim().notEmpty().withMessage('Signature is required')
+];
+
+const walletPaymentValidation = [
+  body('bookingId').isMongoId().withMessage('Valid booking ID is required')
+];
+
+const refundValidation = [
+  body('bookingId').isMongoId().withMessage('Valid booking ID is required'),
+  body('amount').optional().isFloat({ min: 0 }).withMessage('Amount must be a positive number')
+];
+
+// Routes
+router.post('/create-order', authenticate, isUser, createOrderValidation, createPaymentOrder);
+router.post('/verify', authenticate, isUser, verifyPaymentValidation, verifyPaymentWebhook);
+router.post('/wallet', authenticate, isUser, walletPaymentValidation, processWalletPayment);
+router.post('/refund', authenticate, isUser, refundValidation, processRefund);
+router.get('/history', authenticate, isUser, getPaymentHistory);
 
 module.exports = router;
 

@@ -13,49 +13,46 @@ const BottomNav = React.memo(() => {
   const [iconTransitions, setIconTransitions] = React.useState({});
   const [cartCount, setCartCount] = useState(0);
 
-  // Load cart count from localStorage on mount and when cart changes (optimized)
+  // Load cart count from backend
   useEffect(() => {
-    let updateTimeout = null;
-    let lastCount = 0;
-    
-    const updateCartCount = () => {
-      // Debounce rapid updates
-      if (updateTimeout) clearTimeout(updateTimeout);
-      updateTimeout = setTimeout(() => {
-        try {
-          const cartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
-          const newCount = cartItems.length;
-          // Only update if count changed
-          if (newCount !== lastCount) {
-            lastCount = newCount;
-            setCartCount(newCount);
-          }
-        } catch (error) {
-          console.error('Error reading cart:', error);
+    const loadCartCount = async () => {
+      try {
+        // Check if user is logged in
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          setCartCount(0);
+          return;
         }
-      }, 100); // Increased debounce delay for better performance
+
+        const { cartService } = await import('../../../../services/cartService');
+        const response = await cartService.getCart();
+        if (response.success) {
+          setCartCount((response.data || []).length);
+        }
+      } catch (error) {
+        // Silently fail if user not authenticated
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          setCartCount(0);
+        } else {
+          console.error('Error loading cart count:', error);
+          setCartCount(0);
+        }
+      }
     };
 
-    // Initial load
-    updateCartCount();
-
-    // Listen for storage changes (when cart is updated from other tabs/pages)
-    window.addEventListener('storage', updateCartCount);
-
-    // Custom event for same-tab updates
-    window.addEventListener('cartUpdated', updateCartCount);
+    loadCartCount();
+    // Refresh cart count every 10 seconds
+    const interval = setInterval(loadCartCount, 10000);
 
     // Also listen for focus to update when user returns to tab
     const handleFocus = () => {
-      updateCartCount();
+      loadCartCount();
     };
     window.addEventListener('focus', handleFocus);
 
     return () => {
-      window.removeEventListener('storage', updateCartCount);
-      window.removeEventListener('cartUpdated', updateCartCount);
+      clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
-      if (updateTimeout) clearTimeout(updateTimeout);
     };
   }, []);
 
@@ -120,7 +117,7 @@ const BottomNav = React.memo(() => {
         ...prev,
         [item.id]: { isActive, opacity: 0 }
       }));
-      
+
       // Slow fade in new icon
       setTimeout(() => {
         setIconTransitions(prev => ({
@@ -134,7 +131,7 @@ const BottomNav = React.memo(() => {
   const handleTabClick = (path, itemId) => {
     // Navigate immediately for better performance - no delays
     navigate(path);
-    
+
     // Optional: Simple CSS animation without blocking navigation
     const iconRef = iconRefs.current[itemId];
     if (iconRef) {
@@ -150,7 +147,7 @@ const BottomNav = React.memo(() => {
   };
 
   return (
-    <nav 
+    <nav
       className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom"
       style={{
         background: 'linear-gradient(135deg, #ffffff 0%, #f0fdfa 50%, #ffffff 100%)',
@@ -167,36 +164,35 @@ const BottomNav = React.memo(() => {
       }}
     >
       {/* Gradient overlay for extra depth */}
-      <div 
+      <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background: 'linear-gradient(to top, rgba(0, 166, 166, 0.05) 0%, transparent 100%)',
         }}
       />
-      
+
       <div className="relative flex items-center justify-around px-2 py-2">
         {navItems.map((item) => {
           const IconComponent = activeTab === item.id ? item.filledIcon : item.icon;
           const isActive = activeTab === item.id;
-          
+
           return (
             <button
               key={item.id}
               onClick={() => {
                 handleTabClick(item.path, item.id);
               }}
-              className={`flex flex-col items-center justify-center gap-1 py-1.5 px-4 rounded-xl transition-all duration-300 relative ${
-                isActive 
-                  ? 'transform scale-105' 
+              className={`flex flex-col items-center justify-center gap-1 py-1.5 px-4 rounded-xl transition-all duration-300 relative ${isActive
+                  ? 'transform scale-105'
                   : 'hover:bg-white/50 active:scale-95'
-              }`}
+                }`}
               style={isActive ? {
                 background: 'linear-gradient(135deg, rgba(0, 166, 166, 0.15) 0%, rgba(41, 173, 129, 0.1) 100%)',
                 boxShadow: '0 2px 8px rgba(0, 166, 166, 0.2)',
               } : {}}
             >
               {item.isCart ? (
-                <div 
+                <div
                   ref={(el) => {
                     if (el) {
                       iconRefs.current[item.id] = el;
@@ -205,9 +201,9 @@ const BottomNav = React.memo(() => {
                   className="relative"
                   style={{ transform: 'translateX(0) translateY(0) scale(1) rotate(0deg)' }}
                 >
-                  <IconComponent 
+                  <IconComponent
                     className="w-5 h-5"
-                    style={{ 
+                    style={{
                       color: isActive ? themeColors.button : '#6b7280',
                       transition: 'opacity 2s ease-in-out, color 2s ease-in-out',
                       transform: 'scale(1)',
@@ -216,7 +212,7 @@ const BottomNav = React.memo(() => {
                     }}
                   />
                   {cartCount > 0 && (
-                    <span 
+                    <span
                       className="absolute -top-1 -right-1 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 z-10"
                       style={{
                         background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
@@ -236,9 +232,9 @@ const BottomNav = React.memo(() => {
                   }}
                   style={{ transform: 'translateX(0) translateY(0) scale(1) rotate(0deg)' }}
                 >
-                  <IconComponent 
+                  <IconComponent
                     className="w-5 h-5"
-                    style={{ 
+                    style={{
                       color: isActive ? themeColors.button : '#6b7280',
                       transition: 'opacity 2s ease-in-out, color 2s ease-in-out',
                       transform: 'scale(1)',
@@ -248,20 +244,19 @@ const BottomNav = React.memo(() => {
                   />
                 </div>
               )}
-              <span 
-                className={`text-[10px] font-semibold transition-all duration-300 ${
-                  isActive ? 'text-gray-500' : 'text-gray-500'
-                }`}
+              <span
+                className={`text-[10px] font-semibold transition-all duration-300 ${isActive ? 'text-gray-500' : 'text-gray-500'
+                  }`}
                 style={{
                   textShadow: isActive ? '0 1px 2px rgba(0, 166, 166, 0.2)' : 'none'
                 }}
               >
                 {item.label}
               </span>
-              
+
               {/* Active indicator dot */}
               {isActive && (
-                <div 
+                <div
                   className="absolute -bottom-0.5 w-1 h-1 rounded-full"
                   style={{
                     background: `linear-gradient(135deg, ${themeColors.button} 0%, ${themeColors.icon} 100%)`,

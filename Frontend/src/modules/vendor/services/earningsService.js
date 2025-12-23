@@ -6,7 +6,7 @@
  * Replace localStorage calls with actual API endpoints.
  */
 
-const API_BASE_URL = '/api/vendor';
+const API_BASE_URL = '/api/vendors';
 
 /**
  * Get earnings overview

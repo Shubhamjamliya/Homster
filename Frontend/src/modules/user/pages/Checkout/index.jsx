@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2 } from 'react-icons/fi';
 import { MdStar } from 'react-icons/md';
 import { toast } from 'react-hot-toast';
@@ -7,6 +8,10 @@ import { themeColors } from '../../../../theme';
 import BottomNav from '../../components/layout/BottomNav';
 import AddressSelectionModal from './components/AddressSelectionModal';
 import TimeSlotModal from './components/TimeSlotModal';
+import VendorSearchModal from './components/VendorSearchModal';
+import { bookingService } from '../../../../services/bookingService';
+import { paymentService } from '../../../../services/paymentService';
+import { cartService } from '../../../../services/cartService';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -21,7 +26,15 @@ const Checkout = () => {
   const [showTimeSlotModal, setShowTimeSlotModal] = useState(false);
   const [address, setAddress] = useState('11 Bungalow Colony, Near City Center, Your City - 123456');
   const [houseNumber, setHouseNumber] = useState('');
+  const [addressDetails, setAddressDetails] = useState(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+
+  // New state for vendor search flow
+  const [currentStep, setCurrentStep] = useState('details'); // 'details' | 'searching' | 'waiting' | 'accepted' | 'payment'
+  const [acceptedVendor, setAcceptedVendor] = useState(null);
+  const [bookingRequest, setBookingRequest] = useState(null);
+  const [searchingVendors, setSearchingVendors] = useState(false);
+  const [showVendorModal, setShowVendorModal] = useState(false);
 
   // Check if Razorpay is loaded (defer to avoid blocking initial render)
   useEffect(() => {
@@ -34,7 +47,7 @@ const Checkout = () => {
         setTimeout(checkRazorpay, 100);
       }
     };
-    
+
     // Use requestIdleCallback if available, otherwise setTimeout
     if (window.requestIdleCallback) {
       window.requestIdleCallback(checkRazorpay, { timeout: 200 });
@@ -43,41 +56,28 @@ const Checkout = () => {
     }
   }, []);
 
-  // Load cart items from localStorage and filter by category if provided
+  // Load cart items from backend and filter by category if provided
   useEffect(() => {
-    const updateCart = () => {
-      const saved = localStorage.getItem('cartItems');
-      if (saved) {
-        try {
-          let items = JSON.parse(saved);
-          // Ensure all items have unitPrice calculated
-          items = items.map(item => {
-            if (!item.unitPrice) {
-              item.unitPrice = item.price / (item.serviceCount || 1);
-            }
-            return item;
-          });
+    const loadCart = async () => {
+      try {
+        const response = await cartService.getCart();
+        if (response.success) {
+          let items = response.data || [];
           // Filter by category if category is provided
           if (category) {
             items = items.filter(item => item.category === category);
           }
           setCartItems(items);
-        } catch (e) {
+        } else {
           setCartItems([]);
         }
-      } else {
+      } catch (error) {
+        console.error('Error loading cart:', error);
         setCartItems([]);
       }
     };
 
-    updateCart();
-    window.addEventListener('cartUpdated', updateCart);
-    window.addEventListener('storage', updateCart);
-
-    return () => {
-      window.removeEventListener('cartUpdated', updateCart);
-      window.removeEventListener('storage', updateCart);
-    };
+    loadCart();
   }, [category]);
 
   const cartCount = cartItems.length;
@@ -86,24 +86,31 @@ const Checkout = () => {
     navigate(-1);
   };
 
-  const handleQuantityChange = (itemId, change) => {
-    const allItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
-    const updatedItems = allItems.map(item => {
-      if (item.id === itemId) {
-        const newCount = Math.max(1, (item.serviceCount || 1) + change);
-        const unitPrice = item.unitPrice || (item.price / (item.serviceCount || 1));
-        const newPrice = unitPrice * newCount;
-        return {
-          ...item,
-          serviceCount: newCount,
-          price: newPrice,
-          unitPrice: unitPrice
-        };
+  const handleQuantityChange = async (itemId, change) => {
+    try {
+      const item = cartItems.find(i => (i._id || i.id) === itemId);
+      if (!item) return;
+
+      const newCount = Math.max(1, (item.serviceCount || 1) + change);
+      const response = await cartService.updateItem(itemId, newCount);
+
+      if (response.success) {
+        // Reload cart and filter by category
+        const cartResponse = await cartService.getCart();
+        if (cartResponse.success) {
+          let items = cartResponse.data || [];
+          if (category) {
+            items = items.filter(item => item.category === category);
+          }
+          setCartItems(items);
+        }
+      } else {
+        toast.error(response.message || 'Failed to update quantity');
       }
-      return item;
-    });
-    localStorage.setItem('cartItems', JSON.stringify(updatedItems));
-    window.dispatchEvent(new Event('cartUpdated'));
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      toast.error('Failed to update quantity');
+    }
   };
 
   const handleTipSelect = (amount) => {
@@ -124,124 +131,264 @@ const Checkout = () => {
     setShowAddressModal(true);
   };
 
-  const handlePayment = () => {
-    // Get Razorpay key from environment variables
-    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
-    if (!razorpayKey) {
-      toast.error('Razorpay key not configured. Please add VITE_RAZORPAY_KEY_ID in .env file.');
-      return;
-    }
+  // Listen for real-time vendor acceptance
+  useEffect(() => {
+    if (currentStep !== 'waiting' || !bookingRequest) return;
 
-    if (!window.Razorpay) {
-      toast.error('Razorpay SDK not loaded. Please refresh the page.');
-      return;
-    }
+    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
+    const socket = io(socketUrl, {
+      auth: { token: localStorage.getItem('accessToken') },
+      transports: ['websocket', 'polling']
+    });
 
-    const options = {
-      key: razorpayKey,
-      amount: Math.round(amountToPay * 100), // Amount in paise
-      currency: 'INR',
-      name: 'Appzeto',
-      description: `Payment for ${cartItems.length} service(s)`,
-      image: '/vite.svg', // Your logo URL
-      handler: function (response) {
-        // Handle successful payment
-        console.log('Payment successful:', response);
-        
-        // Calculate values for booking
-        const itemTotal = cartItems.reduce((sum, item) => sum + (item.price || 0), 0);
-        const totalOriginalPrice = cartItems.reduce((sum, item) => {
-          const unitOriginalPrice = item.originalPrice || (item.unitPrice || (item.price / (item.serviceCount || 1)));
-          return sum + (unitOriginalPrice * (item.serviceCount || 1));
-        }, 0);
-        const savings = totalOriginalPrice - itemTotal;
-        const tipAmount = selectedTip === 'custom' ? parseFloat(customTip) || 0 : selectedTip;
-        const plusPrice = isPlusAdded ? 249 : 0;
-        const visitedFee = 50;
-        const taxesAndFee = 59;
-        
-        // Create booking object
-        const booking = {
-          id: `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          paymentId: response.razorpay_payment_id,
-          orderId: response.razorpay_order_id,
-          signature: response.razorpay_signature,
-          items: JSON.parse(JSON.stringify(cartItems)), // Deep copy of items that were paid for
-          category: category || 'All',
-          address: `${houseNumber}, ${address}`,
-          date: selectedDate ? selectedDate.toLocaleDateString() : '',
-          time: selectedTime || '',
-          totalAmount: amountToPay,
-          subtotal: itemTotal,
-          tip: tipAmount,
-          visitedFee: visitedFee,
-          taxesAndFee: taxesAndFee,
-          plusPrice: plusPrice,
-          discount: savings > 0 ? savings : 0,
-          status: 'confirmed', // confirmed, in-progress, completed, cancelled
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+    socket.on('connect', () => {
+      console.log('Socket connected, waiting for vendor acceptance...');
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err.message);
+    });
+
+    socket.on('booking_accepted', (data) => {
+      console.log('Booking accepted event received:', data);
+      if (data.bookingId === bookingRequest._id) {
+
+        // Construct vendor object from event data
+        // Note: Real backend should send full details, falling back to defaults for display
+        const vendorData = {
+          id: data.vendor.id,
+          name: data.vendor.name || 'Vendor',
+          businessName: data.vendor.businessName || 'Service Provider',
+          rating: 4.8, // Default if not sent
+          distance: 'Nearby', // Default if not sent
+          estimatedTime: '15-20 mins',
+          price: bookingRequest.amount
         };
 
-        // Save booking to localStorage
-        try {
-          const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-          existingBookings.unshift(booking); // Add to beginning
-          localStorage.setItem('bookings', JSON.stringify(existingBookings));
-          console.log('Booking saved successfully:', booking.id);
-        } catch (error) {
-          console.error('Error saving booking:', error);
-        }
+        setAcceptedVendor(vendorData);
+        setCurrentStep('accepted');
+        toast.success(`${vendorData.businessName} accepted your booking!`);
 
-        // Remove only the paid items from cart (not entire cart)
-        try {
-          const allCartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
-          const paidItemIds = cartItems.map(item => item.id);
-          const remainingItems = allCartItems.filter(item => !paidItemIds.includes(item.id));
-          localStorage.setItem('cartItems', JSON.stringify(remainingItems));
-          window.dispatchEvent(new Event('cartUpdated'));
-        } catch (error) {
-          console.error('Error updating cart:', error);
-        }
-
-        // Navigate to booking confirmation page immediately
-        navigate(`/booking-confirmation/${booking.id}`, { 
-          state: { booking },
-          replace: true // Replace history so user can't go back
-        });
-      },
-      prefill: {
-        name: 'User Name',
-        email: 'user@example.com',
-        contact: '+91-6261387233',
-      },
-      notes: {
-        address: `${houseNumber}, ${address}`,
-        date: selectedDate ? selectedDate.toLocaleDateString() : '',
-        time: selectedTime || '',
-        category: category || 'All',
-      },
-      theme: {
-        color: themeColors.button,
-      },
-      modal: {
-        ondismiss: function () {
-          console.log('Payment modal closed');
-        }
+        // Close modal after 2 seconds to show "Proceed to Pay" button
+        setTimeout(() => {
+          setShowVendorModal(false);
+          setCurrentStep('payment');
+        }, 2000);
       }
-    };
-
-    const razorpay = new window.Razorpay(options);
-    razorpay.on('payment.failed', function (response) {
-      console.error('Payment failed:', response.error);
-      toast.error(`Payment failed: ${response.error.description || 'Unknown error'}`);
     });
-    razorpay.open();
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentStep, bookingRequest]);
+
+  // Search for nearby vendors
+  const handleSearchVendors = async () => {
+    try {
+      // Validate required fields
+      if (!selectedDate || !selectedTime || !houseNumber) {
+        toast.error('Please select address and time slot');
+        return;
+      }
+
+      if (cartItems.length === 0) {
+        toast.error('Cart is empty');
+        return;
+      }
+
+      // Open modal and start searching
+      setShowVendorModal(true);
+      setCurrentStep('searching');
+      setSearchingVendors(true);
+
+      // Get first service
+      const firstItem = cartItems[0];
+      if (!firstItem.serviceId) {
+        toast.error('Service information missing. Please try again.');
+        setCurrentStep('details');
+        setSearchingVendors(false);
+        setShowVendorModal(false);
+        return;
+      }
+
+      // Prepare address object
+      // Helper to extract address components
+      const getComponent = (type) => addressDetails?.components?.find(c => c.types.includes(type))?.long_name || '';
+
+      const addressObj = {
+        type: 'home',
+        addressLine1: address,
+        addressLine2: houseNumber,
+        city: getComponent('locality') || getComponent('administrative_area_level_2') || 'City',
+        state: getComponent('administrative_area_level_1') || 'State',
+        pincode: getComponent('postal_code') || '123456',
+        landmark: '',
+        lat: addressDetails?.lat || null,
+        lng: addressDetails?.lng || null
+      };
+
+      // Prepare time slot
+      const timeSlotObj = {
+        start: selectedTime,
+        end: getTimeSlots().find(slot => slot.value === selectedTime)?.end || selectedTime
+      };
+
+      // Create booking request
+      toast.loading('Searching for nearby vendors...');
+
+      // Ensure serviceId is a string (handle populated cart data)
+      const serviceId = typeof firstItem.serviceId === 'object'
+        ? firstItem.serviceId._id || firstItem.serviceId.id
+        : firstItem.serviceId;
+
+      const bookingResponse = await bookingService.create({
+        serviceId: serviceId,
+        address: addressObj,
+        scheduledDate: selectedDate.toISOString(),
+        scheduledTime: getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime,
+        timeSlot: timeSlotObj,
+        userNotes: `Tip: ₹${selectedTip === 'custom' ? parseFloat(customTip) || 0 : selectedTip}. Items: ${cartItems.map(i => i.title).join(', ')}`,
+        paymentMethod: 'razorpay',
+        amount: totalAmount  // Send total amount from cart
+      });
+
+      if (!bookingResponse.success) {
+        toast.dismiss();
+        toast.error(bookingResponse.message || 'Failed to search for vendors');
+        setCurrentStep('details');
+        setSearchingVendors(false);
+        setShowVendorModal(false);
+        return;
+      }
+
+      const booking = bookingResponse.data;
+      setBookingRequest(booking);
+      toast.dismiss();
+
+      // Move to waiting state - alerts sent to nearby vendors
+      setCurrentStep('waiting');
+      setSearchingVendors(false);
+      toast.success('Finding nearby vendors... Alerts sent to vendors within 10km!');
+
+      // Wait for real-time vendor acceptance via Socket.IO
+      // The socket listener above will handle the 'booking_accepted' event
+      console.log('Waiting for vendor to accept...');
+
+    } catch (error) {
+      toast.dismiss();
+      console.error('Vendor search error:', error);
+      toast.error('Failed to search for vendors. Please try again.');
+      setCurrentStep('details');
+      setSearchingVendors(false);
+      setShowVendorModal(false);
+    }
   };
 
-  const handleAddressSave = (savedHouseNumber) => {
+  // Proceed to payment after vendor acceptance
+  const handlePayment = async () => {
+    try {
+      if (!acceptedVendor || !bookingRequest) {
+        toast.error('No vendor selected or booking not created');
+        return;
+      }
+
+      // Create Razorpay order
+      toast.loading('Creating payment order...');
+      const orderResponse = await paymentService.createOrder(bookingRequest._id);
+
+      if (!orderResponse.success) {
+        toast.dismiss();
+        toast.error(orderResponse.message || 'Failed to create payment order');
+        return;
+      }
+
+      toast.dismiss();
+
+      // Get Razorpay key
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!razorpayKey) {
+        toast.error('Razorpay key not configured');
+        return;
+      }
+
+      if (!window.Razorpay) {
+        toast.error('Razorpay SDK not loaded');
+        return;
+      }
+
+      const options = {
+        key: razorpayKey,
+        amount: orderResponse.data.amount * 100,
+        currency: orderResponse.data.currency || 'INR',
+        order_id: orderResponse.data.orderId,
+        name: 'Appzeto',
+        description: `Payment for ${bookingRequest.serviceName || 'service'}`,
+        handler: async function (response) {
+          try {
+            toast.loading('Verifying payment...');
+            const verifyResponse = await paymentService.verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+
+            toast.dismiss();
+
+            if (verifyResponse.success) {
+              toast.success('Payment successful!');
+
+              // Clear cart
+              try {
+                await cartService.clearCart();
+                setCartItems([]);
+              } catch (error) {
+                console.error('Error clearing cart:', error);
+              }
+
+              // Navigate to booking confirmation
+              navigate(`/user/booking-confirmation/${bookingRequest._id}`, {
+                replace: true
+              });
+            } else {
+              toast.error(verifyResponse.message || 'Payment verification failed');
+            }
+          } catch (error) {
+            toast.dismiss();
+            console.error('Payment verification error:', error);
+            toast.error('Failed to verify payment');
+          }
+        },
+        prefill: {
+          name: 'User Name',
+          email: 'user@example.com',
+          contact: '+91-6261387233'
+        },
+        theme: {
+          color: themeColors.button
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', function (response) {
+        toast.dismiss();
+        toast.error(`Payment failed: ${response.error.description || 'Unknown error'}`);
+      });
+      razorpay.open();
+
+    } catch (error) {
+      toast.dismiss();
+      console.error('Payment error:', error);
+      toast.error('Failed to process payment');
+    }
+  };
+
+  const handleAddressSave = (savedHouseNumber, locationObj) => {
     setHouseNumber(savedHouseNumber);
+    if (locationObj) {
+      setAddress(locationObj.address);
+      setAddressDetails(locationObj);
+    }
     setShowAddressModal(false);
     setShowTimeSlotModal(true);
   };
@@ -697,18 +844,40 @@ const Checkout = () => {
 
         <div className="p-4">
           <button
-            onClick={selectedDate && selectedTime && houseNumber ? handlePayment : handleProceed}
-            className="w-full text-white py-3 rounded-lg text-base font-semibold transition-colors"
+            onClick={selectedDate && selectedTime && houseNumber ?
+              (currentStep === 'payment' ? handlePayment : handleSearchVendors) :
+              handleProceed}
+            disabled={searchingVendors}
+            className="w-full text-white py-3 rounded-lg text-base font-semibold transition-colors disabled:opacity-50"
             style={{ backgroundColor: themeColors.button }}
             onMouseEnter={(e) => e.target.style.backgroundColor = themeColors.button}
             onMouseLeave={(e) => e.target.style.backgroundColor = themeColors.button}
           >
-            {selectedDate && selectedTime && houseNumber ? 'Proceed to pay' : 'Add address and slot'}
+            {searchingVendors ? 'Searching for vendors...' :
+              currentStep === 'payment' ? 'Proceed to pay' :
+                selectedDate && selectedTime && houseNumber ?
+                  'Find nearby vendors' :
+                  'Add address and slot'}
           </button>
         </div>
+
+
       </div>
 
       <BottomNav />
+
+      {/* Vendor Search Modal */}
+      <VendorSearchModal
+        isOpen={showVendorModal}
+        onClose={() => {
+          setShowVendorModal(false);
+          if (currentStep === 'accepted') {
+            setCurrentStep('payment');
+          }
+        }}
+        currentStep={currentStep}
+        acceptedVendor={acceptedVendor}
+      />
 
       {/* Address Selection Modal */}
       <AddressSelectionModal

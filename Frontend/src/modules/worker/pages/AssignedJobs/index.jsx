@@ -4,11 +4,14 @@ import { FiBriefcase, FiClock, FiCheckCircle, FiXCircle, FiMapPin, FiChevronRigh
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
+import workerService from '../../../../services/workerService';
 
 const AssignedJobs = () => {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
-  const [filter, setFilter] = useState('all'); // all, pending, accepted, rejected, completed
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState('all'); // all, confirmed, in_progress, completed
   const [searchQuery, setSearchQuery] = useState('');
 
   useLayoutEffect(() => {
@@ -28,34 +31,58 @@ const AssignedJobs = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const loadJobs = () => {
-      try {
-        const assignedJobs = JSON.parse(localStorage.getItem('workerAssignedJobs') || '[]');
-        setJobs(assignedJobs);
-      } catch (error) {
-        console.error('Error loading jobs:', error);
-      }
-    };
+  const fetchJobs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    loadJobs();
-    window.addEventListener('workerJobsUpdated', loadJobs);
-    window.addEventListener('storage', loadJobs);
+      const response = await workerService.getAssignedJobs();
+      if (response.success) {
+        setJobs(response.data);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('Fetch jobs error:', err);
+      setError('Failed to load assigned jobs');
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+
+    const handleUpdate = () => {
+      fetchJobs();
+    };
+    window.addEventListener('workerJobsUpdated', handleUpdate);
 
     return () => {
-      window.removeEventListener('workerJobsUpdated', loadJobs);
-      window.removeEventListener('storage', loadJobs);
+      window.removeEventListener('workerJobsUpdated', handleUpdate);
     };
   }, []);
 
   const getStatusColor = (status) => {
     const colors = {
-      'PENDING': '#F59E0B',
-      'ACCEPTED': '#10B981',
-      'REJECTED': '#EF4444',
-      'COMPLETED': '#059669',
+      'pending': '#F59E0B',
+      'confirmed': '#3B82F6',
+      'in_progress': '#F59E0B',
+      'completed': '#10B981',
+      'cancelled': '#EF4444',
+      'rejected': '#EF4444',
     };
     return colors[status] || '#6B7280';
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      'pending': 'Pending',
+      'confirmed': 'Assigned',
+      'in_progress': 'In Progress',
+      'completed': 'Completed',
+      'cancelled': 'Cancelled',
+      'rejected': 'Rejected',
+    };
+    return labels[status] || status;
   };
 
   const hexToRgba = (hex, alpha) => {
@@ -66,16 +93,12 @@ const AssignedJobs = () => {
   };
 
   const filteredJobs = jobs.filter(job => {
-    const matchesFilter = filter === 'all' || 
-      (filter === 'pending' && job.workerStatus === 'PENDING') ||
-      (filter === 'accepted' && job.workerStatus === 'ACCEPTED') ||
-      (filter === 'rejected' && job.workerStatus === 'REJECTED') ||
-      (filter === 'completed' && job.workerStatus === 'COMPLETED');
-    
-    const matchesSearch = searchQuery === '' || 
-      job.serviceType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.user?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+    const matchesFilter = filter === 'all' || job.status === filter;
+
+    const matchesSearch = searchQuery === '' ||
+      job.serviceName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.userId?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+
     return matchesFilter && matchesSearch;
   });
 
@@ -103,28 +126,26 @@ const AssignedJobs = () => {
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
           {[
             { id: 'all', label: 'All' },
-            { id: 'pending', label: 'Pending' },
-            { id: 'accepted', label: 'Accepted' },
-            { id: 'rejected', label: 'Rejected' },
+            { id: 'confirmed', label: 'Pending' },
+            { id: 'in_progress', label: 'Active' },
             { id: 'completed', label: 'Completed' },
           ].map((filterOption) => (
             <button
               key={filterOption.id}
               onClick={() => setFilter(filterOption.id)}
-              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${
-                filter === filterOption.id
+              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${filter === filterOption.id
                   ? 'text-white'
                   : 'bg-white text-gray-700'
-              }`}
+                }`}
               style={
                 filter === filterOption.id
                   ? {
-                      background: themeColors.button,
-                      boxShadow: `0 2px 8px ${themeColors.button}40`,
-                    }
+                    background: themeColors.button,
+                    boxShadow: `0 2px 8px ${themeColors.button}40`,
+                  }
                   : {
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                    }
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  }
               }
             >
               {filterOption.label}
@@ -133,7 +154,11 @@ const AssignedJobs = () => {
         </div>
 
         {/* Jobs List */}
-        {filteredJobs.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: themeColors.button }}></div>
+          </div>
+        ) : filteredJobs.length === 0 ? (
           <div
             className="bg-white rounded-xl p-8 text-center shadow-md"
             style={{
@@ -149,12 +174,12 @@ const AssignedJobs = () => {
         ) : (
           <div className="space-y-3">
             {filteredJobs.map((job) => {
-              const statusColor = getStatusColor(job.workerStatus);
-              
+              const statusColor = getStatusColor(job.status);
+
               return (
                 <div
-                  key={job.id}
-                  onClick={() => navigate(`/worker/job/${job.id}`)}
+                  key={job._id}
+                  onClick={() => navigate(`/worker/job/${job._id}`)}
                   className="rounded-xl p-4 shadow-lg cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
                   style={{
                     background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%)',
@@ -169,7 +194,7 @@ const AssignedJobs = () => {
                       background: `linear-gradient(180deg, ${statusColor} 0%, ${statusColor}dd 100%)`,
                     }}
                   />
-                  
+
                   <div className="relative z-10 pl-2">
                     {/* Header Section */}
                     <div className="flex items-start justify-between mb-3">
@@ -183,7 +208,7 @@ const AssignedJobs = () => {
                           >
                             <FiBriefcase className="w-4 h-4" style={{ color: statusColor }} />
                           </div>
-                          <h3 className="font-bold text-gray-800 text-base">{job.serviceType}</h3>
+                          <h3 className="font-bold text-gray-800 text-base">{job.serviceName}</h3>
                         </div>
                         <div className="ml-8 mb-2">
                           <span
@@ -194,7 +219,7 @@ const AssignedJobs = () => {
                               boxShadow: `0 2px 8px ${hexToRgba(statusColor, 0.3)}`,
                             }}
                           >
-                            {job.workerStatus.replace('_', ' ')}
+                            {getStatusLabel(job.status)}
                           </span>
                         </div>
                       </div>
@@ -206,7 +231,7 @@ const AssignedJobs = () => {
                           border: `1px solid ${hexToRgba(themeColors.button, 0.2)}`,
                         }}
                       >
-                        ₹{job.price}
+                        ₹{job.finalAmount}
                       </div>
                     </div>
 
@@ -216,21 +241,21 @@ const AssignedJobs = () => {
                         <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                           <FiUser className="w-4 h-4" style={{ color: statusColor }} />
                         </div>
-                        <span className="text-gray-700 font-medium">{job.user?.name || 'Customer'}</span>
+                        <span className="text-gray-700 font-medium">{job.userId?.name || 'Customer'}</span>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 text-sm">
                         <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                           <FiMapPin className="w-4 h-4" style={{ color: statusColor }} />
                         </div>
-                        <span className="text-gray-700 font-medium truncate">{job.location?.address || 'Address not available'}</span>
+                        <span className="text-gray-700 font-medium truncate">{job.address?.addressLine1 || 'Address not available'}</span>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 text-sm">
                         <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                           <FiClock className="w-4 h-4" style={{ color: statusColor }} />
                         </div>
-                        <span className="text-gray-700 font-medium">{job.timeSlot?.date || 'N/A'} • {job.timeSlot?.time || 'N/A'}</span>
+                        <span className="text-gray-700 font-medium">{job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'N/A'} • {job.scheduledTime || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
@@ -247,4 +272,3 @@ const AssignedJobs = () => {
 };
 
 export default AssignedJobs;
-

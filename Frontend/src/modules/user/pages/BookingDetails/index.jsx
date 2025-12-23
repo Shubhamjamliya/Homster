@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
-import { 
-  FiArrowLeft, 
-  FiMapPin, 
-  FiClock, 
-  FiCheckCircle, 
-  FiXCircle, 
+import {
+  FiArrowLeft,
+  FiMapPin,
+  FiClock,
+  FiCheckCircle,
+  FiXCircle,
   FiLoader,
   FiCalendar,
   FiDollarSign,
@@ -16,30 +17,38 @@ import {
   FiMail
 } from 'react-icons/fi';
 import BottomNav from '../../components/layout/BottomNav';
+import { bookingService } from '../../../../services/bookingService';
 
 const BookingDetails = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [booking, setBooking] = useState(location.state?.booking || null);
+  const { id } = useParams();
+  const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // If booking not in state, try to load from localStorage using ID from URL
-    if (!booking) {
-      const bookingId = window.location.pathname.split('/').pop();
-      const saved = localStorage.getItem('bookings');
-      if (saved) {
-        try {
-          const bookings = JSON.parse(saved);
-          const foundBooking = bookings.find(b => b.id === bookingId);
-          if (foundBooking) {
-            setBooking(foundBooking);
-          }
-        } catch (e) {
-          console.error('Error loading booking:', e);
+    const loadBooking = async () => {
+      try {
+        setLoading(true);
+        const response = await bookingService.getById(id);
+        if (response.success) {
+          setBooking(response.data);
+        } else {
+          toast.error(response.message || 'Booking not found');
+          navigate('/user/my-bookings');
         }
+      } catch (error) {
+        console.error('Error loading booking:', error);
+        toast.error('Failed to load booking details');
+        navigate('/user/my-bookings');
+      } finally {
+        setLoading(false);
       }
+    };
+
+    if (id) {
+      loadBooking();
     }
-  }, []);
+  }, [id, navigate]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -86,6 +95,44 @@ const BookingDetails = () => {
     }
   };
 
+  const handleCancelBooking = async () => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) {
+      return;
+    }
+
+    try {
+      const response = await bookingService.cancel(booking._id || booking.id, 'Cancelled by user');
+      if (response.success) {
+        toast.success('Booking cancelled successfully');
+        setBooking({ ...booking, status: 'cancelled' });
+      } else {
+        toast.error(response.message || 'Failed to cancel booking');
+      }
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      toast.error('Failed to cancel booking. Please try again.');
+    }
+  };
+
+  const getAddressString = (address) => {
+    if (typeof address === 'string') return address;
+    if (address && typeof address === 'object') {
+      return `${address.addressLine1 || ''}${address.addressLine2 ? `, ${address.addressLine2}` : ''}, ${address.city || ''}, ${address.state || ''} - ${address.pincode || ''}`;
+    }
+    return 'N/A';
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <FiLoader className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading booking details...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!booking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -106,11 +153,11 @@ const BookingDetails = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-IN', { 
+    return date.toLocaleDateString('en-IN', {
       weekday: 'long',
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric' 
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
     });
   };
 
@@ -137,9 +184,9 @@ const BookingDetails = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="text-lg font-bold text-black mb-1">
-                {booking.category === 'All' ? 'Multiple Services' : booking.category}
+                {booking.serviceName || booking.serviceCategory || 'Service'}
               </h2>
-              <p className="text-xs text-gray-500">Booking ID: {booking.id}</p>
+              <p className="text-xs text-gray-500">Booking ID: {booking.bookingNumber || booking._id || booking.id}</p>
             </div>
             <div className={`px-3 py-1.5 rounded-full text-sm font-semibold border flex items-center gap-2 ${getStatusColor(booking.status)}`}>
               {getStatusIcon(booking.status)}
@@ -148,50 +195,101 @@ const BookingDetails = () => {
           </div>
         </div>
 
-        {/* Address & Time Card */}
+        {/* Address & Track Card */}
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4">
-          <h3 className="text-base font-bold text-black mb-3">Service Details</h3>
-          <div className="space-y-3">
+          <h3 className="text-base font-bold text-black mb-3">Service Location & Tracking</h3>
+          <div className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
                 <FiMapPin className="w-4 h-4" style={{ color: themeColors.button }} />
               </div>
               <div className="flex-1">
                 <p className="text-xs text-gray-500 mb-1">Address</p>
-                <p className="text-sm text-gray-700">{booking.address}</p>
+                <p className="text-sm text-gray-700">{getAddressString(booking.address)}</p>
               </div>
             </div>
-            <div className="flex items-start gap-3">
+
+            {/* Map Preview Logic - Same as Worker App */}
+            {booking.address && (
+              <div
+                className="w-full h-40 rounded-lg overflow-hidden bg-gray-200 border border-gray-100 relative group cursor-pointer"
+                onClick={() => navigate(`/user/booking/${booking._id || booking.id}/track`)}
+              >
+                {(() => {
+                  let mapQuery = '';
+                  if (typeof booking.address === 'object' && booking.address.lat && booking.address.lng) {
+                    mapQuery = `${booking.address.lat},${booking.address.lng}`;
+                  } else {
+                    const addrStr = typeof booking.address === 'string'
+                      ? booking.address
+                      : `${booking.address?.addressLine1 || ''}, ${booking.address?.city || ''}`;
+                    mapQuery = encodeURIComponent(addrStr);
+                  }
+
+                  return (
+                    <>
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        style={{ border: 0, pointerEvents: 'none' }}
+                        src={`https://maps.google.com/maps?q=${mapQuery}&z=15&output=embed`}
+                        allowFullScreen
+                        tabIndex="-1"
+                        title="Location Map"
+                      ></iframe>
+                      {/* Overlay */}
+                      <div className="absolute inset-0 bg-transparent group-hover:bg-black/5 transition-colors flex items-center justify-center">
+                        <span className="bg-white/90 px-3 py-1.5 rounded-full text-xs font-bold text-gray-800 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
+                          <FiMapPin className="w-3 h-3" /> Track Order
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Track Button */}
+            <button
+              onClick={() => navigate(`/user/booking/${booking._id || booking.id}/track`)}
+              className="w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md"
+              style={{ background: themeColors.button }}
+            >
+              <FiMapPin className="w-4 h-4" />
+              Track Service Agent
+            </button>
+
+            <div className="flex items-start gap-3 pt-2">
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
                 <FiCalendar className="w-4 h-4" style={{ color: themeColors.button }} />
               </div>
               <div className="flex-1">
                 <p className="text-xs text-gray-500 mb-1">Date & Time</p>
-                <p className="text-sm text-gray-700">{booking.date} • {booking.time}</p>
+                <p className="text-sm text-gray-700">
+                  {formatDate(booking.scheduledDate)} • {booking.scheduledTime || booking.timeSlot?.start || 'N/A'}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Services Card */}
+        {/* Service Details Card */}
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-bold text-black">Services</h3>
-            <span className="text-sm text-gray-600">{booking.items.length} {booking.items.length === 1 ? 'service' : 'services'}</span>
-          </div>
+          <h3 className="text-base font-bold text-black mb-3">Service Details</h3>
           <div className="space-y-3">
-            {booking.items.map((item, index) => (
-              <div key={item.id || index} className="flex items-start gap-3 pb-3 border-b border-gray-100 last:border-0 last:pb-0">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
-                  <FiPackage className="w-4 h-4" style={{ color: themeColors.button }} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-black mb-1">{item.title}</p>
-                  <p className="text-xs text-gray-600">Quantity: {item.serviceCount || 1}</p>
-                  <p className="text-sm font-bold text-black mt-1">₹{(item.price || 0).toLocaleString('en-IN')}</p>
-                </div>
+            <div className="flex items-start gap-3 pb-3 border-b border-gray-100">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+                <FiPackage className="w-4 h-4" style={{ color: themeColors.button }} />
               </div>
-            ))}
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-black mb-1">{booking.serviceName || 'Service'}</p>
+                {booking.description && (
+                  <p className="text-xs text-gray-600 mb-1">{booking.description}</p>
+                )}
+                <p className="text-sm font-bold text-black mt-1">₹{(booking.finalAmount || booking.basePrice || 0).toLocaleString('en-IN')}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -200,18 +298,8 @@ const BookingDetails = () => {
           <h3 className="text-base font-bold text-black mb-3">Payment Summary</h3>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Subtotal</span>
-              <span className="text-sm font-semibold text-black">₹{booking.subtotal.toLocaleString('en-IN')}</span>
-            </div>
-            {booking.tip > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Tip</span>
-                <span className="text-sm font-semibold text-black">₹{booking.tip.toLocaleString('en-IN')}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Visited Fee</span>
-              <span className="text-sm font-semibold text-black">₹{booking.visitedFee.toLocaleString('en-IN')}</span>
+              <span className="text-sm text-gray-600">Base Price</span>
+              <span className="text-sm font-semibold text-black">₹{(booking.basePrice || 0).toLocaleString('en-IN')}</span>
             </div>
             {booking.discount > 0 && (
               <div className="flex items-center justify-between">
@@ -219,10 +307,16 @@ const BookingDetails = () => {
                 <span className="text-sm font-semibold text-green-600">-₹{booking.discount.toLocaleString('en-IN')}</span>
               </div>
             )}
+            {booking.tax > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Tax</span>
+                <span className="text-sm font-semibold text-black">₹{booking.tax.toLocaleString('en-IN')}</span>
+              </div>
+            )}
             <div className="border-t border-gray-200 pt-2 mt-2">
               <div className="flex items-center justify-between">
                 <span className="text-base font-bold text-black">Total</span>
-                <span className="text-lg font-bold text-black">₹{booking.totalAmount.toLocaleString('en-IN')}</span>
+                <span className="text-lg font-bold text-black">₹{(booking.finalAmount || booking.totalAmount || 0).toLocaleString('en-IN')}</span>
               </div>
             </div>
           </div>
@@ -232,19 +326,32 @@ const BookingDetails = () => {
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4">
           <h3 className="text-base font-bold text-black mb-3">Payment Information</h3>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Payment ID</span>
-              <span className="text-sm font-semibold text-black">{booking.paymentId}</span>
-            </div>
-            {booking.orderId && (
+            {booking.paymentId && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Payment ID</span>
+                <span className="text-sm font-semibold text-black">{booking.paymentId}</span>
+              </div>
+            )}
+            {booking.razorpayOrderId && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Order ID</span>
-                <span className="text-sm font-semibold text-black">{booking.orderId}</span>
+                <span className="text-sm font-semibold text-black">{booking.razorpayOrderId}</span>
               </div>
             )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Payment Status</span>
-              <span className="text-sm font-semibold text-green-600">Paid</span>
+              <span className={`text-sm font-semibold ${booking.paymentStatus === 'success' ? 'text-green-600' :
+                  booking.paymentStatus === 'pending' ? 'text-yellow-600' :
+                    'text-red-600'
+                }`}>
+                {booking.paymentStatus === 'success' ? 'Paid' :
+                  booking.paymentStatus === 'pending' ? 'Pending' :
+                    booking.paymentStatus || 'Pending'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Payment Method</span>
+              <span className="text-sm font-semibold text-black capitalize">{booking.paymentMethod || 'N/A'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Booking Date</span>
@@ -257,24 +364,7 @@ const BookingDetails = () => {
         {booking.status !== 'cancelled' && booking.status !== 'completed' && (
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4">
             <button
-              onClick={() => {
-                // Update booking status to cancelled
-                const saved = localStorage.getItem('bookings');
-                if (saved) {
-                  try {
-                    const bookings = JSON.parse(saved);
-                    const updatedBookings = bookings.map(b => 
-                      b.id === booking.id ? { ...b, status: 'cancelled' } : b
-                    );
-                    localStorage.setItem('bookings', JSON.stringify(updatedBookings));
-                    setBooking({ ...booking, status: 'cancelled' });
-                    alert('Booking cancelled successfully');
-                  } catch (e) {
-                    console.error('Error cancelling booking:', e);
-                    alert('Failed to cancel booking');
-                  }
-                }
-              }}
+              onClick={handleCancelBooking}
               className="w-full py-3.5 rounded-lg text-base font-semibold text-white transition-colors"
               style={{
                 backgroundColor: '#ef4444',

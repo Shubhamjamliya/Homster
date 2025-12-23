@@ -13,7 +13,7 @@ const { isVendor } = require('../../middleware/roleMiddleware');
 // Validation rules
 const sendOTPValidation = [
   body('phone').trim().notEmpty().withMessage('Phone number is required').isLength({ min: 10, max: 10 }).withMessage('Phone number must be 10 digits'),
-  body('email').optional().isEmail().withMessage('Please provide a valid email')
+  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Please provide a valid email')
 ];
 
 const registerValidation = [
@@ -37,6 +37,7 @@ const loginValidation = [
 router.post('/send-otp', sendOTPValidation, sendOTP);
 router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
+router.post('/refresh-token', require('../../controllers/vendorControllers/vendorAuthController').refreshToken);
 router.post('/logout', authenticate, isVendor, logout);
 
 module.exports = router;

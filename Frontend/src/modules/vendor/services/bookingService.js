@@ -6,7 +6,9 @@
  * Replace localStorage calls with actual API endpoints.
  */
 
-const API_BASE_URL = '/api/vendor';
+import api from '../../../services/api';
+
+const API_BASE_URL = '/api/vendors';
 
 /**
  * Get all bookings
@@ -15,13 +17,8 @@ const API_BASE_URL = '/api/vendor';
  */
 export const getBookings = async (filters = {}) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/bookings?${new URLSearchParams(filters)}`);
-    // return await response.json();
-    
-    // Mock implementation
-    const bookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-    return bookings;
+    const response = await api.get('/vendors/bookings', { params: filters });
+    return response.data;
   } catch (error) {
     console.error('Error fetching bookings:', error);
     throw error;
@@ -35,13 +32,8 @@ export const getBookings = async (filters = {}) => {
  */
 export const getBookingById = async (bookingId) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}`);
-    // return await response.json();
-    
-    // Mock implementation
-    const bookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-    return bookings.find(b => b.id === bookingId);
+    const response = await api.get(`/vendors/bookings/${bookingId}`);
+    return response.data;
   } catch (error) {
     console.error('Error fetching booking:', error);
     throw error;
@@ -55,21 +47,8 @@ export const getBookingById = async (bookingId) => {
  */
 export const acceptBooking = async (bookingId) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/accept`, {
-    //   method: 'POST',
-    // });
-    // return await response.json();
-    
-    // Mock implementation
-    const bookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-    const updated = bookings.map(b => 
-      b.id === bookingId 
-        ? { ...b, status: 'ACCEPTED', updatedAt: new Date().toISOString() }
-        : b
-    );
-    localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-    return updated.find(b => b.id === bookingId);
+    const response = await api.post(`/vendors/bookings/${bookingId}/accept`);
+    return response.data;
   } catch (error) {
     console.error('Error accepting booking:', error);
     throw error;
@@ -84,18 +63,8 @@ export const acceptBooking = async (bookingId) => {
  */
 export const rejectBooking = async (bookingId, reason = '') => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/reject`, {
-    //   method: 'POST',
-    //   body: JSON.stringify({ reason }),
-    // });
-    // return await response.json();
-    
-    // Mock implementation
-    const bookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-    const updated = bookings.filter(b => b.id !== bookingId);
-    localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-    return { success: true };
+    const response = await api.post(`/vendors/bookings/${bookingId}/reject`, { reason });
+    return response.data;
   } catch (error) {
     console.error('Error rejecting booking:', error);
     throw error;
@@ -110,27 +79,8 @@ export const rejectBooking = async (bookingId, reason = '') => {
  */
 export const assignWorker = async (bookingId, workerId) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/assign`, {
-    //   method: 'POST',
-    //   body: JSON.stringify({ workerId }),
-    // });
-    // return await response.json();
-    
-    // Mock implementation
-    const bookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-    const updated = bookings.map(b => 
-      b.id === bookingId 
-        ? { 
-            ...b, 
-            status: 'ASSIGNED',
-            assignedTo: workerId === 'SELF' ? 'SELF' : { workerId },
-            updatedAt: new Date().toISOString() 
-          }
-        : b
-    );
-    localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-    return updated.find(b => b.id === bookingId);
+    const response = await api.post(`/vendors/bookings/${bookingId}/assign-worker`, { workerId });
+    return response.data;
   } catch (error) {
     console.error('Error assigning worker:', error);
     throw error;
@@ -146,22 +96,8 @@ export const assignWorker = async (bookingId, workerId) => {
  */
 export const updateBookingStatus = async (bookingId, status, data = {}) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
-    //   method: 'PATCH',
-    //   body: JSON.stringify({ status, ...data }),
-    // });
-    // return await response.json();
-    
-    // Mock implementation
-    const bookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-    const updated = bookings.map(b => 
-      b.id === bookingId 
-        ? { ...b, status, ...data, updatedAt: new Date().toISOString() }
-        : b
-    );
-    localStorage.setItem('vendorAcceptedBookings', JSON.stringify(updated));
-    return updated.find(b => b.id === bookingId);
+    const response = await api.put(`/vendors/bookings/${bookingId}/status`, { status, ...data });
+    return response.data;
   } catch (error) {
     console.error('Error updating booking status:', error);
     throw error;
@@ -177,7 +113,7 @@ export const getPendingAlerts = async () => {
     // TODO: Replace with actual API call
     // const response = await fetch(`${API_BASE_URL}/bookings/pending`);
     // return await response.json();
-    
+
     // Mock implementation
     const pending = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
     return pending;

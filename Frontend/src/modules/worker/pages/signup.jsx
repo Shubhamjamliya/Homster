@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -7,18 +7,61 @@ import { workerAuthService } from '../../../services/authService';
 
 const WorkerSignup = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState('details'); // 'details' or 'otp'
+  const [step, setStep] = useState('details'); // 'details', 'skills', or 'otp'
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phoneNumber: '',
     aadhar: '',
-    aadharDocument: null
+    aadharDocument: null,
+    serviceCategory: '',
+    skills: []
   });
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [documentPreview, setDocumentPreview] = useState(null);
+
+  // Service categories and skills options
+  const serviceCategories = [
+    'AC Service',
+    'Electrician',
+    'Plumber',
+    'Carpenter',
+    'Cleaning',
+    'Salon',
+    'Spa',
+    'Massage',
+    'Appliance Repair',
+    'Painting',
+    'Home Renovation',
+    'Security Services'
+  ];
+
+  const skillsByCategory = {
+    'AC Service': ['AC Installation', 'AC Repair', 'AC Maintenance', 'AC Gas Refill', 'AC Cleaning'],
+    'Electrician': ['Wiring', 'Switch Installation', 'Fan Installation', 'Light Fitting', 'Electrical Repair'],
+    'Plumber': ['Pipe Installation', 'Leak Repair', 'Drainage Cleaning', 'Water Heater Installation', 'Bathroom Fitting'],
+    'Carpenter': ['Furniture Making', 'Door Installation', 'Window Fitting', 'Wood Polishing', 'Cabinet Making'],
+    'Cleaning': ['House Cleaning', 'Office Cleaning', 'Carpet Cleaning', 'Deep Cleaning', 'Post Construction Cleaning'],
+    'Salon': ['Hair Cutting', 'Hair Coloring', 'Hair Styling', 'Facial', 'Manicure/Pedicure'],
+    'Spa': ['Massage Therapy', 'Body Scrub', 'Aromatherapy', 'Relaxation Therapy', 'Wellness Treatment'],
+    'Massage': ['Swedish Massage', 'Deep Tissue Massage', 'Sports Massage', 'Reflexology', 'Hot Stone Massage'],
+    'Appliance Repair': ['Washing Machine Repair', 'Refrigerator Repair', 'TV Repair', 'Microwave Repair', 'Dishwasher Repair'],
+    'Painting': ['Interior Painting', 'Exterior Painting', 'Wall Painting', 'Wood Painting', 'Texture Painting'],
+    'Home Renovation': ['Flooring', 'Tiling', 'Ceiling Work', 'Wallpapering', 'Kitchen Renovation'],
+    'Security Services': ['CCTV Installation', 'Alarm System', 'Security Guard', 'Access Control', 'Intercom System']
+  };
+
+  // Clear any existing tokens on page load
+  useEffect(() => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('workerData');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('vendorData');
+    localStorage.removeItem('adminData');
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -141,7 +184,7 @@ const WorkerSignup = () => {
     setIsLoading(true);
     try {
       const aadharDoc = documentPreview || null;
-      const response = await workerAuthService.register({
+      const registerData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phoneNumber,
@@ -149,7 +192,11 @@ const WorkerSignup = () => {
         aadharDocument: aadharDoc,
         otp: otpValue,
         token: otpToken
-      });
+      };
+
+      console.log('Sending worker register data:', registerData);
+
+      const response = await workerAuthService.register(registerData);
       if (response.success) {
         setIsLoading(false);
         toast.success('Registration successful!');

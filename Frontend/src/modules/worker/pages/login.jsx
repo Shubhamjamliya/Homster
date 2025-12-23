@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FiPhone } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -12,6 +12,16 @@ const WorkerLogin = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Clear any existing tokens on page load
+  // Clear any existing worker tokens on page load
+  useEffect(() => {
+    // Force clear worker tokens when accessing login page
+    // do NOT clear user/vendor tokens to allow multi-role sessions
+    localStorage.removeItem('workerAccessToken');
+    localStorage.removeItem('workerRefreshToken');
+    localStorage.removeItem('workerData');
+  }, []);
 
   const handlePhoneSubmit = async (e) => {
     e.preventDefault();
@@ -92,7 +102,7 @@ const WorkerLogin = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Top Section with Teal Gradient */}
-      <div 
+      <div
         className="relative h-64 overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, #00a6a6 0%, #008a8a 50%, #006b6b 100%)'

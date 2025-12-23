@@ -10,7 +10,7 @@ import BottomNav from '../../components/layout/BottomNav';
 
 const Profile = () => {
   const navigate = useNavigate();
-  
+
   // Helper function to convert hex to rgba
   const hexToRgba = (hex, alpha) => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -18,7 +18,7 @@ const Profile = () => {
     const b = parseInt(hex.slice(5, 7), 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
-  
+
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,7 +52,7 @@ const Profile = () => {
           const addressString = vendorData.address
             ? `${vendorData.address.addressLine1 || ''} ${vendorData.address.addressLine2 || ''} ${vendorData.address.city || ''} ${vendorData.address.state || ''} ${vendorData.address.pincode || ''}`.trim() || 'Not set'
             : 'Not set';
-          
+
           setProfile({
             name: vendorData.name || 'Vendor Name',
             businessName: vendorData.businessName || null,
@@ -184,7 +184,7 @@ const Profile = () => {
               transform: 'translate(-20px, 20px)',
             }}
           />
-          
+
           <div className="relative z-10">
             <div className="flex items-start gap-4">
               {/* Profile Photo - Circle with Rating Below */}
@@ -218,12 +218,12 @@ const Profile = () => {
                   </div>
                 )}
               </div>
-              
+
               {/* Name and Info */}
               <div className="flex-1 min-w-0 flex flex-col">
                 <h2 className="text-xl font-bold text-white mb-1 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{profile.name}</h2>
                 <p className="text-white text-sm opacity-95 mb-2.5 font-medium break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{profile.businessName}</p>
-                
+
                 {/* Phone and Email */}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
@@ -523,6 +523,35 @@ const Profile = () => {
                   <FiCreditCard className="w-5 h-5" style={{ color: themeColors.button }} />
                 </div>
                 <span className="text-sm font-bold text-gray-800">Manage Payment Methods</span>
+              </div>
+              <FiChevronRight className="w-5 h-5 text-gray-400 shrink-0" />
+            </button>
+
+            {/* Manage Address */}
+            <button
+              onClick={() => navigate('/vendor/address-management')}
+              className="w-full flex items-center justify-between p-4 transition-all duration-300 border-b border-gray-100 active:scale-[0.98]"
+              style={{
+                borderBottom: '1px solid rgba(229, 231, 235, 0.8)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0, 166, 166, 0.03) 0%, rgba(0, 166, 166, 0.01) 100%)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300"
+                  style={{
+                    backgroundColor: hexToRgba(themeColors.button, 0.12),
+                    boxShadow: `0 2px 6px ${hexToRgba(themeColors.button, 0.15)}`,
+                  }}
+                >
+                  <FiMapPin className="w-5 h-5" style={{ color: themeColors.button }} />
+                </div>
+                <span className="text-sm font-bold text-gray-800">Manage Address</span>
               </div>
               <FiChevronRight className="w-5 h-5 text-gray-400 shrink-0" />
             </button>

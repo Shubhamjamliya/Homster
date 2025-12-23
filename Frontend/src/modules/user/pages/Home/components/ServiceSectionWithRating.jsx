@@ -3,7 +3,7 @@ import { createOptimizedScrollAnimation, createOptimizedStaggerAnimation } from 
 import ServiceWithRatingCard from '../../../components/common/ServiceWithRatingCard';
 import { themeColors } from '../../../../../theme';
 
-const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeAllClick, onServiceClick, showTopBorder = true }) => {
+const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeAllClick, onServiceClick, onAddClick, showTopBorder = true }) => {
   const sectionRef = useRef(null);
   const titleRef = useRef(null);
   const cardsRef = useRef(null);
@@ -11,9 +11,9 @@ const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeA
   // Defer GSAP scroll animations until after initial render for better performance
   useEffect(() => {
     // Skip animations on initial load to improve performance
-    const shouldAnimate = typeof window !== 'undefined' && 
+    const shouldAnimate = typeof window !== 'undefined' &&
       (window.requestIdleCallback || window.setTimeout);
-    
+
     if (!shouldAnimate || !sectionRef.current || !titleRef.current || !cardsRef.current) {
       // Show content immediately without animation
       if (titleRef.current) titleRef.current.style.opacity = '1';
@@ -82,7 +82,7 @@ const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeA
       {/* Title and Subtitle Section */}
       <div ref={titleRef} className="px-4 mb-5 flex items-center justify-between" style={{ opacity: 1 }}>
         <div>
-          <h2 
+          <h2
             className="text-xl font-bold mb-1 text-black"
           >
             {title}
@@ -97,7 +97,7 @@ const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeA
           <button
             onClick={onSeeAllClick}
             className="font-semibold text-sm px-4 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95"
-            style={{ 
+            style={{
               color: themeColors.button,
               backgroundColor: 'rgba(0, 166, 166, 0.08)',
               border: '1.5px solid rgba(0, 166, 166, 0.25)'
@@ -129,6 +129,7 @@ const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeA
             discount={service.discount}
             image={service.image}
             onClick={() => onServiceClick?.(service)}
+            onAddClick={() => onAddClick?.(service)}
           />
         ))}
       </div>

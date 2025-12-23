@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { FiX, FiMapPin, FiClock, FiDollarSign, FiUser } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { autoInitDummyData } from '../../utils/initDummyData';
+import { acceptBooking, rejectBooking } from '../../services/bookingService';
+import { playAlertRing } from '../../../../utils/notificationSound';
 
 const BookingAlert = () => {
   const { id } = useParams();
@@ -17,19 +19,19 @@ const BookingAlert = () => {
   // Load booking data from localStorage
   useEffect(() => {
     autoInitDummyData();
-    
+
     const loadBooking = () => {
       try {
         // First try to find in pending jobs
         const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
         let foundBooking = pendingJobs.find(job => job.id === id);
-        
+
         // If not found in pending, try accepted bookings
         if (!foundBooking) {
           const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
           foundBooking = acceptedBookings.find(job => job.id === id);
         }
-        
+
         // If still not found, use default
         if (!foundBooking) {
           foundBooking = {
@@ -50,13 +52,13 @@ const BookingAlert = () => {
             },
           };
         }
-        
+
         setBooking(foundBooking);
       } catch (error) {
         console.error('Error loading booking:', error);
       }
     };
-    
+
     loadBooking();
     setTimeout(loadBooking, 100);
   }, [id]);
@@ -83,48 +85,18 @@ const BookingAlert = () => {
     // Create audio context for alarm sound
     const playAlarm = () => {
       try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        audioContextRef.current = audioContext;
-        
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+        // Play initial ring
+        playAlertRing();
 
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
-
-        // Repeat alarm every 2 seconds
+        // Repeat alarm every 1.5 seconds for higher urgency
         const interval = setInterval(() => {
-          if (timeLeft > 0 && !isClosing && audioContextRef.current) {
-            try {
-              const newOscillator = audioContext.createOscillator();
-              const newGainNode = audioContext.createGain();
-
-              newOscillator.connect(newGainNode);
-              newGainNode.connect(audioContext.destination);
-
-              newOscillator.frequency.value = 800;
-              newOscillator.type = 'sine';
-              newGainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-              newGainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-              newOscillator.start(audioContext.currentTime);
-              newOscillator.stop(audioContext.currentTime + 0.5);
-            } catch (e) {
-              // Ignore errors
-            }
+          if (timeLeft > 0 && !isClosing) {
+            playAlertRing();
           } else {
             clearInterval(interval);
             alarmIntervalRef.current = null;
           }
-        }, 2000);
+        }, 1500);
 
         alarmIntervalRef.current = interval;
 
@@ -170,9 +142,9 @@ const BookingAlert = () => {
     }
   }, [timeLeft, isClosing]);
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     if (!booking || isClosing) return;
-    
+
     // Stop alarm immediately
     setIsClosing(true);
     if (alarmIntervalRef.current) {
@@ -188,50 +160,36 @@ const BookingAlert = () => {
       audioContextRef.current = null;
     }
     try {
-      // Remove from pending jobs
+      // Call API to accept booking
+      await acceptBooking(booking.id);
+
+      // Remove from pending jobs locally
       const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
       const updatedPending = pendingJobs.filter(job => job.id !== booking.id);
       localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
-      
-      // Add to accepted bookings
-      const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-      const newBooking = {
-        ...booking,
-        status: 'ACCEPTED',
-        acceptedAt: new Date().toISOString(),
-        timeline: [{ stage: 1, timestamp: new Date().toISOString() }, { stage: 2, timestamp: new Date().toISOString() }],
-      };
-      
-      // Check if already exists
-      const existingIndex = acceptedBookings.findIndex(b => b.id === booking.id);
-      if (existingIndex >= 0) {
-        acceptedBookings[existingIndex] = newBooking;
-      } else {
-        acceptedBookings.push(newBooking);
-      }
-      localStorage.setItem('vendorAcceptedBookings', JSON.stringify(acceptedBookings));
-      
-      // Update stats
+
+      // Update stats locally
       const vendorStats = JSON.parse(localStorage.getItem('vendorStats') || '{}');
       vendorStats.activeJobs = (vendorStats.activeJobs || 0) + 1;
       vendorStats.pendingAlerts = Math.max(0, (vendorStats.pendingAlerts || 0) - 1);
       localStorage.setItem('vendorStats', JSON.stringify(vendorStats));
-      
+
       // Dispatch events
       window.dispatchEvent(new Event('vendorJobsUpdated'));
       window.dispatchEvent(new Event('vendorStatsUpdated'));
-      
+
       setTimeout(() => {
         navigate(`/vendor/booking/${booking.id}`);
       }, 300);
     } catch (error) {
       console.error('Error accepting booking:', error);
+      alert('Failed to accept booking. It may have been cancelled or assigned to someone else.');
     }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!booking || isClosing) return;
-    
+
     // Stop alarm immediately
     setIsClosing(true);
     if (alarmIntervalRef.current) {
@@ -247,20 +205,23 @@ const BookingAlert = () => {
       audioContextRef.current = null;
     }
     try {
-      // Remove from pending
+      // Call API to reject booking
+      await rejectBooking(booking.id, 'Vendor rejected');
+
+      // Remove from pending locally
       const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
       const updated = pendingJobs.filter(job => job.id !== booking.id);
       localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
-      
+
       // Update stats
       const vendorStats = JSON.parse(localStorage.getItem('vendorStats') || '{}');
       vendorStats.pendingAlerts = Math.max(0, (vendorStats.pendingAlerts || 0) - 1);
       localStorage.setItem('vendorStats', JSON.stringify(vendorStats));
-      
+
       // Dispatch events
       window.dispatchEvent(new Event('vendorJobsUpdated'));
       window.dispatchEvent(new Event('vendorStatsUpdated'));
-      
+
       setTimeout(() => {
         navigate('/vendor/dashboard');
       }, 300);
@@ -307,9 +268,8 @@ const BookingAlert = () => {
 
       {/* Alert Card */}
       <div
-        className={`bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl transform transition-all duration-300 ${
-          isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
-        }`}
+        className={`bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl transform transition-all duration-300 ${isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
+          }`}
         style={{
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
         }}

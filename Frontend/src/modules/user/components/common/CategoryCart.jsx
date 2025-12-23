@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiX, FiShoppingCart, FiTrash2, FiPlus, FiMinus } from 'react-icons/fi';
+import { FiArrowLeft, FiX, FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiLoader } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
 import BottomNav from '../layout/BottomNav';
+import { cartService } from '../../../../services/cartService';
 
 const CategoryCart = ({
   isOpen,
@@ -12,57 +14,76 @@ const CategoryCart = ({
 }) => {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Load cart items from localStorage
+  // Load cart items from backend
   useEffect(() => {
-    const updateCart = () => {
-      const items = JSON.parse(localStorage.getItem('cartItems') || '[]');
+    const loadCart = async () => {
+      try {
+        setLoading(true);
+        const response = await cartService.getCart();
+        if (response.success) {
       // Filter by category
-      const categoryItems = items.filter(item => item.category === category);
+          const categoryItems = (response.data || []).filter(item => item.category === category);
       setCartItems(categoryItems);
+        } else {
+          toast.error(response.message || 'Failed to load cart');
+          setCartItems([]);
+        }
+      } catch (error) {
+        console.error('Error loading cart:', error);
+        toast.error('Failed to load cart');
+        setCartItems([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    updateCart();
-    window.addEventListener('cartUpdated', updateCart);
-    window.addEventListener('storage', updateCart);
-
-    return () => {
-      window.removeEventListener('cartUpdated', updateCart);
-      window.removeEventListener('storage', updateCart);
-    };
-  }, [category]);
+    if (isOpen) {
+      loadCart();
+    }
+  }, [category, isOpen]);
 
   const handleClose = () => {
     onClose();
   };
 
-  const handleDelete = (itemId) => {
-    const allItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
-    const updatedItems = allItems.filter(item => item.id !== itemId);
-    setCartItems(updatedItems.filter(item => item.category === category));
-    localStorage.setItem('cartItems', JSON.stringify(updatedItems));
-    window.dispatchEvent(new Event('cartUpdated'));
+  const handleDelete = async (itemId) => {
+    try {
+      const response = await cartService.removeItem(itemId);
+      if (response.success) {
+        // Filter by category from updated cart
+        const categoryItems = (response.data || []).filter(item => item.category === category);
+        setCartItems(categoryItems);
+        toast.success('Item removed from cart');
+      } else {
+        toast.error(response.message || 'Failed to remove item');
+      }
+    } catch (error) {
+      console.error('Error removing item:', error);
+      toast.error('Failed to remove item');
+    }
   };
 
-  const handleQuantityChange = (itemId, change) => {
-    const allItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
-    const updatedItems = allItems.map(item => {
-      if (item.id === itemId) {
+  const handleQuantityChange = async (itemId, change) => {
+    try {
+      const item = cartItems.find(i => i._id === itemId || i.id === itemId);
+      if (!item) return;
+
         const newCount = Math.max(1, (item.serviceCount || 1) + change);
-        const unitPrice = item.unitPrice || (item.price / (item.serviceCount || 1));
-        const newPrice = unitPrice * newCount;
-        return {
-          ...item,
-          serviceCount: newCount,
-          price: newPrice,
-          unitPrice: unitPrice
-        };
+      const response = await cartService.updateItem(itemId, newCount);
+      
+      if (response.success) {
+        // Filter by category from updated cart
+        const categoryItems = (response.data || []).filter(item => item.category === category);
+        setCartItems(categoryItems);
+      } else {
+        toast.error(response.message || 'Failed to update quantity');
       }
-      return item;
-    });
-    setCartItems(updatedItems.filter(item => item.category === category));
-    localStorage.setItem('cartItems', JSON.stringify(updatedItems));
-    window.dispatchEvent(new Event('cartUpdated'));
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      toast.error('Failed to update quantity');
+    }
   };
 
   const handleCheckout = () => {
@@ -112,7 +133,12 @@ const CategoryCart = ({
 
       {/* Cart Items */}
       <main className="px-4 py-4" style={{ paddingBottom: cartItems.length > 0 ? '240px' : '100px' }}>
-        {cartItems.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <FiLoader className="w-16 h-16 text-gray-300 mb-4 animate-spin" />
+            <p className="text-gray-500 text-lg font-medium">Loading cart...</p>
+          </div>
+        ) : cartItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <FiShoppingCart className="w-16 h-16 text-gray-300 mb-4" />
             <p className="text-gray-500 text-lg font-medium">Your cart is empty</p>
@@ -122,7 +148,7 @@ const CategoryCart = ({
           <div className="space-y-4">
             {cartItems.map((item) => (
               <div
-                key={item.id}
+                key={item._id || item.id}
                 className="bg-white rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow"
                 style={{
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
@@ -178,7 +204,7 @@ const CategoryCart = ({
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <h3 className="text-base font-bold text-black leading-tight flex-1">{item.title}</h3>
                       <button
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => handleDelete(item._id || item.id)}
                         className="p-1.5 hover:bg-red-50 rounded-full transition-colors flex-shrink-0"
                       >
                         <FiTrash2 className="w-4 h-4 text-red-500" />
@@ -201,7 +227,7 @@ const CategoryCart = ({
                     <span className="text-xs text-gray-600 font-medium">Quantity:</span>
                     <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                       <button
-                        onClick={() => handleQuantityChange(item.id, -1)}
+                        onClick={() => handleQuantityChange(item._id || item.id, -1)}
                         className="p-1.5 hover:bg-gray-200 rounded-md transition-colors"
                       >
                         <FiMinus className="w-4 h-4 text-gray-700" />
@@ -210,7 +236,7 @@ const CategoryCart = ({
                         {item.serviceCount || 1}
                       </span>
                       <button
-                        onClick={() => handleQuantityChange(item.id, 1)}
+                        onClick={() => handleQuantityChange(item._id || item.id, 1)}
                         className="p-1.5 hover:bg-gray-200 rounded-md transition-colors"
                       >
                         <FiPlus className="w-4 h-4 text-gray-700" />

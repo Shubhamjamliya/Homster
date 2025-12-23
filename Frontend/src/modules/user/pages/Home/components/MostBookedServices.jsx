@@ -11,7 +11,7 @@ import spatulaWaxingImage from '../../../../../assets/images/pages/Home/MostBook
 import fanRepairImage from '../../../../../assets/images/pages/Home/MostBookedServices/fan-repairs.jpg';
 import switchBoardImage from '../../../../../assets/images/pages/Home/MostBookedServices/switch-board.jpg';
 
-const MostBookedServices = React.memo(({ services, onServiceClick }) => {
+const MostBookedServices = React.memo(({ services, onServiceClick, onAddClick }) => {
   // Default electrical services if none provided
   const defaultServices = [
     {
@@ -100,7 +100,7 @@ const MostBookedServices = React.memo(({ services, onServiceClick }) => {
     },
   ];
 
-  const serviceList = services || defaultServices;
+  const serviceList = (services && services.length > 0) ? services : defaultServices;
   const sectionRef = useRef(null);
   const titleRef = useRef(null);
   const cardsRef = useRef(null);
@@ -108,9 +108,9 @@ const MostBookedServices = React.memo(({ services, onServiceClick }) => {
   // Defer GSAP scroll animations until after initial render for better performance
   useEffect(() => {
     // Skip animations on initial load to improve performance
-    const shouldAnimate = typeof window !== 'undefined' && 
+    const shouldAnimate = typeof window !== 'undefined' &&
       (window.requestIdleCallback || window.setTimeout);
-    
+
     if (!shouldAnimate || !sectionRef.current || !titleRef.current || !cardsRef.current) {
       // Show content immediately without animation
       if (titleRef.current) titleRef.current.style.opacity = '1';
@@ -177,7 +177,7 @@ const MostBookedServices = React.memo(({ services, onServiceClick }) => {
   return (
     <div ref={sectionRef} className="mb-6">
       <div ref={titleRef} className="px-4 mb-5" style={{ opacity: 1 }}>
-        <h2 
+        <h2
           className="text-xl font-bold text-black"
         >
           Most booked services
@@ -197,6 +197,7 @@ const MostBookedServices = React.memo(({ services, onServiceClick }) => {
             discount={service.discount}
             image={service.image}
             onClick={() => onServiceClick?.(service)}
+            onAddClick={() => onAddClick?.(service)}
           />
         ))}
       </div>

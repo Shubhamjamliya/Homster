@@ -17,11 +17,9 @@ const BottomNav = memo(() => {
   useEffect(() => {
     const updatePendingCount = () => {
       try {
-        // Count active jobs (not completed)
+        // Count active jobs (PENDING only) to show new requests
         const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-        const activeJobs = acceptedBookings.filter(job => 
-          job.status && !['COMPLETED', 'SETTLEMENT_PENDING'].includes(job.status)
-        );
+        const activeJobs = acceptedBookings.filter(job => job.status === 'PENDING');
         setPendingJobsCount(activeJobs.length);
       } catch (error) {
         console.error('Error reading pending jobs:', error);
@@ -40,10 +38,9 @@ const BottomNav = memo(() => {
 
   // Use useMemo to update navItems when pendingJobsCount changes
   const navItems = useMemo(() => {
-    // For testing: show badge with count (will show 0 if no jobs, but badge will appear when count > 0)
-    // Temporarily set to 5 for testing - remove this line later
-    const badgeCount = pendingJobsCount || 5; // Remove "|| 5" after testing
-    
+    // Count jobs that require attention (Pending, Accepted, In Progress)
+    const badgeCount = pendingJobsCount;
+
     return [
       { path: '/vendor/dashboard', icon: FiHome, activeIcon: HiHome, label: 'Home' },
       { path: '/vendor/jobs', icon: FiBriefcase, activeIcon: HiBriefcase, label: 'Jobs', badge: badgeCount },
@@ -63,9 +60,9 @@ const BottomNav = memo(() => {
   useEffect(() => {
     navItems.forEach((item, index) => {
       const iconKey = item.path;
-      const isActive = location.pathname === item.path || 
-                      (item.path === '/vendor/dashboard' && location.pathname === '/vendor');
-      
+      const isActive = location.pathname === item.path ||
+        (item.path === '/vendor/dashboard' && location.pathname === '/vendor');
+
       if (iconRefs.current[iconKey]) {
         // Kill any existing animation
         if (activeAnimations.current[iconKey]) {
@@ -116,8 +113,8 @@ const BottomNav = memo(() => {
     >
       <div className="flex items-center justify-around px-2 py-2">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path || 
-                          (item.path === '/vendor/dashboard' && location.pathname === '/vendor');
+          const isActive = location.pathname === item.path ||
+            (item.path === '/vendor/dashboard' && location.pathname === '/vendor');
           const IconComponent = isActive ? item.activeIcon : item.icon;
 
           return (
@@ -125,9 +122,9 @@ const BottomNav = memo(() => {
               key={item.path}
               onClick={() => handleNavClick(item.path)}
               className="flex flex-col items-center justify-center relative px-4 py-2 rounded-xl transition-all duration-300"
-              style={{ 
+              style={{
                 minWidth: '60px',
-                background: isActive 
+                background: isActive
                   ? 'linear-gradient(135deg, rgba(0, 166, 166, 0.1) 0%, rgba(0, 166, 166, 0.05) 100%)'
                   : 'transparent',
                 transform: isActive ? 'translateY(-2px)' : 'translateY(0)',

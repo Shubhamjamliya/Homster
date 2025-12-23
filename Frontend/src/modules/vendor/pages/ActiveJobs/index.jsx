@@ -5,6 +5,7 @@ import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import { autoInitDummyData } from '../../utils/initDummyData';
+import { getBookings } from '../../services/bookingService';
 
 const ActiveJobs = () => {
   const navigate = useNavigate();
@@ -33,10 +34,29 @@ const ActiveJobs = () => {
     // Initialize dummy data if needed
     autoInitDummyData();
 
-    const loadJobs = () => {
+    const loadJobs = async () => {
       try {
-        const acceptedBookings = JSON.parse(localStorage.getItem('vendorAcceptedBookings') || '[]');
-        setJobs(acceptedBookings);
+        const response = await getBookings();
+        const jobsData = response.data || [];
+        // Map API response to Component State structure
+        const mappedJobs = jobsData.map(job => ({
+          id: job._id || job.id,
+          serviceType: job.serviceId?.title || job.serviceType || 'Service',
+          user: {
+            name: job.userId?.name || job.customerName || 'Customer'
+          },
+          location: {
+            address: job.address?.addressLine1 || job.location?.address || 'Address not available'
+          },
+          price: job.finalAmount || job.price || 0,
+          status: job.status,
+          assignedTo: job.workerId ? { name: job.workerId.name } : null,
+          timeSlot: {
+            date: job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'Date',
+            time: job.scheduledTime || 'Time'
+          }
+        }));
+        setJobs(mappedJobs);
       } catch (error) {
         console.error('Error loading jobs:', error);
       }
@@ -45,7 +65,7 @@ const ActiveJobs = () => {
     // Load immediately and after a delay
     loadJobs();
     setTimeout(loadJobs, 200);
-    
+
     window.addEventListener('vendorJobsUpdated', loadJobs);
 
     return () => {
@@ -67,15 +87,15 @@ const ActiveJobs = () => {
   };
 
   const filteredJobs = jobs.filter(job => {
-    const matchesFilter = filter === 'all' || 
+    const matchesFilter = filter === 'all' ||
       (filter === 'assigned' && job.status === 'ASSIGNED') ||
       (filter === 'in_progress' && ['VISITED', 'WORK_DONE'].includes(job.status)) ||
       (filter === 'completed' && job.status === 'COMPLETED');
-    
-    const matchesSearch = searchQuery === '' || 
+
+    const matchesSearch = searchQuery === '' ||
       job.serviceType.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.user?.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     return matchesFilter && matchesSearch;
   });
 
@@ -110,20 +130,19 @@ const ActiveJobs = () => {
             <button
               key={filterOption.id}
               onClick={() => setFilter(filterOption.id)}
-              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${
-                filter === filterOption.id
-                  ? 'text-white'
-                  : 'bg-white text-gray-700'
-              }`}
+              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${filter === filterOption.id
+                ? 'text-white'
+                : 'bg-white text-gray-700'
+                }`}
               style={
                 filter === filterOption.id
                   ? {
-                      background: themeColors.button,
-                      boxShadow: `0 2px 8px ${themeColors.button}40`,
-                    }
+                    background: themeColors.button,
+                    boxShadow: `0 2px 8px ${themeColors.button}40`,
+                  }
                   : {
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                    }
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  }
               }
             >
               {filterOption.label}
@@ -155,7 +174,7 @@ const ActiveJobs = () => {
                 const b = parseInt(hex.slice(5, 7), 16);
                 return `rgba(${r}, ${g}, ${b}, ${alpha})`;
               };
-              
+
               return (
                 <div
                   key={job.id}
@@ -174,7 +193,7 @@ const ActiveJobs = () => {
                       background: `linear-gradient(180deg, ${statusColor} 0%, ${statusColor}dd 100%)`,
                     }}
                   />
-                  
+
                   <div className="relative z-10 pl-2">
                     {/* Header Section */}
                     <div className="flex items-start justify-between mb-3">
@@ -223,14 +242,14 @@ const ActiveJobs = () => {
                         </div>
                         <span className="text-gray-700 font-medium">{job.user?.name || 'Customer'}</span>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 text-sm">
                         <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                           <FiMapPin className="w-4 h-4" style={{ color: statusColor }} />
                         </div>
                         <span className="text-gray-700 font-medium truncate">{job.location?.address || 'Address not available'}</span>
                       </div>
-                      
+
                       {job.assignedTo && (
                         <div className="flex items-center gap-2 text-sm">
                           <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
@@ -241,7 +260,7 @@ const ActiveJobs = () => {
                           </span>
                         </div>
                       )}
-                      
+
                       <div className="flex items-center gap-2 text-sm">
                         <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                           <FiClock className="w-4 h-4" style={{ color: statusColor }} />
