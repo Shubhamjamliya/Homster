@@ -87,6 +87,9 @@ const UserRoutes = () => {
   // Check if we hide the live booking card (e.g. if we are on the specific booking details page)
   const isBookingDetailsPage = location.pathname.match(/^\/user\/booking\/[a-zA-Z0-9]+$/);
 
+  // Check if we are on public pages (login/signup) where we shouldn't fetch bookings
+  const isPublicPage = location.pathname.includes('/login') || location.pathname.includes('/signup');
+
   return (
     <ErrorBoundary>
       <Suspense fallback={<LoadingFallback />}>
@@ -123,7 +126,7 @@ const UserRoutes = () => {
           </Routes>
         </PageTransition>
       </Suspense>
-      {!isBookingDetailsPage && <LiveBookingCard />}
+      {!isBookingDetailsPage && !isPublicPage && <LiveBookingCard />}
       {shouldShowBottomNav && <BottomNav />}
     </ErrorBoundary>
   );
