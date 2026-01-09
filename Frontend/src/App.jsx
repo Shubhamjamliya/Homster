@@ -1,10 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import AppRoutes from './routes';
 import { SocketProvider } from './context/SocketContext';
+import { initializePushNotifications, setupForegroundNotificationHandler } from './services/pushNotificationService';
 
 function App() {
+  // Initialize push notifications on app load
+  useEffect(() => {
+    initializePushNotifications();
+
+    // Setup foreground notification handler
+    setupForegroundNotificationHandler((payload) => {
+      console.log('📬 Notification received:', payload);
+      // Show toast notification
+      toast(payload.notification?.body || 'New notification', {
+        icon: '🔔',
+        duration: 5000,
+      });
+    });
+  }, []);
+
   return (
     <BrowserRouter>
       <SocketProvider>
@@ -42,3 +59,4 @@ function App() {
 }
 
 export default App;
+

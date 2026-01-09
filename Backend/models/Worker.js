@@ -134,6 +134,16 @@ const workerSchema = new mongoose.Schema({
   totalReviews: {
     type: Number,
     default: 0
+  },
+
+  // FCM Push Notification Tokens
+  fcmTokens: {
+    type: [String],
+    default: []
+  },
+  fcmTokenMobile: {
+    type: [String],
+    default: []
   }
 }, {
   timestamps: true

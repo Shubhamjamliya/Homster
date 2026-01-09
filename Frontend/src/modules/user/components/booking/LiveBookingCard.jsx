@@ -123,6 +123,7 @@ const LiveBookingCard = () => {
   return (
     <AnimatePresence>
       <motion.div
+        key="live-booking-card"
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
@@ -170,6 +171,7 @@ const LiveBookingCard = () => {
 
       {/* Global Rating Modal */}
       <RatingModal
+        key="rating-modal"
         isOpen={showRatingModal}
         onClose={() => {
           setShowRatingModal(false);

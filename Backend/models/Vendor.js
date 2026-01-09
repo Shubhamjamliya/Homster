@@ -199,6 +199,16 @@ const vendorSchema = new mongoose.Schema({
     friday: { open: String, close: String, isOpen: { type: Boolean, default: true } },
     saturday: { open: String, close: String, isOpen: { type: Boolean, default: true } },
     sunday: { open: String, close: String, isOpen: { type: Boolean, default: false } }
+  },
+
+  // FCM Push Notification Tokens
+  fcmTokens: {
+    type: [String],
+    default: []
+  },
+  fcmTokenMobile: {
+    type: [String],
+    default: []
   }
 }, {
   timestamps: true

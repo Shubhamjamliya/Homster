@@ -160,7 +160,7 @@ const WorkersList = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredWorkers.map((worker) => {
+            {filteredWorkers.map((worker, index) => {
               const getAvailabilityColor = (availability) => {
                 return availability === 'ONLINE' ? themeColors.icon : '#94A3B8';
               };
@@ -175,7 +175,7 @@ const WorkersList = () => {
 
               return (
                 <div
-                  key={worker.id}
+                  key={worker.id || index}
                   className="rounded-xl p-4 shadow-lg cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
                   style={{
                     background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%)',

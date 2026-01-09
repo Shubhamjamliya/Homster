@@ -217,7 +217,13 @@ const startJob = async (req, res) => {
       title: 'Worker Started Journey',
       message: `Worker is on the way! specific OTP for site visit verification is: ${otp}. Please share this with worker upon arrival.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'journey_started',
+        bookingId: booking._id.toString(),
+        visitOtp: otp,
+        link: `/user/booking/${booking._id}`
+      }
     });
 
     // Notify vendor
@@ -227,7 +233,12 @@ const startJob = async (req, res) => {
       title: 'Worker Started Journey',
       message: `Your worker has started the journey for booking ${booking.bookingNumber}.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'journey_started',
+        bookingId: booking._id.toString(),
+        link: `/vendor/bookings/${booking._id}`
+      }
     });
 
     // Explicitly emit socket event
@@ -361,7 +372,13 @@ const completeJob = async (req, res) => {
       title: 'Work Completed & Ready for Rating',
       message: `Worker has completed the work. Please rate your experience and confirm by sharing OTP: ${otp}.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'work_done',
+        bookingId: booking._id.toString(),
+        paymentOtp: otp,
+        link: `/user/booking/${booking._id}`
+      }
     });
 
     // Notify vendor
@@ -371,7 +388,12 @@ const completeJob = async (req, res) => {
       title: 'Work Done',
       message: `Your worker has marked work as done for booking ${booking.bookingNumber}.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'worker_completed',
+        bookingId: booking._id.toString(),
+        link: `/vendor/bookings/${booking._id}`
+      }
     });
 
     // Explicitly emit socket event to ensure user gets real-time update

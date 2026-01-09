@@ -4,6 +4,7 @@ const Worker = require('../../models/Worker');
 const { validationResult } = require('express-validator');
 const { BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 const { createNotification } = require('../notificationControllers/notificationController');
+const { sendNotificationToUser, sendNotificationToVendor, sendNotificationToWorker } = require('../../services/firebaseAdmin');
 
 /**
  * Get vendor bookings with filters
@@ -193,8 +194,17 @@ const acceptBooking = async (req, res) => {
       title: 'Booking Confirmed!',
       message: notificationMessage,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'booking_accepted',
+        bookingId: booking._id.toString(),
+        link: `/user/booking/${booking._id}`
+      }
     });
+
+    // Send FCM push notification to user
+    // Manual push removed - auto handled by createNotification
+    // sendNotificationToUser(booking.userId, { ... });
 
     // For plan_benefit bookings, also notify vendor about confirmation
     if (booking.paymentMethod === 'plan_benefit') {
@@ -280,8 +290,17 @@ const rejectBooking = async (req, res) => {
       title: 'Booking Rejected',
       message: `Your booking ${booking.bookingNumber} has been rejected by the vendor.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'booking_rejected',
+        bookingId: booking._id.toString(),
+        link: `/user/booking/${booking._id}`
+      }
     });
+
+    // Send FCM push notification to user
+    // Manual push removed - auto handled by createNotification
+    // sendNotificationToUser(booking.userId, { ... });
 
     res.status(200).json({
       success: true,
@@ -342,7 +361,12 @@ const assignWorker = async (req, res) => {
         title: 'Service Provider Assigned',
         message: `Vendor ${req.user.businessName || req.user.name} will handle your booking ${booking.bookingNumber} personally.`,
         relatedId: booking._id,
-        relatedType: 'booking'
+        relatedType: 'booking',
+        pushData: {
+          type: 'worker_assigned',
+          bookingId: booking._id.toString(),
+          link: `/user/booking/${booking._id}`
+        }
       });
 
       return res.status(200).json({
@@ -389,7 +413,12 @@ const assignWorker = async (req, res) => {
       title: 'Worker Assigned',
       message: `A worker has been assigned to your booking ${booking.bookingNumber}.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'worker_assigned',
+        bookingId: booking._id.toString(),
+        link: `/user/booking/${booking._id}`
+      }
     });
 
     // Send notification to worker
@@ -399,8 +428,17 @@ const assignWorker = async (req, res) => {
       title: 'New Job Assigned',
       message: `You have been assigned to booking ${booking.bookingNumber}.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'job_assigned',
+        bookingId: booking._id.toString(),
+        link: `/worker/job/${booking._id}`
+      }
     });
+
+    // Send FCM push notification to worker
+    // Manual push removed - auto handled by createNotification
+    // sendNotificationToWorker(workerId, { ... });
 
     res.status(200).json({
       success: true,
@@ -498,8 +536,17 @@ const updateBookingStatus = async (req, res) => {
         title: 'Booking Completed',
         message: `Your booking ${booking.bookingNumber} has been completed. Please rate your experience.`,
         relatedId: booking._id,
-        relatedType: 'booking'
+        relatedType: 'booking',
+        pushData: {
+          type: 'booking_completed',
+          bookingId: booking._id.toString(),
+          link: `/user/booking/${booking._id}`
+        }
       });
+
+      // Send FCM push notification to user
+      // Manual push removed - auto handled by createNotification
+      // sendNotificationToUser(booking.userId, { ... });
     }
 
     res.status(200).json({
@@ -614,8 +661,18 @@ const startSelfJob = async (req, res) => {
       title: 'Vendor Started Journey',
       message: `Vendor is on the way! OTP for verification: ${otp}.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'journey_started',
+        bookingId: booking._id.toString(),
+        visitOtp: otp,
+        link: `/user/booking/${booking._id}`
+      }
     });
+
+    // Send FCM push notification to user
+    // Manual push removed - auto handled by createNotification
+    // sendNotificationToUser(booking.userId, { ... });
 
     const io = req.app.get('io');
     if (io) {
@@ -703,8 +760,18 @@ const completeSelfJob = async (req, res) => {
       title: 'Work Completed',
       message: `Work done. Please confirm & pay. OTP: ${otp}. Amount: ₹${booking.finalAmount}`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'work_done',
+        bookingId: booking._id.toString(),
+        paymentOtp: otp,
+        link: `/user/booking/${booking._id}`
+      }
     });
+
+    // Send FCM push notification to user
+    // Manual push removed - auto handled by createNotification
+    // sendNotificationToUser(booking.userId, { ... });
 
     const io = req.app.get('io');
     if (io) {

@@ -1,5 +1,6 @@
 const Notification = require('../../models/Notification');
 const { validationResult } = require('express-validator');
+const { sendNotificationToUser, sendNotificationToVendor, sendNotificationToWorker } = require('../../services/firebaseAdmin');
 
 /**
  * Create notification (internal use)
@@ -14,7 +15,9 @@ const createNotification = async ({
   message,
   relatedId = null,
   relatedType = null,
-  data = {}
+  data = {},
+  skipPush = false,
+  pushData = {}
 }) => {
   try {
     const notification = await Notification.create({
@@ -30,11 +33,48 @@ const createNotification = async ({
       data
     });
 
+    // Send Push Notification
+    if (!skipPush) {
+      // Prepare payload
+      // Use explicit pushData if provided, otherwise merge generic data
+      const payload = {
+        title: title,
+        body: message,
+        data: {
+          ...data,
+          ...pushData,
+          type: pushData.type || type, // Allow overriding type for push specifically
+          relatedId: relatedId ? String(relatedId) : '',
+          relatedType: relatedType ? String(relatedType) : '',
+          notificationId: String(notification._id)
+        }
+      };
+
+      // If dataOnly flag is in pushData, pass it
+      if (pushData.dataOnly) {
+        payload.dataOnly = true;
+      }
+
+      // Send to target
+      try {
+        if (userId) await sendNotificationToUser(userId, payload);
+        if (vendorId) await sendNotificationToVendor(vendorId, payload);
+        if (workerId) await sendNotificationToWorker(workerId, payload);
+        if (adminId) {
+          const { sendNotificationToAdmin } = require('../../services/firebaseAdmin');
+          await sendNotificationToAdmin(adminId, payload);
+        }
+      } catch (pushError) {
+        console.error('Auto-push notification failed:', pushError);
+        // Do not fail the function, notification is saved in DB
+      }
+    }
+
     // Emit real-time notification via Socket.io
     try {
       const { getIO } = require('../../sockets');
       const io = getIO();
-      
+
       let room = null;
       if (userId) room = `user_${userId}`;
       else if (vendorId) room = `vendor_${vendorId}`;

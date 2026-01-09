@@ -1,4 +1,5 @@
 import api from './api';
+import { registerFCMToken, removeFCMToken } from './pushNotificationService';
 
 /**
  * User Authentication Service
@@ -20,6 +21,8 @@ export const userAuthService = {
       localStorage.setItem('accessToken', response.data.accessToken);
       localStorage.setItem('refreshToken', response.data.refreshToken);
       localStorage.setItem('userData', JSON.stringify(response.data.user));
+      // Register FCM token after successful registration
+      registerFCMToken('user', true).catch(console.error);
     }
     return response.data;
   },
@@ -31,12 +34,16 @@ export const userAuthService = {
       localStorage.setItem('accessToken', response.data.accessToken);
       localStorage.setItem('refreshToken', response.data.refreshToken);
       localStorage.setItem('userData', JSON.stringify(response.data.user));
+      // Register FCM token after successful login
+      registerFCMToken('user', true).catch(console.error);
     }
     return response.data;
   },
 
   // Logout
   logout: async () => {
+    // Remove FCM token before logout
+    removeFCMToken('user').catch(console.error);
     try {
       await api.post('/users/auth/logout');
     } catch (error) {
@@ -91,12 +98,16 @@ export const vendorAuthService = {
       localStorage.setItem('vendorAccessToken', response.data.accessToken);
       localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
       localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      // Register FCM token after successful login
+      registerFCMToken('vendor', true).catch(console.error);
     }
     return response.data;
   },
 
   // Logout
   logout: async () => {
+    // Remove FCM token before logout
+    removeFCMToken('vendor').catch(console.error);
     try {
       await api.post('/vendors/auth/logout');
     } catch (error) {
@@ -156,12 +167,16 @@ export const workerAuthService = {
       localStorage.setItem('workerAccessToken', response.data.accessToken);
       localStorage.setItem('workerRefreshToken', response.data.refreshToken);
       localStorage.setItem('workerData', JSON.stringify(response.data.worker));
+      // Register FCM token after successful login
+      registerFCMToken('worker', true).catch(console.error);
     }
     return response.data;
   },
 
   // Logout
   logout: async () => {
+    // Remove FCM token before logout
+    removeFCMToken('worker').catch(console.error);
     try {
       await api.post('/workers/auth/logout');
     } catch (error) {

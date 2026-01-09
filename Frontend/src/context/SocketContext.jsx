@@ -174,7 +174,7 @@ export const SocketProvider = ({ children }) => {
         console.log('🚨 New Booking Request Alert:', data);
 
         // Play urgent alert ring
-
+        playAlertRing();
 
         // Save to localStorage for the Alert screen and Dashboard to read
         // Note: Even though we are moving to backend, keeping this for immediate UI responsiveness before potential refresh lag

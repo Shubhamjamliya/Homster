@@ -9,6 +9,7 @@ const Review = require('../../models/Review');
 const { validationResult } = require('express-validator');
 const { BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 const { createNotification } = require('../notificationControllers/notificationController');
+const { sendNotificationToUser, sendNotificationToVendor, sendNotificationToWorker } = require('../../services/firebaseAdmin');
 
 /**
  * Create a new booking
@@ -301,7 +302,12 @@ const createBooking = async (req, res) => {
 
     // Find vendors within 10km radius
     const nearbyVendors = await findNearbyVendors(bookingLocation, 10);
-    console.log(`Found ${nearbyVendors.length} nearby vendors for booking ${booking._id}`);
+    console.log(`[CreateBooking] Found ${nearbyVendors.length} nearby vendors for booking ${booking._id}`);
+    if (nearbyVendors.length > 0) {
+      console.log(`[CreateBooking] Target Vendor IDs:`, nearbyVendors.map(v => v._id));
+    } else {
+      console.warn(`[CreateBooking] NO VENDORS FOUND nearby! Push notifications will not be sent.`);
+    }
 
     // Send notifications to nearby vendors
     const vendorNotifications = nearbyVendors.map(vendor =>
@@ -322,6 +328,12 @@ const createBooking = async (req, res) => {
           location: address,
           price: finalAmount,
           distance: vendor.distance // Distance in km
+        },
+        // Ensure proper push notification style for booking request
+        pushData: {
+          type: 'new_booking', // Triggers "Accept/Reject" buttons in SW
+          dataOnly: true,
+          link: `/vendor/bookings/${booking._id}`
         }
       })
     );
@@ -635,8 +647,15 @@ const cancelBooking = async (req, res) => {
       title: 'Booking Cancelled',
       message: refundMessage || `Your booking ${booking.bookingNumber} has been cancelled.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'booking_cancelled',
+        bookingId: booking._id.toString(),
+        link: `/user/booking/${booking._id}`
+      }
     });
+
+    // Manual FCM push removed (handled by createNotification)
 
     // Send notification to vendor
     if (booking.vendorId) {
@@ -646,15 +665,32 @@ const cancelBooking = async (req, res) => {
         title: 'Booking Cancelled',
         message: `Booking ${booking.bookingNumber} has been cancelled by the customer.`,
         relatedId: booking._id,
-        relatedType: 'booking'
+        relatedType: 'booking',
+        pushData: {
+          type: 'booking_cancelled',
+          bookingId: booking._id.toString(),
+          link: `/vendor/bookings/${booking._id}`
+        }
       });
+      // Manual FCM push removed
     }
 
     // Notify worker if assigned
     if (booking.workerId) {
-      // Assuming worker notification logic exists or reusing vendor type or create generic
-      // For now, if no worker schema notification method specific, skipping or adding generic.
-      // (Your system usually notifies vendors/users).
+      await createNotification({
+        workerId: booking.workerId,
+        type: 'booking_cancelled',
+        title: 'Booking Cancelled',
+        message: `Job ${booking.bookingNumber} has been cancelled by the customer.`,
+        relatedId: booking._id,
+        relatedType: 'booking',
+        pushData: {
+          type: 'job_cancelled',
+          bookingId: booking._id.toString(),
+          link: `/worker/job/${booking._id}`
+        }
+      });
+      // Manual FCM push removed
     }
 
     res.status(200).json({
@@ -731,11 +767,16 @@ const rescheduleBooking = async (req, res) => {
     // Send notification to vendor
     await createNotification({
       vendorId: booking.vendorId,
-      type: 'booking_created',
+      type: 'booking_created', // Keeping type as is for now
       title: 'Booking Rescheduled',
       message: `Booking ${booking.bookingNumber} has been rescheduled.`,
       relatedId: booking._id,
-      relatedType: 'booking'
+      relatedType: 'booking',
+      pushData: {
+        type: 'booking_rescheduled',
+        bookingId: booking._id.toString(),
+        link: `/vendor/bookings/${booking._id}`
+      }
     });
 
     res.status(200).json({

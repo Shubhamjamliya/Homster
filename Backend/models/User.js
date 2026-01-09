@@ -109,6 +109,16 @@ const userSchema = new mongoose.Schema({
     default: 0
   },
 
+  // FCM Push Notification Tokens
+  fcmTokens: {
+    type: [String],
+    default: []
+  },
+  fcmTokenMobile: {
+    type: [String],
+    default: []
+  },
+
 }, {
   timestamps: true
 });
