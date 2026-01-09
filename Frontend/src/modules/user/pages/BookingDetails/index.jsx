@@ -106,7 +106,7 @@ const BookingDetails = () => {
 
   // Socket Listener for Real-time Updates
   useEffect(() => {
-    const socketUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace('/api', '');
+    const socketUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/api$/, '');
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling']
     });

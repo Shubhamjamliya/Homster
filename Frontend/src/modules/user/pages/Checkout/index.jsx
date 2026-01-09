@@ -314,7 +314,7 @@ const Checkout = () => {
   useEffect(() => {
     if (currentStep !== 'waiting' || !bookingRequest) return;
 
-    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
+    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
     const socket = io(socketUrl, {
       auth: { token: localStorage.getItem('accessToken') },
       transports: ['websocket', 'polling']
