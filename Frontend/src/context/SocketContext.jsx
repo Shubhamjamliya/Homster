@@ -71,11 +71,17 @@ export const SocketProvider = ({ children }) => {
       socket.disconnect();
     }
 
-    const newSocket = io(SOCKET_URL, {
+    // Use HTTP URL for socket.io client - it handles WS upgrade automatically
+    const socketBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
+
+    const newSocket = io(socketBaseUrl, {
       auth: {
         token: token
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      path: '/socket.io/', // Ensure standard path
+      secure: true, // Required for HTTPS
+      rejectUnauthorized: false
     });
 
     setSocket(newSocket);
