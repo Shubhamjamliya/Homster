@@ -82,6 +82,8 @@ const Wallet = () => {
         return <FiSend className="w-5 h-5 text-blue-500" />;
       case 'withdrawal':
         return <FiDollarSign className="w-5 h-5 text-purple-500" />;
+      case 'tds_deduction':
+        return <FiAlertCircle className="w-5 h-5 text-amber-500" />;
       case 'commission':
         return <FiDollarSign className="w-5 h-5 text-orange-500" />;
       default:
@@ -98,7 +100,9 @@ const Wallet = () => {
       case 'settlement':
         return 'Settlement Paid';
       case 'withdrawal':
-        return 'Withdrawal';
+        return 'Withdrawal Payout';
+      case 'tds_deduction':
+        return 'TDS Deduction';
       case 'commission':
         return 'Commission';
       default:
@@ -262,6 +266,8 @@ const Wallet = () => {
             { id: 'all', label: 'All' },
             { id: 'cash_collected', label: 'Cash Collected' },
             { id: 'settlement', label: 'Settlements' },
+            { id: 'withdrawal', label: 'Withdrawals' },
+            { id: 'tds_deduction', label: 'TDS' },
           ].map((filterOption) => (
             <button
               key={filterOption.id}
@@ -302,16 +308,22 @@ const Wallet = () => {
                   key={txn._id}
                   className="bg-white rounded-xl p-4 shadow-md border-l-4"
                   style={{
-                    borderLeftColor: txn.type === 'cash_collected' ? '#DC2626' :
-                      txn.type === 'settlement' ? '#10B981' : '#F97316'
+                    borderLeftColor:
+                      txn.type === 'cash_collected' ? '#DC2626' :
+                        txn.type === 'settlement' ? '#10B981' :
+                          txn.type === 'withdrawal' ? '#8B5CF6' :
+                            txn.type === 'tds_deduction' ? '#F59E0B' : '#F97316'
                   }}
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center"
                       style={{
-                        background: txn.type === 'cash_collected' ? '#FEE2E2' :
-                          txn.type === 'settlement' ? '#D1FAE5' : '#FFEDD5'
+                        background:
+                          txn.type === 'cash_collected' ? '#FEE2E2' :
+                            txn.type === 'settlement' ? '#D1FAE5' :
+                              txn.type === 'withdrawal' ? '#EDE9FE' :
+                                txn.type === 'tds_deduction' ? '#FEF3C7' : '#FFEDD5'
                       }}
                     >
                       {getTransactionIcon(txn.type)}
@@ -322,9 +334,11 @@ const Wallet = () => {
                         <p className="font-bold text-gray-900 text-sm">
                           {getTransactionLabel(txn.type)}
                         </p>
-                        <p className={`text-lg font-bold ${txn.type === 'cash_collected' ? 'text-red-600' : 'text-green-600'
+                        <p className={`text-lg font-bold ${txn.type === 'cash_collected' || txn.type === 'tds_deduction' || txn.type === 'withdrawal'
+                            ? 'text-red-600'
+                            : 'text-green-600'
                           }`}>
-                          {txn.type === 'cash_collected' ? '-' : '+'}₹{Math.abs(txn.amount).toLocaleString()}
+                          {['cash_collected', 'tds_deduction', 'withdrawal'].includes(txn.type) ? '-' : '+'}₹{Math.abs(txn.amount).toLocaleString()}
                         </p>
                       </div>
 

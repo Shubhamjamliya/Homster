@@ -130,6 +130,14 @@ const BookingDetails = () => {
     };
   }, [id]);
 
+  // Handle modal closing if payment is detected
+  useEffect(() => {
+    if ((booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid') && isCashModalOpen) {
+      setIsCashModalOpen(false);
+      toast.success('Online Payment Received!');
+    }
+  }, [booking?.paymentStatus, isCashModalOpen]);
+
   // Available status options for vendor
   const getAvailableStatuses = (currentStatus, booking) => {
     // Check payment status
@@ -138,12 +146,12 @@ const BookingDetails = () => {
     const isSelfJob = booking?.assignedTo?.name === 'You (Self)';
 
     const statusFlow = {
-      'confirmed': ['assigned', 'visited'],
-      'assigned': ['visited'],
-      'visited': ['work_done'],
-      'work_done': (isSelfJob || workerPaymentDone)
-        ? (finalSettlementDone ? ['completed'] : ['final_settlement', 'completed'])
-        : [],
+      'confirmed': ['assigned', 'visited', 'journey_started'],
+      'assigned': ['visited', 'journey_started'],
+      'journey_started': ['visited'],
+      'visited': ['in_progress', 'work_done'],
+      'in_progress': ['work_done'],
+      'work_done': ['completed', 'final_settlement'],
       'final_settlement': ['completed'],
       'completed': [],
     };
@@ -605,17 +613,35 @@ const BookingDetails = () => {
             })()}
           </div>
 
-          <button
-            onClick={handleStartJourney}
-            className="w-full py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95"
-            style={{
-              background: themeColors.button,
-              boxShadow: `0 4px 12px ${themeColors.button}40`,
-            }}
-          >
-            <FiNavigation className="w-5 h-5" />
-            Start Journey
-          </button>
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => navigate(`/vendor/booking/${booking.id || id}/map`)}
+              className="flex-1 py-3.5 rounded-xl font-bold border-2 flex items-center justify-center gap-2 transition-all active:scale-95 bg-white"
+              style={{
+                borderColor: themeColors.button,
+                color: themeColors.button,
+              }}
+            >
+              <FiMapPin className="w-5 h-5" />
+              View Map
+            </button>
+            <button
+              onClick={() => {
+                const hasCoords = booking.location.lat && booking.location.lng;
+                const dest = hasCoords
+                  ? `${booking.location.lat},${booking.location.lng}`
+                  : encodeURIComponent(booking.location.address);
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank');
+              }}
+              className="flex-1 py-3.5 rounded-xl font-black text-white flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-200"
+              style={{
+                background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
+              }}
+            >
+              <FiNavigation className="w-5 h-5 animate-pulse" />
+              Navigate
+            </button>
+          </div>
         </div>
 
         {/* Service Description */}
@@ -968,6 +994,29 @@ const BookingDetails = () => {
                 <FiCreditCard className="w-5 h-5" />
                 Collect Cash Now
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Online Payment Done State */}
+        {(booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid') && booking?.status !== 'completed' && (
+          <div className="bg-white rounded-2xl mb-4 overflow-hidden shadow-lg border-none relative group"
+            style={{ boxShadow: '0 10px 30px -5px rgba(16, 185, 129, 0.2)' }}
+          >
+            <div className="h-2 bg-gradient-to-r from-green-400 to-green-600" />
+            <div className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center text-green-500 shadow-inner">
+                  <FiCheckCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 leading-tight">Paid Online</h3>
+                  <p className="text-xs text-green-600 font-bold uppercase tracking-wider">Payment Verified</p>
+                </div>
+              </div>
+              <div className="mt-4 bg-green-50/50 rounded-xl p-3 border border-green-100">
+                <p className="text-xs text-green-800 font-medium">Customer has paid ₹{booking.finalAmount.toLocaleString()} online via Razorpay. No cash collection needed.</p>
+              </div>
             </div>
           </div>
         )}

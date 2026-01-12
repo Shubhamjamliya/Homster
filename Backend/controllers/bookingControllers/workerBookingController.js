@@ -158,6 +158,16 @@ const updateJobStatus = async (req, res) => {
 
     await booking.save();
 
+    // Emit socket event for real-time update to user
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: booking.status,
+        message: `Job status updated to ${booking.status}`
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Job status updated successfully',
@@ -309,6 +319,16 @@ const verifyVisit = async (req, res) => {
 
     await booking.save();
 
+    // Emit socket event for real-time update
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: booking.status,
+        message: 'Visit verified successful'
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Site visit verified successfully',
@@ -348,12 +368,8 @@ const completeJob = async (req, res) => {
       });
     }
 
-    // Generate Payment OTP
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-
     // Update booking
     booking.status = BOOKING_STATUS.WORK_DONE;
-    booking.paymentOtp = otp;
 
     if (workPhotos && Array.isArray(workPhotos)) {
       booking.workPhotos = workPhotos;
@@ -369,14 +385,13 @@ const completeJob = async (req, res) => {
     await createNotification({
       userId: booking.userId,
       type: 'work_done',
-      title: 'Work Completed & Ready for Rating',
-      message: `Worker has completed the work. Please rate your experience and confirm by sharing OTP: ${otp}.`,
+      title: 'Work Completed',
+      message: `Worker has completed the work. Professional is finalizing the bill. Amount: ₹${booking.finalAmount}.`,
       relatedId: booking._id,
       relatedType: 'booking',
       pushData: {
         type: 'work_done',
         bookingId: booking._id.toString(),
-        paymentOtp: otp,
         link: `/user/booking/${booking._id}`
       }
     });
@@ -401,13 +416,12 @@ const completeJob = async (req, res) => {
     if (io) {
       io.to(`user_${booking.userId}`).emit('booking_updated', {
         bookingId: booking._id,
-        status: BOOKING_STATUS.WORK_DONE,
-        paymentOtp: otp
+        status: BOOKING_STATUS.WORK_DONE
       });
 
       io.to(`user_${booking.userId}`).emit('notification', {
         title: 'Work Completed',
-        message: `Worker has completed the work. Please confirm & Pay. OTP: ${otp}`,
+        message: `Worker has completed the work. Professional is finalizing the bill.`,
         relatedId: booking._id
       });
     }

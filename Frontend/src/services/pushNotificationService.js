@@ -124,16 +124,20 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
         endpoint = '/workers/fcm-tokens/save';
         authTokenKey = 'workerAccessToken';
         break;
+      case 'user':
+        endpoint = '/users/fcm-tokens/save';
+        authTokenKey = 'accessToken';
+        break;
       default:
+        console.warn(`[FCM] Unknown userType: ${userType}, defaulting to user`);
         endpoint = '/users/fcm-tokens/save';
         authTokenKey = 'accessToken';
     }
 
     // Get auth token
     const authToken = localStorage.getItem(authTokenKey);
-    console.log(`[FCM] Auth token key: ${authTokenKey}, exists: ${!!authToken}`);
     if (!authToken) {
-      console.log('[FCM] ❌ No auth token found, skipping FCM registration');
+      console.log(`[FCM] ❌ No auth token found for ${userType} (${authTokenKey}), skipping registration`);
       return null;
     }
 
@@ -245,28 +249,54 @@ function setupForegroundNotificationHandler(handler) {
     const title = notification.title || data.title || 'New Notification';
     const body = notification.body || data.body || '';
     const icon = notification.icon || data.icon || '/Homster-logo.png';
+    const type = data.type || data.notificationType || 'default';
 
-    // Show notification
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const notif = new Notification(title, {
-        body: body,
-        icon: icon,
-        data: data,
-        tag: data.bookingId || `notification-${Date.now()}`,
-        requireInteraction: data.type === 'new_booking' || data.type === 'job_assigned'
-      });
+    // Play Sound for foreground notifications
+    const audioMap = {
+      new_booking: '/booking-alert.mp3',
+      booking_accepted: '/success.mp3',
+      worker_assigned: '/notification.mp3',
+      job_assigned: '/booking-alert.mp3',
+      booking_completed: '/success.mp3',
+      default: '/notification.mp3'
+    };
 
-      // Handle notification click
-      notif.onclick = () => {
-        window.focus();
-        if (data.link) {
-          window.location.href = data.link;
-        }
-        notif.close();
-      };
+    // Attempt playback - interactions requirements may block auto-play
+    try {
+      const audioUrl = audioMap[type] || audioMap['default'];
+      const audio = new Audio(audioUrl);
+      audio.play().catch(e => console.log('Audio autoplay blocked:', e));
+    } catch (err) {
+      console.log('Audio playback error:', err);
     }
 
-    // Call custom handler
+    // Show native system notification if supported (even in foreground)
+    // This makes it appear in the OS notification center / bar
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notif = new Notification(title, {
+          body: body,
+          icon: icon,
+          data: data,
+          tag: data.bookingId || `notification-${Date.now()}`,
+          requireInteraction: type === 'new_booking' || type === 'job_assigned',
+          silent: false // Allow system sound if applicable
+        });
+
+        // Handle notification click
+        notif.onclick = () => {
+          window.focus();
+          if (data.link) {
+            window.location.href = data.link;
+          }
+          notif.close();
+        };
+      } catch (e) {
+        console.error('Error showing native notification:', e);
+      }
+    }
+
+    // Call custom handler (e.g. for toast)
     if (handler) {
       handler(payload);
     }

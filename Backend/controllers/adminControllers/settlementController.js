@@ -555,7 +555,7 @@ module.exports = {
   approveWithdrawal: async (req, res) => {
     try {
       const { withdrawalId } = req.params;
-      const { transactionReference, notes } = req.body;
+      const { transactionReference, notes, tdsRate = 2 } = req.body; // Default 2% TDS
       const adminId = req.user.id;
 
       const withdrawal = await Withdrawal.findById(withdrawalId);
@@ -572,32 +572,74 @@ module.exports = {
         });
       }
 
-      // Processing
-      vendor.wallet.earnings -= withdrawal.amount;
-      vendor.wallet.totalWithdrawn = (vendor.wallet.totalWithdrawn || 0) + withdrawal.amount;
+      // Calculate TDS
+      const grossAmount = withdrawal.amount;
+      const tdsAmount = Math.round((grossAmount * tdsRate) / 100);
+      const netAmount = grossAmount - tdsAmount;
+
+      // Deduct full amount from vendor earnings (gross)
+      vendor.wallet.earnings -= grossAmount;
+      vendor.wallet.totalWithdrawn = (vendor.wallet.totalWithdrawn || 0) + grossAmount;
       await vendor.save();
 
+      // Update withdrawal with TDS details
       withdrawal.status = 'approved';
       withdrawal.processedBy = adminId;
-      withdrawal.processedAt = new Date();
+      withdrawal.processedDate = new Date();
       withdrawal.transactionReference = transactionReference;
       withdrawal.adminNotes = notes;
+      withdrawal.tdsRate = tdsRate;
+      withdrawal.tdsAmount = tdsAmount;
+      withdrawal.netAmount = netAmount;
       await withdrawal.save();
 
-      // Transaction Record
+      // Transaction 1: Withdrawal Payout (Gross Amount Debited from Wallet)
       await Transaction.create({
         vendorId: vendor._id,
         type: 'withdrawal',
-        amount: withdrawal.amount,
+        amount: grossAmount,
         status: 'completed',
         paymentMethod: 'bank_transfer',
-        description: `Withdrawal approved. Ref: ${transactionReference}`,
+        description: `Withdrawal payout processed. Gross: ₹${grossAmount}`,
         referenceId: transactionReference,
-        metadata: { withdrawalId: withdrawal._id }
+        metadata: {
+          withdrawalId: withdrawal._id,
+          tdsRate,
+          tdsAmount,
+          netAmount
+        }
       });
 
-      res.status(200).json({ success: true, message: 'Withdrawal approved' });
+      // Transaction 2: TDS Deduction (For transparency)
+      await Transaction.create({
+        vendorId: vendor._id,
+        type: 'tds_deduction',
+        amount: tdsAmount,
+        status: 'completed',
+        paymentMethod: 'system',
+        description: `TDS Deduction (${tdsRate}%) on withdrawal of ₹${grossAmount}`,
+        referenceId: transactionReference,
+        metadata: {
+          withdrawalId: withdrawal._id,
+          grossAmount,
+          tdsRate,
+          netAmountTransferred: netAmount
+        }
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Withdrawal approved with TDS deduction',
+        data: {
+          grossAmount,
+          tdsRate,
+          tdsAmount,
+          netAmount,
+          transactionReference
+        }
+      });
     } catch (error) {
+      console.error('Approve withdrawal error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   },

@@ -5,6 +5,21 @@
     "children": []
   },
   {
+    "title": "Payments",
+    "route": "/admin/payments",
+    "children": [
+      "Payment Overview",
+      "Worker Payments",
+      "Vendor Payments",
+      "Payment Reports"
+    ]
+  },
+  {
+    "title": "Settlements",
+    "route": "/admin/settlements",
+    "children": []
+  },
+  {
     "title": "Users",
     "route": "/admin/users",
     "children": [
@@ -59,16 +74,6 @@
     ]
   },
   {
-    "title": "Payments",
-    "route": "/admin/payments",
-    "children": [
-      "Payment Overview",
-      "Worker Payments",
-      "Vendor Payments",
-      "Payment Reports"
-    ]
-  },
-  {
     "title": "Reports",
     "route": "/admin/reports",
     "children": [
@@ -86,11 +91,6 @@
       "Custom Messages",
       "Notification Settings"
     ]
-  },
-  {
-    "title": "Settlements",
-    "route": "/admin/settlements",
-    "children": []
   },
   {
     "title": "Reviews",

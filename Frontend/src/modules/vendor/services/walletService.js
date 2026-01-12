@@ -59,13 +59,8 @@ export const requestWithdrawal = async (withdrawalData) => {
  */
 export const getWithdrawalHistory = async (filters = {}) => {
   try {
-    // TODO: Replace with actual API call
-    // const response = await fetch(`${API_BASE_URL}/wallet/withdrawals?${new URLSearchParams(filters)}`);
-    // return await response.json();
-
-    // Mock implementation
-    const withdrawals = JSON.parse(localStorage.getItem('vendorWithdrawals') || '[]');
-    return withdrawals;
+    const response = await api.get('/vendors/wallet/withdrawals', { params: filters });
+    return response.data.data;
   } catch (error) {
     console.error('Error fetching withdrawal history:', error);
     throw error;

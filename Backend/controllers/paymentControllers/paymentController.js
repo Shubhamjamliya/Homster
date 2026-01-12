@@ -128,9 +128,12 @@ const verifyPaymentWebhook = async (req, res) => {
     booking.razorpayPaymentId = razorpay_payment_id;
     booking.paymentId = razorpay_payment_id;
 
-    // Update booking status to confirmed if it was pending or searching or awaiting_payment
+    // Update booking status based on current state
     if ([BOOKING_STATUS.PENDING, BOOKING_STATUS.SEARCHING, BOOKING_STATUS.AWAITING_PAYMENT].includes(booking.status)) {
       booking.status = BOOKING_STATUS.CONFIRMED;
+    } else if (booking.status === BOOKING_STATUS.WORK_DONE) {
+      booking.status = BOOKING_STATUS.COMPLETED;
+      booking.completedAt = new Date();
     }
 
     // Calculate commission
@@ -141,6 +144,30 @@ const verifyPaymentWebhook = async (req, res) => {
     booking.vendorEarnings = parseFloat((booking.finalAmount - commission).toFixed(2));
 
     await booking.save();
+
+    // Credit Vendor Wallet
+    const Vendor = require('../../models/Vendor');
+    const Transaction = require('../../models/Transaction');
+
+    const vendor = await Vendor.findById(booking.vendorId);
+    if (vendor) {
+      vendor.wallet.earnings = (vendor.wallet.earnings || 0) + booking.vendorEarnings;
+      await vendor.save();
+
+      // Create Transaction Record
+      await Transaction.create({
+        vendorId: vendor._id,
+        bookingId: booking._id,
+        amount: booking.vendorEarnings,
+        type: 'earnings_credit',
+        paymentMethod: 'system',
+        status: 'completed',
+        description: `Earnings credited for booking ${booking.bookingNumber}`,
+        balanceAfter: vendor.wallet.earnings
+      });
+
+      console.log(`[Payment] Credited ₹${booking.vendorEarnings} to vendor ${vendor._id}`);
+    }
 
     // Send notification to user
     await createNotification({
@@ -249,6 +276,29 @@ const processWalletPayment = async (req, res) => {
     booking.vendorEarnings = parseFloat((booking.finalAmount - commission).toFixed(2));
 
     await booking.save();
+
+    // Credit Vendor Wallet (Same logic as verifyPaymentWebhook)
+    const Vendor = require('../../models/Vendor');
+    const Transaction = require('../../models/Transaction'); // Ensure imported if not already globally
+
+    const vendor = await Vendor.findById(booking.vendorId);
+    if (vendor) {
+      vendor.wallet.earnings = (vendor.wallet.earnings || 0) + booking.vendorEarnings;
+      await vendor.save();
+
+      await Transaction.create({
+        vendorId: vendor._id,
+        bookingId: booking._id,
+        amount: booking.vendorEarnings,
+        type: 'earnings_credit',
+        paymentMethod: 'system',
+        status: 'completed',
+        description: `Earnings credited for booking ${booking.bookingNumber}`,
+        balanceAfter: vendor.wallet.earnings
+      });
+
+      console.log(`[Wallet Payment] Credited ₹${booking.vendorEarnings} to vendor ${vendor._id}`);
+    }
 
     // Send notification to user
     await createNotification({

@@ -23,7 +23,7 @@ const transactionSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['credit', 'debit', 'refund', 'withdrawal', 'commission', 'cash_collected', 'settlement', 'worker_payment', 'earnings_credit'],
+    enum: ['credit', 'debit', 'refund', 'withdrawal', 'commission', 'cash_collected', 'settlement', 'worker_payment', 'earnings_credit', 'tds_deduction'],
     required: true
   },
   amount: {
@@ -37,7 +37,7 @@ const transactionSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['wallet', 'razorpay', 'cash', 'bank_transfer'],
+    enum: ['wallet', 'razorpay', 'cash', 'bank_transfer', 'system', 'other'],
     default: 'wallet'
   },
   description: {

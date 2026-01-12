@@ -43,7 +43,7 @@ export const userAuthService = {
   // Logout
   logout: async () => {
     // Remove FCM token before logout
-    removeFCMToken('user').catch(console.error);
+    await removeFCMToken('user');
     try {
       await api.post('/users/auth/logout');
     } catch (error) {
@@ -117,7 +117,7 @@ export const vendorAuthService = {
   // Logout
   logout: async () => {
     // Remove FCM token before logout
-    removeFCMToken('vendor').catch(console.error);
+    await removeFCMToken('vendor');
     try {
       await api.post('/vendors/auth/logout');
     } catch (error) {
@@ -186,7 +186,7 @@ export const workerAuthService = {
   // Logout
   logout: async () => {
     // Remove FCM token before logout
-    removeFCMToken('worker').catch(console.error);
+    await removeFCMToken('worker');
     try {
       await api.post('/workers/auth/logout');
     } catch (error) {

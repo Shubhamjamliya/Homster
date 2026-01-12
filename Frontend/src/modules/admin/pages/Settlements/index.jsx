@@ -715,39 +715,112 @@ const SettlementManagement = () => {
         </div>
       </Modal>
 
-      {/* Approve Withdrawal Modal */}
+      {/* Approve Withdrawal Modal with TDS */}
       <Modal
         isOpen={activeModal === 'approve_withdrawal'}
         onClose={closeModals}
         title="Approve Withdrawal"
-        size="sm"
+        size="md"
       >
-        <div className="space-y-4">
-          <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-            <p className="text-sm text-green-800 font-semibold mb-1">To Pay: ₹{selectedItem?.amount?.toLocaleString()}</p>
-            <p className="text-xs text-green-700">Vendor: {selectedItem?.vendorId?.name}</p>
+        <div className="space-y-5">
+          {/* Vendor Info */}
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-black text-sm">
+              {selectedItem?.vendorId?.name?.charAt(0) || 'V'}
+            </div>
+            <div>
+              <p className="font-bold text-gray-900 text-sm">{selectedItem?.vendorId?.name}</p>
+              <p className="text-xs text-gray-500">{selectedItem?.vendorId?.businessName}</p>
+            </div>
           </div>
 
+          {/* TDS Breakdown Card */}
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-5 text-white">
+            <div className="flex justify-between items-start mb-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Payout Breakdown</p>
+              <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-[10px] font-black uppercase">TDS Applied</span>
+            </div>
+
+            <div className="space-y-3">
+              {/* Gross Amount */}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Gross Withdrawal</span>
+                <span className="font-bold text-xl">₹{selectedItem?.amount?.toLocaleString() || 0}</span>
+              </div>
+
+              {/* TDS Deduction */}
+              <div className="flex justify-between items-center text-red-400">
+                <span className="text-sm">TDS Deduction (2%)</span>
+                <span className="font-bold">- ₹{Math.round((selectedItem?.amount || 0) * 0.02).toLocaleString()}</span>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-gray-700 my-2"></div>
+
+              {/* Net Amount */}
+              <div className="flex justify-between items-center">
+                <span className="text-green-400 text-sm font-medium">Net Amount to Transfer</span>
+                <span className="font-black text-2xl text-green-400">
+                  ₹{((selectedItem?.amount || 0) - Math.round((selectedItem?.amount || 0) * 0.02)).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bank Details Preview */}
+          {selectedItem?.bankDetails && (
+            <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+              <p className="text-[10px] font-bold text-blue-800 uppercase tracking-wider mb-2">Transfer To</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {selectedItem.bankDetails.accountHolderName && (
+                  <p><span className="text-gray-500">Name:</span> <span className="font-medium text-gray-800">{selectedItem.bankDetails.accountHolderName}</span></p>
+                )}
+                {selectedItem.bankDetails.bankName && (
+                  <p><span className="text-gray-500">Bank:</span> <span className="font-medium text-gray-800">{selectedItem.bankDetails.bankName}</span></p>
+                )}
+                {selectedItem.bankDetails.accountNumber && (
+                  <p><span className="text-gray-500">A/C:</span> <span className="font-medium text-gray-800">{selectedItem.bankDetails.accountNumber}</span></p>
+                )}
+                {selectedItem.bankDetails.ifscCode && (
+                  <p><span className="text-gray-500">IFSC:</span> <span className="font-medium text-gray-800">{selectedItem.bankDetails.ifscCode}</span></p>
+                )}
+                {selectedItem.bankDetails.upiId && (
+                  <p className="col-span-2"><span className="text-gray-500">UPI:</span> <span className="font-medium text-gray-800">{selectedItem.bankDetails.upiId}</span></p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Transaction Reference Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (UPI/Bank Ref)</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Transaction Reference</label>
             <input
               type="text"
               value={modalInput}
               onChange={(e) => setModalInput(e.target.value)}
-              placeholder="e.g., UPI-1234567890"
-              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
+              placeholder="e.g., UPI-1234567890 or Bank Ref No."
+              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm"
             />
-            <p className="text-xs text-gray-400 mt-1">Optional. Defaults to generated ID if empty.</p>
+            <p className="text-[10px] text-gray-400 mt-1">Optional. A reference ID will be auto-generated if left empty.</p>
           </div>
 
-          <div className="flex justify-end gap-3 mt-4">
+          {/* Info Note */}
+          <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
+            <FiAlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-amber-800 leading-relaxed">
+              <span className="font-bold">TDS Note:</span> 2% TDS will be deducted as per regulations. Both the withdrawal and TDS entries will appear in the vendor's transaction history.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-2">
             <Button variant="ghost" onClick={closeModals}>Cancel</Button>
             <Button
               onClick={handleApproveWithdrawalSubmit}
               isLoading={actionLoading}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white px-6"
             >
-              Approve & Pay
+              Confirm & Pay ₹{((selectedItem?.amount || 0) - Math.round((selectedItem?.amount || 0) * 0.02)).toLocaleString()}
             </Button>
           </div>
         </div>

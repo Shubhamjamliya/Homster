@@ -42,6 +42,19 @@ const withdrawalSchema = new mongoose.Schema({
     accountHolderName: String,
     bankName: String,
     upiId: String
+  },
+  // TDS Details (calculated at approval)
+  tdsRate: {
+    type: Number,
+    default: 2 // Default 2% TDS
+  },
+  tdsAmount: {
+    type: Number,
+    default: 0
+  },
+  netAmount: {
+    type: Number, // Amount actually transferred to vendor (amount - tdsAmount)
+    default: 0
   }
 }, {
   timestamps: true

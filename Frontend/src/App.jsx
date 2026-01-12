@@ -14,10 +14,18 @@ function App() {
     // Setup foreground notification handler
     setupForegroundNotificationHandler((payload) => {
       console.log('📬 Notification received:', payload);
+
+      // Dispatch update events for listening components
+      window.dispatchEvent(new Event('vendorJobsUpdated'));
+      window.dispatchEvent(new Event('vendorStatsUpdated'));
+
+      // Also dispatch generic one if needed
+      window.dispatchEvent(new Event('appNotificationReceived'));
+
       // Show toast notification
       toast(payload.notification?.body || 'New notification', {
         icon: '🔔',
-        duration: 5000,
+        duration: 2000,
       });
     });
   }, []);
@@ -31,7 +39,7 @@ function App() {
             position="top-center"
             reverseOrder={false}
             toastOptions={{
-              duration: 3000, // Global default
+              duration: 2000, // Global default (reduced from 3000)
               style: {
                 background: '#333',
                 color: '#fff',
@@ -39,13 +47,13 @@ function App() {
                 padding: '12px 20px',
               },
               success: {
-                duration: 3000,
+                duration: 1000, // 1 second as requested
                 style: {
                   background: '#10B981',
                 },
               },
               error: {
-                duration: 4000,
+                duration: 2000, // Reduced from 4000
                 style: {
                   background: '#EF4444',
                 },

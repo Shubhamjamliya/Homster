@@ -1,106 +1,89 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { themeColors } from '../../../../../theme';
 
 const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor }) => {
+  const [dots, setDots] = useState('.');
+
+  useEffect(() => {
+    if (isOpen && currentStep !== 'accepted') {
+      const interval = setInterval(() => {
+        setDots(prev => prev.length >= 3 ? '.' : prev + '.');
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen, currentStep]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-300">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all relative">
+
+        {/* Close/Minimize Button - Top Right */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-30 p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-gray-600 transition-colors hover:bg-white"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+
         {(currentStep === 'searching' || currentStep === 'waiting') && (
-          <div className="relative w-full h-[550px] bg-white overflow-hidden rounded-3xl flex flex-col border border-gray-100">
+          <div className="flex flex-col items-center justify-center pt-12 pb-10 px-6 relative h-[450px]">
 
-            {/* Map Background Pattern (Light) */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <div className="absolute inset-0"
+            {/* Map-like Background (Subtle) */}
+            <div className="absolute inset-0 opacity-5 pointer-events-none">
+              <div className="w-full h-full" style={{
+                backgroundImage: 'radial-gradient(#000 1px, transparent 1px)',
+                backgroundSize: '20px 20px'
+              }}></div>
+            </div>
+
+            {/* Central Radar Animation */}
+            <div className="relative w-64 h-64 flex items-center justify-center mb-8">
+              {/* Outer Ripples */}
+              <div className="absolute inset-0 rounded-full border-2 opacity-20 animate-ping"
+                style={{ borderColor: themeColors.brand.teal, animationDuration: '3s' }}></div>
+              <div className="absolute inset-4 rounded-full border opacity-40 animate-ping"
+                style={{ borderColor: themeColors.brand.teal, animationDuration: '3s', animationDelay: '0.6s' }}></div>
+
+              {/* Rotating Scanner Gradient */}
+              <div className="absolute inset-0 rounded-full animate-spin-slow opacity-30"
                 style={{
-                  backgroundImage: `linear-gradient(#347989 1px, transparent 1px), linear-gradient(90deg, #347989 1px, transparent 1px)`,
-                  backgroundSize: '40px 40px'
-                }}
-              ></div>
-              {/* Fake Roads/Map Lines */}
-              <div className="absolute top-1/2 left-0 w-full h-2 bg-gray-200 -rotate-12 transform origin-center"></div>
-              <div className="absolute top-0 left-1/2 h-full w-2 bg-gray-200 rotate-12 transform origin-center"></div>
-              <div className="absolute top-1/4 left-0 w-full h-1 bg-gray-100 rotate-45"></div>
-            </div>
+                  background: `conic-gradient(transparent 180deg, ${themeColors.brand.teal})`,
+                  animationDuration: '4s'
+                }}></div>
 
-            {/* Radar Scanners */}
-            <div className="absolute inset-0 flex items-center justify-center">
-
-              {/* Pulse Rings - Using Brand Teal */}
-              <div className="absolute w-[400px] h-[400px] rounded-full border opacity-20 animate-ping" style={{ borderColor: themeColors.brand.teal, animationDuration: '3s' }}></div>
-              <div className="absolute w-[300px] h-[300px] rounded-full border opacity-30 animate-ping" style={{ borderColor: themeColors.brand.teal, animationDuration: '3s', animationDelay: '0.5s' }}></div>
-
-              {/* Rotating Scanner */}
-              <div className="relative w-[350px] h-[350px] rounded-full border flex items-center justify-center" style={{ borderColor: `${themeColors.brand.teal}40` }}>
-                {/* Scanner Gradient */}
-                <div className="absolute inset-0 rounded-full animate-spin-slow"
-                  style={{
-                    background: `conic-gradient(from 0deg, transparent 0deg, transparent 270deg, ${themeColors.brand.teal}66 360deg)`,
-                    animationDuration: '4s'
-                  }}
-                ></div>
-
-                {/* Inner Circles */}
-                <div className="absolute w-[250px] h-[250px] rounded-full border" style={{ borderColor: `${themeColors.brand.teal}20` }}></div>
-                <div className="absolute w-[150px] h-[150px] rounded-full border" style={{ borderColor: `${themeColors.brand.teal}30` }}></div>
-
-                {/* User Location Pulse - Center */}
-                <div className="relative z-10 w-4 h-4 rounded-full shadow-lg animate-pulse" style={{ backgroundColor: themeColors.brand.teal, boxShadow: `0 0 20px ${themeColors.brand.teal}` }}>
-                  <div className="absolute inset-0 rounded-full animate-ping opacity-75" style={{ backgroundColor: themeColors.brand.teal }}></div>
+              {/* Center Core */}
+              <div className="relative z-10 w-24 h-24 bg-white rounded-full shadow-lg flex items-center justify-center p-1">
+                <div className="w-full h-full rounded-full flex items-center justify-center relative overflow-hidden"
+                  style={{ background: `linear-gradient(135deg, ${themeColors.brand.teal}15, ${themeColors.brand.teal}05)` }}>
+                  {/* User Icon or Brand Icon */}
+                  <div className="w-3 h-3 rounded-full shadow-lg animate-pulse"
+                    style={{ backgroundColor: themeColors.brand.teal }}></div>
+                  <div className="absolute w-full h-full animate-pulse opacity-30 rounded-full"
+                    style={{ backgroundColor: themeColors.brand.teal }}></div>
                 </div>
-
-                {/* Simulated Vendor Dots - Using Brand Yellow/Orange */}
-                <div className="absolute top-10 right-20 w-3 h-3 rounded-full shadow-md animate-pulse" style={{ backgroundColor: themeColors.brand.yellow }}></div>
-                <div className="absolute bottom-16 left-12 w-3 h-3 rounded-full shadow-md animate-pulse" style={{ backgroundColor: themeColors.brand.orange, animationDelay: '1s' }}></div>
-                <div className="absolute top-1/2 left-4 w-2 h-2 rounded-full shadow-sm animate-pulse" style={{ backgroundColor: themeColors.brand.yellow, animationDelay: '2s' }}></div>
               </div>
+
+              {/* Floating "Found" Dots Animation */}
+              <div className="absolute top-10 right-10 w-2 h-2 rounded-full animate-bounce opacity-50" style={{ backgroundColor: themeColors.brand.orange, animationDelay: '0.2s' }}></div>
+              <div className="absolute bottom-8 left-8 w-2 h-2 rounded-full animate-bounce opacity-50" style={{ backgroundColor: themeColors.brand.yellow, animationDelay: '1.5s' }}></div>
             </div>
 
-            {/* Header Controls */}
-            <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-20">
-              <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: themeColors.brand.teal }}></span>
-                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: themeColors.brand.teal }}>Live Search</span>
-              </div>
-              <button
-                onClick={onClose}
-                className="bg-white hover:bg-gray-50 text-gray-400 p-2 rounded-full shadow-sm border border-gray-100 transition-colors"
-                title="Minimize"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 15l-6-6-6 6" />
-                </svg>
-              </button>
+            {/* Status Text */}
+            <div className="text-center relative z-20">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Finding nearby {currentStep === 'waiting' ? 'professionals' : 'experts'}</h3>
+              <p className="text-gray-500 text-sm max-w-[240px] mx-auto leading-relaxed">
+                Connecting you with the best available service providers in your area{dots}
+              </p>
             </div>
 
-            {/* Bottom Status Card */}
-            <div className="mt-auto relative z-20 p-6">
-              <div className="bg-white/90 backdrop-blur-xl border border-teal-50 p-5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md shrink-0 text-white" style={{ background: themeColors.brand.gradient }}>
-                    <span className="text-xl animate-spin-slow" style={{ animationDuration: '3s' }}>↻</span>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">
-                      {currentStep === 'searching' ? 'Scanning nearby...' : 'Waiting for confirmation'}
-                    </h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                      {currentStep === 'searching'
-                        ? `We are looking for the top-rated professionals in your area.`
-                        : 'Request sent! Waiting for a professional to accept your job.'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Minimize / Background Action hint */}
-                <button
-                  onClick={onClose}
-                  className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-600"
-                >
-                  <span>Minimize & Browse</span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </button>
+            {/* Bottom Pill - 'Minimize' hint removed as requested to be simpler, just status */}
+            <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+              <div className="px-4 py-1.5 bg-gray-50 rounded-full border border-gray-100 text-xs font-medium text-gray-400">
+                Process runs in background
               </div>
             </div>
 
@@ -108,43 +91,52 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor }) => 
         )}
 
         {currentStep === 'accepted' && acceptedVendor && (
-          <div className="text-center py-10 px-6">
-            <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce" style={{ backgroundColor: `${themeColors.brand.teal}1A` }}>
-              <span className="text-5xl">🎉</span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Vendor Found!</h3>
-
-            <div className="rounded-xl p-5 mb-6 border-2" style={{ background: `linear-gradient(135deg, ${themeColors.brand.teal}0D 0%, ${themeColors.brand.teal}1A 100%)`, borderColor: `${themeColors.brand.teal}33` }}>
-              <h4 className="font-bold text-xl mb-3" style={{ color: themeColors.button }}>{acceptedVendor.businessName}</h4>
-              <div className="flex items-center justify-center gap-6 text-sm mb-4" style={{ color: `${themeColors.brand.teal}CC` }}>
-                <span className="flex items-center gap-1">
-                  ⭐ {acceptedVendor.rating || '4.8'}
-                </span>
-                <span className="flex items-center gap-1">
-                  📍 {acceptedVendor.distance || 'nearby'}
-                </span>
-                <span className="flex items-center gap-1">
-                  🕐 {acceptedVendor.estimatedTime || '15-20 min'}
-                </span>
-              </div>
-              <div className="text-3xl font-bold" style={{ color: themeColors.button }}>
-                ₹{acceptedVendor.price || '0'}
-              </div>
+          <div className="flex flex-col items-center pt-8 pb-8 px-6 bg-white w-full h-full min-h-[400px]">
+            {/* Success Icon */}
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-xl animate-bounce-short"
+              style={{ background: `linear-gradient(135deg, ${themeColors.brand.teal}, ${themeColors.brand.secondary})` }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
             </div>
 
-            <p className="text-gray-600 text-base mb-6">
-              {acceptedVendor.businessName} has accepted your booking!
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Vendor Found!</h3>
+            <p className="text-gray-500 text-center mb-8 px-4">
+              Your request has been accepted.
             </p>
 
+            {/* Vendor Card */}
+            <div className="w-full bg-gray-50 rounded-2xl p-5 border border-gray-100 mb-8 relative overflow-hidden">
+              <div className="relative z-10">
+                <h4 className="font-bold text-lg text-gray-900 mb-1">{acceptedVendor.businessName}</h4>
+                <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
+                  <span className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-gray-100 shadow-sm">
+                    <span className="text-yellow-400">★</span> {acceptedVendor.rating || '4.9'}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    {acceptedVendor.distance || 'Nearby'}
+                  </span>
+                </div>
+              </div>
+              {/* Background decoration */}
+              <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full opacity-10" style={{ backgroundColor: themeColors.brand.teal }}></div>
+            </div>
+
+            {/* Action Button */}
             <button
               onClick={onClose}
-              className="w-full text-white py-4 rounded-xl text-base font-semibold transition-all hover:opacity-90 shadow-lg"
-              style={{ backgroundColor: themeColors.button }}
+              className="w-full text-white py-4 rounded-xl font-bold text-base shadow-lg transition-transform active:scale-95"
+              style={{
+                background: themeColors.button,
+                boxShadow: `0 10px 20px -5px ${themeColors.brand.teal}66`
+              }}
             >
               Continue to Payment
             </button>
           </div>
         )}
+
       </div>
     </div>
   );

@@ -45,6 +45,17 @@ if (!admin.apps.length && serviceAccount) {
  * @param {boolean} payload.highPriority - Send as high priority (default: true)
  * @returns {Promise<Object>} - Response with success/failure counts
  */
+/**
+ * Send push notification to multiple tokens
+ * @param {string[]} tokens - Array of FCM tokens
+ * @param {Object} payload - Notification payload
+ * @param {string} payload.title - Notification title
+ * @param {string} payload.body - Notification body
+ * @param {Object} payload.data - Additional data (optional)
+ * @param {string} payload.icon - Notification icon (optional)
+ * @param {boolean} payload.highPriority - Send as high priority (default: true)
+ * @returns {Promise<Object>} - Response with success/failure counts
+ */
 async function sendPushNotification(tokens, payload) {
   try {
     if (!tokens || tokens.length === 0) {
@@ -146,19 +157,62 @@ async function sendPushNotification(tokens, payload) {
 
     console.log(`✅ Push notification sent - Success: ${response.successCount}, Failed: ${response.failureCount}`);
 
-    // Log failed tokens for debugging
+    // Log failed tokens for debugging and cleanup invalid ones
     if (response.failureCount > 0) {
+      const invalidTokens = [];
       response.responses.forEach((resp, idx) => {
         if (!resp.success) {
-          console.log(`❌ Failed token[${idx}]: ${resp.error?.code} - ${resp.error?.message}`);
+          const errorCode = resp.error?.code;
+          console.log(`❌ Failed token[${idx}]: ${errorCode} - ${resp.error?.message}`);
+
+          if (errorCode === 'messaging/registration-token-not-registered' ||
+            errorCode === 'messaging/invalid-registration-token') {
+            invalidTokens.push(uniqueTokens[idx]);
+          }
         }
       });
+
+      // Cleanup invalid tokens
+      if (invalidTokens.length > 0) {
+        removeInvalidTokens(invalidTokens);
+      }
     }
 
     return response;
   } catch (error) {
     console.error('❌ Error sending push notification:', error);
     throw error;
+  }
+}
+
+/**
+ * Remove invalid FCM tokens from all collections
+ * @param {string[]} tokens - Array of invalid tokens to remove
+ */
+async function removeInvalidTokens(tokens) {
+  try {
+    console.log(`[FCM Cleanup] Removing ${tokens.length} invalid tokens...`);
+    const User = require('../models/User');
+    const Vendor = require('../models/Vendor');
+    const Worker = require('../models/Worker');
+
+    const updateQuery = {
+      $pull: {
+        fcmTokens: { $in: tokens },
+        fcmTokenMobile: { $in: tokens }
+      }
+    };
+
+    // We run updates in parallel for all collections as a token might belong to any
+    await Promise.all([
+      User.updateMany({ $or: [{ fcmTokens: { $in: tokens } }, { fcmTokenMobile: { $in: tokens } }] }, updateQuery),
+      Vendor.updateMany({ $or: [{ fcmTokens: { $in: tokens } }, { fcmTokenMobile: { $in: tokens } }] }, updateQuery),
+      Worker.updateMany({ $or: [{ fcmTokens: { $in: tokens } }, { fcmTokenMobile: { $in: tokens } }] }, updateQuery)
+    ]);
+
+    console.log('[FCM Cleanup] ✅ Invalid tokens removed from database');
+  } catch (err) {
+    console.error('[FCM Cleanup] ❌ Error removing tokens:', err);
   }
 }
 
@@ -174,7 +228,7 @@ async function sendNotificationToUser(userId, payload, includeMobile = true) {
     const user = await User.findById(userId);
 
     if (!user) {
-      console.log(`User not found: ${userId}`);
+      console.log(`[FCM] ❌ User not found for notification: ${userId}`);
       return;
     }
 
@@ -187,14 +241,24 @@ async function sendNotificationToUser(userId, payload, includeMobile = true) {
     }
 
     if (tokens.length === 0) {
-      console.log(`No FCM tokens found for user: ${userId}`);
+      console.log(`[FCM] ⚠️ No FCM tokens found for user: ${userId}`);
       return;
     }
 
-    await sendPushNotification(tokens, payload);
+    console.log(`[FCM] 📤 Sending notification to user ${user.name} (${userId}) on ${tokens.length} devices`);
+
+    // Add priority and sound for user notifications too
+    const finalPayload = {
+      ...payload,
+      title: `👤 [User] ${payload.title}`, // Add identification
+      // For important updates (confirmed, accepted), use high priority
+      highPriority: payload.priority === 'high' || payload.type === 'booking_accepted',
+      dataOnly: true // Prevent duplicate notifications
+    };
+
+    await sendPushNotification(tokens, finalPayload);
   } catch (error) {
-    console.error(`Error sending notification to user ${userId}:`, error);
-    // Don't throw - notifications are non-critical
+    console.error(`[FCM] ❌ Error sending notification to user ${userId}:`, error);
   }
 }
 
@@ -210,7 +274,7 @@ async function sendNotificationToVendor(vendorId, payload, includeMobile = true)
     const vendor = await Vendor.findById(vendorId);
 
     if (!vendor) {
-      console.log(`Vendor not found: ${vendorId}`);
+      console.log(`[FCM] ❌ Vendor not found for notification: ${vendorId}`);
       return;
     }
 
@@ -223,13 +287,21 @@ async function sendNotificationToVendor(vendorId, payload, includeMobile = true)
     }
 
     if (tokens.length === 0) {
-      console.log(`No FCM tokens found for vendor: ${vendorId}`);
+      console.log(`[FCM] ⚠️ No FCM tokens found for vendor: ${vendorId}`);
       return;
     }
 
-    await sendPushNotification(tokens, payload);
+    console.log(`[FCM] 📤 Sending notification to vendor ${vendor.businessName || vendor.name} (${vendorId}) on ${tokens.length} devices`);
+
+    const finalPayload = {
+      ...payload,
+      title: `🏢 [Partner] ${payload.title}`, // Add identification
+      dataOnly: true // Prevent duplicate notifications
+    };
+
+    await sendPushNotification(tokens, finalPayload);
   } catch (error) {
-    console.error(`Error sending notification to vendor ${vendorId}:`, error);
+    console.error(`[FCM] ❌ Error sending notification to vendor ${vendorId}:`, error);
   }
 }
 
@@ -245,7 +317,7 @@ async function sendNotificationToWorker(workerId, payload, includeMobile = true)
     const worker = await Worker.findById(workerId);
 
     if (!worker) {
-      console.log(`Worker not found: ${workerId}`);
+      console.log(`[FCM] ❌ Worker not found for notification: ${workerId}`);
       return;
     }
 
@@ -258,12 +330,21 @@ async function sendNotificationToWorker(workerId, payload, includeMobile = true)
     }
 
     if (tokens.length === 0) {
-      console.log(`No FCM tokens found for worker: ${workerId}`);
+      console.log(`[FCM] ⚠️ No FCM tokens found for worker: ${workerId}`);
       return;
     }
 
+    console.log(`[FCM] 📤 Sending notification to worker ${worker.name} (${workerId}) on ${tokens.length} devices`);
+
+    const finalPayload = {
+      ...payload,
+      title: `👷 [Pro] ${payload.title}`, // Add identification
+      dataOnly: true // Prevent duplicate notifications
+    };
+
+    await sendPushNotification(tokens, finalPayload);
   } catch (error) {
-    console.error(`Error sending notification to worker ${workerId}:`, error);
+    console.error(`[FCM] ❌ Error sending notification to worker ${workerId}:`, error);
   }
 }
 
@@ -301,14 +382,17 @@ async function sendNotificationToAdmin(adminId, payload, includeMobile = true) {
       tokens = [...tokens, ...adminUser.fcmTokenMobile];
     }
 
-    if (tokens.length === 0) {
-      console.log(`No FCM tokens found for admin: ${adminId}`);
-      return;
-    }
+    console.log(`[FCM] 📤 Sending notification to admin (${adminId}) on ${tokens.length} devices`);
 
-    await sendPushNotification(tokens, payload);
+    const finalPayload = {
+      ...payload,
+      title: `🛡️ [Admin] ${payload.title}`, // Add identification
+      dataOnly: true // Prevent duplicate notifications
+    };
+
+    await sendPushNotification(tokens, finalPayload);
   } catch (error) {
-    console.error(`Error sending notification to admin ${adminId}:`, error);
+    console.error(`[FCM] ❌ Error sending notification to admin ${adminId}:`, error);
   }
 }
 

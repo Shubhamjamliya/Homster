@@ -408,9 +408,9 @@ const EditProfile = () => {
 
               {isCategoryOpen && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-60 overflow-y-auto">
-                  {categories.map((cat) => (
+                  {categories.map((cat, index) => (
                     <div
-                      key={cat._id}
+                      key={cat._id || index}
                       onClick={() => {
                         handleCategoryChange(cat.title);
                         setIsCategoryOpen(false);
@@ -450,7 +450,7 @@ const EditProfile = () => {
                         const isSelected = formData.skills.includes(skillName);
                         return (
                           <div
-                            key={idx}
+                            key={skillName || idx}
                             onClick={() => {
                               toggleSkill(skillName);
                               // Keep dropdown open for multiple selection
@@ -475,7 +475,7 @@ const EditProfile = () => {
               <div className="flex flex-wrap gap-2">
                 {formData.skills.map((skill, idx) => (
                   <div
-                    key={idx}
+                    key={skill || idx}
                     className="pl-3 pr-2 py-1.5 rounded-full text-[11px] font-bold bg-blue-600 text-white flex items-center gap-1 shadow-sm"
                   >
                     {skill}

@@ -19,6 +19,7 @@ import {
   FiStar,
 } from "react-icons/fi";
 import adminMenu from "../../config/adminMenu.json";
+import dashboardService from "../../services/dashboardService";
 
 // Icon mapping for menu items
 const iconMap = {
@@ -103,6 +104,35 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
+  const [counts, setCounts] = useState({
+    bookings: 0,
+    vendors: 0,
+    settlements: 0
+  });
+
+  // Fetch pending counts for badges
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const response = await dashboardService.getStats();
+        if (response.success && response.data?.stats) {
+          const stats = response.data.stats;
+          setCounts({
+            bookings: stats.pendingBookings || 0,
+            vendors: stats.pendingVendors || 0,
+            settlements: stats.pendingWithdrawals || 0
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching sidebar counts:", error);
+      }
+    };
+
+    fetchCounts();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -213,6 +243,24 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               }`}
           />
           <span className="font-semibold flex-1 text-base">{item.title}</span>
+
+          {/* Badge Display */}
+          {item.title === "Bookings" && counts.bookings > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse mr-2">
+              {counts.bookings > 99 ? '99+' : counts.bookings}
+            </span>
+          )}
+          {item.title === "Vendors" && counts.vendors > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse mr-2">
+              {counts.vendors > 99 ? '99+' : counts.vendors}
+            </span>
+          )}
+          {item.title === "Settlements" && counts.settlements > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse mr-2">
+              {counts.settlements > 99 ? '99+' : counts.settlements}
+            </span>
+          )}
+
           {hasChildren && (
             <motion.div
               animate={{ rotate: isExpanded ? 180 : 0 }}

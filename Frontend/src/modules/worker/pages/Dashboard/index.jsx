@@ -5,6 +5,7 @@ import { FaWallet } from 'react-icons/fa';
 import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import workerService from '../../../../services/workerService';
+import { registerFCMToken } from '../../../../services/pushNotificationService';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -126,6 +127,9 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
+
+    // Ask for notification permission and register FCM
+    registerFCMToken('worker', true).catch(err => console.error('FCM registration failed:', err));
 
     // Listen for updates
     const handleUpdate = () => {

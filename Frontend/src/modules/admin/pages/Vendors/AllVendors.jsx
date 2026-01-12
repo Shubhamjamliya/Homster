@@ -57,12 +57,17 @@ const AllVendors = () => {
 
   const filteredVendors = useMemo(() => {
     return vendors.filter(vendor => {
+      const serviceString = Array.isArray(vendor.service)
+        ? vendor.service.join(' ')
+        : (vendor.service || '');
+
       const matchesStatus = filterStatus === 'all' || vendor.approvalStatus === filterStatus;
+
       const matchesSearch =
         vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         vendor.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         vendor.phone.includes(searchQuery) ||
-        (vendor.service && vendor.service.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        serviceString.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (vendor.businessName && vendor.businessName.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchesStatus && matchesSearch;
     });
@@ -210,7 +215,9 @@ const AllVendors = () => {
                       <td className="px-4 py-3">
                         <div>
                           <p className="font-bold text-gray-800 text-xs">{vendor.businessName || 'N/A'}</p>
-                          <p className="text-[10px] text-blue-600 font-medium">{vendor.service || 'No service'}</p>
+                          <p className="text-[10px] text-blue-600 font-medium">
+                            {Array.isArray(vendor.service) ? vendor.service.join(', ') : (vendor.service || 'No service')}
+                          </p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -257,10 +264,10 @@ const AllVendors = () => {
             </table>
           </div>
         </div>
-      </CardShell>
+      </CardShell >
 
       {/* View Vendor Details Modal */}
-      <Modal
+      < Modal
         isOpen={isViewModalOpen}
         onClose={() => {
           setIsViewModalOpen(false);
@@ -290,7 +297,9 @@ const AllVendors = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Service Category</label>
-                <div className="text-gray-900">{selectedVendor.service || 'N/A'}</div>
+                <div className="text-gray-900">
+                  {Array.isArray(selectedVendor.service) ? selectedVendor.service.join(', ') : (selectedVendor.service || 'N/A')}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
@@ -380,8 +389,8 @@ const AllVendors = () => {
             )}
           </div>
         )}
-      </Modal>
-    </div>
+      </Modal >
+    </div >
   );
 };
 

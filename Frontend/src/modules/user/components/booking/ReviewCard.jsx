@@ -5,9 +5,10 @@ const ReviewCard = ({ booking, onWriteReview }) => {
   // Logic to determine if card should be shown
   // Show if status is work_done/completed OR if there is already a rating
   const isCompleted = ['work_done', 'completed', 'COMPLETED'].includes(booking.status);
+  const isPaid = ['success', 'paid', 'collected_by_vendor'].includes(booking.paymentStatus?.toLowerCase());
   const hasRating = !!booking.rating;
 
-  if (!isCompleted && !hasRating) {
+  if (!hasRating && (!isCompleted || !isPaid)) {
     return null;
   }
 
@@ -45,8 +46,8 @@ const ReviewCard = ({ booking, onWriteReview }) => {
                 <FiStar
                   key={star}
                   className={`w-8 h-8 transition-transform hover:scale-110 ${star <= (booking.rating?.rating || booking.rating)
-                      ? 'fill-orange-500 text-orange-500 drop-shadow-sm'
-                      : 'text-gray-300'
+                    ? 'fill-orange-500 text-orange-500 drop-shadow-sm'
+                    : 'text-gray-300'
                     }`}
                 />
               ))}

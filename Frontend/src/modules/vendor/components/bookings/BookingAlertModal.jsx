@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiX, FiMapPin, FiClock, FiDollarSign, FiArrowRight, FiBell, FiAlertCircle } from 'react-icons/fi';
+import { FiX, FiMapPin, FiClock, FiDollarSign, FiArrowRight, FiBell, FiAlertCircle, FiMinimize2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { playAlertRing, stopAlertRing } from '../../../../utils/notificationSound';
 
-const BookingAlertModal = ({ isOpen, booking, onAccept, onReject, timeLeft: initialTimeLeft = 60 }) => {
+const BookingAlertModal = ({ isOpen, booking, onAccept, onReject, onMinimize, timeLeft: initialTimeLeft = 60 }) => {
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
 
   useEffect(() => {
@@ -14,10 +14,36 @@ const BookingAlertModal = ({ isOpen, booking, onAccept, onReject, timeLeft: init
   }, [isOpen, initialTimeLeft]);
 
   // Handle countdown and sound
+  // Handle countdown and sound persistence
   useEffect(() => {
     if (!isOpen || !booking) {
       stopAlertRing();
       return;
+    }
+
+    const bookingId = booking.id || booking._id;
+    const storageKey = `alert_start_${bookingId}`;
+    let startTime = parseInt(localStorage.getItem(storageKey));
+
+    if (!startTime) {
+      // First time showing this alert, set start time
+      startTime = Date.now();
+      localStorage.setItem(storageKey, startTime.toString());
+      setTimeLeft(initialTimeLeft);
+    } else {
+      // Resume timer
+      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+      const remaining = initialTimeLeft - elapsedSeconds;
+
+      if (remaining <= 0) {
+        // Expired while away/refreshing
+        setTimeLeft(0);
+        stopAlertRing();
+        onReject?.(bookingId);
+        localStorage.removeItem(storageKey);
+        return;
+      }
+      setTimeLeft(remaining);
     }
 
     // Start alarm sound (looping)
@@ -25,21 +51,28 @@ const BookingAlertModal = ({ isOpen, booking, onAccept, onReject, timeLeft: init
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
+        // Calculate fresh every tick to be accurate
+        const currentElapsed = Math.floor((Date.now() - startTime) / 1000);
+        const currentRemaining = initialTimeLeft - currentElapsed;
+
+        if (currentRemaining <= 0) {
           clearInterval(timer);
           stopAlertRing(); // Stop sound on timeout
-          onReject?.(booking.id || booking._id);
+          onReject?.(bookingId);
+          localStorage.removeItem(storageKey);
           return 0;
         }
-        return prev - 1;
+        return currentRemaining;
       });
     }, 1000);
 
     return () => {
       clearInterval(timer);
       stopAlertRing(); // Ensure sound stops on unmount/cleanup
+      // We do NOT remove storageKey here, so it persists on refresh
+      // Only remove on accept/reject/expire actions (handled by parent or expiring)
     };
-  }, [isOpen, booking, onReject]);
+  }, [isOpen, booking, onReject, initialTimeLeft]);
 
 
 
@@ -59,6 +92,19 @@ const BookingAlertModal = ({ isOpen, booking, onAccept, onReject, timeLeft: init
           exit={{ opacity: 0, scale: 0.9, y: 40 }}
           className="bg-white w-full max-w-sm rounded-[3rem] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative"
         >
+          {/* Minimize Button */}
+          {onMinimize && (
+            <button
+              onClick={() => {
+                stopAlertRing();
+                onMinimize();
+              }}
+              className="absolute top-4 right-4 z-50 p-2 bg-black/20 hover:bg-black/30 backdrop-blur-md rounded-full text-white transition-all active:scale-95"
+              title="Minimize Alert"
+            >
+              <FiMinimize2 className="w-5 h-5" />
+            </button>
+          )}
           {/* Header Section */}
           <div className="relative h-44 bg-gradient-to-br from-teal-600 to-emerald-700 flex flex-col items-center justify-center pt-4">
             {/* Animated background elements */}
@@ -178,14 +224,22 @@ const BookingAlertModal = ({ isOpen, booking, onAccept, onReject, timeLeft: init
             {/* Action Buttons */}
             <div className="flex flex-col gap-3">
               <button
-                onClick={() => onAccept?.(booking.id || booking._id)}
+                onClick={() => {
+                  const id = booking.id || booking._id;
+                  localStorage.removeItem(`alert_start_${id}`);
+                  onAccept?.(id);
+                }}
                 className="w-full py-5 rounded-[1.5rem] bg-gray-900 hover:bg-gray-800 text-white font-black text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 group"
               >
                 Accept & Claim Job
                 <FiArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
               </button>
               <button
-                onClick={() => onReject?.(booking.id || booking._id)}
+                onClick={() => {
+                  const id = booking.id || booking._id;
+                  localStorage.removeItem(`alert_start_${id}`);
+                  onReject?.(id);
+                }}
                 className="w-full py-4 rounded-[1.5rem] bg-red-500 hover:bg-red-600 text-white font-bold text-sm shadow-lg active:scale-95 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
               >
                 <FiX className="w-5 h-5" />

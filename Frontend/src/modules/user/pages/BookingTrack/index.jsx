@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView, PolylineF } from '@react-google-maps/api';
-import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiUser, FiStar } from 'react-icons/fi';
+import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiUser, FiStar, FiShield, FiKey } from 'react-icons/fi';
 import { bookingService } from '../../../../services/bookingService';
+import { paymentService } from '../../../../services/paymentService';
 import { toast } from 'react-hot-toast';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import PaymentVerificationModal from '../../components/booking/PaymentVerificationModal';
@@ -54,8 +55,130 @@ const BookingTrack = () => {
   const [isAutoCenter, setIsAutoCenter] = useState(true);
   const [isNavigationMode, setIsNavigationMode] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  const handleOnlinePayment = async () => {
+    if (paying) return;
+
+    // If a Razorpay order already exists for this booking, reuse it
+    if (booking.razorpayOrderId) {
+      console.log('Using existing Razorpay order:', booking.razorpayOrderId);
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: Math.round((booking.finalAmount || 0) * 100),
+        currency: 'INR',
+        order_id: booking.razorpayOrderId,
+        name: 'Appzeto',
+        description: `Payment for ${booking.serviceName}`,
+        handler: async function (response) {
+          toast.loading('Verifying payment...');
+          const verifyResponse = await paymentService.verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          });
+          toast.dismiss();
+          if (verifyResponse.success) {
+            toast.success('Payment successful!');
+            navigate(`/user/booking/${booking._id || booking.id}`);
+          } else {
+            toast.error('Payment verification failed');
+          }
+          setPaying(false);
+        },
+        modal: {
+          ondismiss: function () {
+            setPaying(false);
+          }
+        },
+        prefill: { name: 'User', contact: '' },
+        theme: { color: "#0F766E" }
+      };
+      setPaying(true);
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+      return;
+    }
+
+    try {
+      setPaying(true);
+      toast.loading('Creating payment order...');
+      const orderResponse = await paymentService.createOrder(booking._id || booking.id);
+      toast.dismiss();
+
+      if (!orderResponse.success) {
+        toast.error(orderResponse.message || 'Failed to create payment order');
+        setPaying(false);
+        return;
+      }
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: orderResponse.data.amount * 100,
+        currency: orderResponse.data.currency || 'INR',
+        order_id: orderResponse.data.orderId,
+        name: 'Appzeto',
+        description: `Payment for ${booking.serviceName}`,
+        handler: async function (response) {
+          toast.loading('Verifying payment...');
+          const verifyResponse = await paymentService.verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          });
+          toast.dismiss();
+
+          if (verifyResponse.success) {
+            toast.success('Payment successful!');
+            navigate(`/user/booking/${booking._id || booking.id}`);
+          } else {
+            toast.error('Payment verification failed');
+          }
+          setPaying(false);
+        },
+        modal: {
+          onhighlight: function () { },
+          ondismiss: function () {
+            setPaying(false);
+          }
+        },
+        prefill: {
+          name: 'User',
+          contact: ''
+        },
+        theme: {
+          color: "#0F766E"
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to process payment');
+      setPaying(false);
+    }
+  };
+
+  const handlePayAtHome = async () => {
+    try {
+      toast.loading('Confirming request...');
+      const response = await paymentService.confirmPayAtHome(booking._id || booking.id);
+      toast.dismiss();
+
+      if (response.success) {
+        toast.success('Booking confirmed!');
+        navigate(`/user/booking/${booking._id || booking.id}`);
+      } else {
+        toast.error(response.message || 'Failed to confirm booking');
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to process request');
+    }
+  };
 
   const socket = useAppNotifications('user'); // Get socket
 
@@ -75,8 +198,30 @@ const BookingTrack = () => {
 
       socket.on('live_location_update', handleLocationUpdate);
 
+      // Listen for booking status/data updates
+      const handleBookingUpdate = (data) => {
+        if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
+          console.log('Real-time booking update received:', data);
+
+          // Instant state update for OTPs and Status
+          setBooking(prev => {
+            if (!prev) return prev;
+            // Handle both flat data and nested data structures from different emitters
+            const updateData = data.data || data;
+            return { ...prev, ...updateData };
+          });
+
+          fetchBooking(false); // Refresh data without full loading state
+        }
+      };
+
+      socket.on('booking_updated', handleBookingUpdate);
+      socket.on('notification', handleBookingUpdate);
+
       return () => {
         socket.off('live_location_update', handleLocationUpdate);
+        socket.off('booking_updated', handleBookingUpdate);
+        socket.off('notification', handleBookingUpdate);
       };
     }
   }, [socket, id]);
@@ -487,6 +632,133 @@ const BookingTrack = () => {
           </div>
         </div>
 
+        {/* Arrival OTP - New Premium Display */}
+        {(booking.visitOtp || booking.arrivalOTP) && ['confirmed', 'assigned', 'journey_started'].includes(booking?.status?.toLowerCase()) && (
+          <div className="mb-4 relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-5 shadow-lg">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl"></div>
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="flex items-center gap-3 w-full mb-4">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                  <FiKey className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-blue-100 uppercase tracking-widest">Verification OTP</p>
+                  <p className="text-white text-xs font-medium">Share when professional reaches</p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-center mb-4">
+                {(booking.visitOtp || booking.arrivalOTP).toString().split('').map((digit, i) => (
+                  <div key={i} className="w-10 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/30 shadow-md">
+                    <span className="text-xl font-black text-white">{digit}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="w-full py-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-center gap-2">
+                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]"></div>
+                <p className="text-[10px] text-blue-50 font-medium">Waiting for professional to reach</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Professional Arrived Notification */}
+        {booking?.status?.toLowerCase() === 'visited' && !(booking.arrivalOTP || booking.visitOtp) && (
+          <div className="mb-4 relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-700 p-4 shadow-lg flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 shrink-0">
+              <FiCheckCircle className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Professional Arrived</h3>
+              <p className="text-[10px] text-teal-50">Expert is starting the work now.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Waiting for Vendor to initiate Payment */}
+        {!(booking.customerConfirmationOTP || booking.paymentOtp) && booking?.status?.toLowerCase() === 'work_done' && !booking.cashCollected && (
+          <div className="bg-white rounded-2xl p-4 shadow-lg border border-teal-100 mb-4 flex items-center gap-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-teal-50 rounded-full -translate-y-10 translate-x-10 blur-2xl"></div>
+            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0 border border-teal-100">
+              <FiLoader className="w-5 h-5 text-teal-600 animate-spin" />
+            </div>
+            <div className="relative z-10">
+              <h3 className="font-bold text-gray-900 text-sm">Finalizing Bill</h3>
+              <p className="text-[10px] text-gray-500">Professional is finalizing payment details. Please wait...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Final Payment Card - Show when work is done AND bill is finalized (OTP exists) */}
+        {(booking.customerConfirmationOTP || booking.paymentOtp || booking.paymentStatus === 'success') && booking?.status?.toLowerCase() === 'work_done' && !booking?.cashCollected && (
+          <div
+            onClick={() => setShowPaymentModal(true)}
+            className={`mb-4 relative overflow-hidden rounded-2xl p-5 shadow-lg cursor-pointer active:scale-[0.98] transition-all ${booking.paymentStatus === 'success'
+              ? 'bg-gradient-to-br from-green-500 via-green-600 to-emerald-700'
+              : 'bg-gradient-to-br from-orange-500 via-orange-600 to-red-600'
+              }`}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl"></div>
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="flex items-center gap-3 w-full mb-5">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                  {booking.paymentStatus === 'success' ? (
+                    <FiCheckCircle className="w-5 h-5 text-white" />
+                  ) : (
+                    <FiDollarSign className="w-5 h-5 text-white" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest">
+                    {booking.paymentStatus === 'success' ? 'Payment Received' : 'Final Payment'}
+                  </p>
+                  <p className="text-white text-xs font-medium">
+                    {booking.paymentStatus === 'success' ? 'Verified Successfully' : `Service amount: ₹${(booking.finalAmount || 0).toLocaleString()}`}
+                  </p>
+                </div>
+              </div>
+
+              {booking.paymentStatus !== 'success' ? (
+                <>
+                  <button
+                    onClick={handleOnlinePayment}
+                    className="w-full py-4 bg-white text-orange-600 rounded-xl font-black text-sm shadow-xl hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <FiDollarSign className="w-4 h-4" />
+                    Pay Online Now
+                  </button>
+
+                  <div className="mt-6 flex flex-col items-center w-full">
+                    <p className="text-[9px] font-black text-white/60 uppercase tracking-[0.3em] mb-3">Payment Verification OTP</p>
+                    <div className="flex justify-center gap-2.5">
+                      {String(booking.customerConfirmationOTP || booking.paymentOtp || '0000').split('').map((digit, idx) => (
+                        <div
+                          key={idx}
+                          className="w-10 h-12 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-md"
+                        >
+                          <span className="text-xl font-black text-white">{digit}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-[9px] text-white/70 text-center font-medium bg-black/10 px-4 py-1.5 rounded-full">
+                      Share with professional to confirm cash payment
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="w-full py-4 bg-white/10 backdrop-blur-md text-white rounded-xl font-bold text-sm border border-white/20 flex items-center justify-center gap-2">
+                  <FiCheckCircle className="w-4 h-4 text-green-200" />
+                  Booking Completed
+                </div>
+              )}
+
+              {booking.paymentStatus !== 'success' && (
+                <p className="mt-4 text-[10px] text-white/70 text-center font-medium">
+                  Professional will mark as completed after cash collection.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Agent Info */}
         {(provider?._id || provider?.id) && (
           <div className="bg-gray-50 rounded-2xl p-4 flex items-center gap-4 mb-4 border border-gray-100">
@@ -534,6 +806,7 @@ const BookingTrack = () => {
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         booking={booking}
+        onPayOnline={handleOnlinePayment}
       />
     </div>
   );

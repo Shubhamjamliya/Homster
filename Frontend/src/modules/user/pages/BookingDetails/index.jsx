@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { io } from 'socket.io-client';
+import useAppNotifications from '../../../../hooks/useAppNotifications';
 import { themeColors } from '../../../../theme';
 import {
   FiArrowLeft,
@@ -49,12 +49,15 @@ const BookingDetails = () => {
   const [loading, setLoading] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: '',
     message: '',
     onConfirm: () => { }
   });
+
+  const socket = useAppNotifications();
 
   // Function to load booking
   const loadBooking = async () => {
@@ -81,59 +84,67 @@ const BookingDetails = () => {
     }
   }, [id, navigate]);
 
-  // Auto-show rating modal ONLY when booking is fully completed (after payment)
+  // Auto-show rating modal ONLY when booking is fully completed AND paid
   useEffect(() => {
     if (booking) {
       const isCompleted = ['completed', 'work_done'].includes(booking.status?.toLowerCase());
-      const hasPendingPayment = booking.customerConfirmationOTP && !booking.cashCollected;
+      const isPaid = ['success', 'paid', 'collected_by_vendor'].includes(booking.paymentStatus?.toLowerCase());
       const isRated = !!booking.rating;
       const isDismissed = localStorage.getItem(`rating_dismissed_${id}`);
 
-      if (isCompleted && !isRated && !isDismissed && !hasPendingPayment) {
+      // Only show rating modal if work is done AND payment is verified
+      if (isCompleted && isPaid && !isRated && !isDismissed) {
         setShowRatingModal(true);
       }
     }
   }, [booking, id]);
 
-  // Handle Payment Modal Visibility
+  // Track if we've shown the payment modal this session to prevent re-opening on data refresh
+  const hasShownPaymentModal = React.useRef(false);
+
+  // Handle Payment Modal Visibility - Only auto-open ONCE per session
   useEffect(() => {
-    if (booking && booking.customerConfirmationOTP && !booking.cashCollected) {
+    if (booking && booking.customerConfirmationOTP && !booking.cashCollected && !hasShownPaymentModal.current) {
       setShowPaymentModal(true);
-    } else {
+      hasShownPaymentModal.current = true;
+    } else if (!booking?.customerConfirmationOTP || booking?.cashCollected) {
       setShowPaymentModal(false);
     }
   }, [booking]);
 
   // Socket Listener for Real-time Updates
   useEffect(() => {
-    const socketUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/api$/, '');
-    const socket = io(socketUrl, {
-      transports: ['websocket', 'polling']
-    });
+    if (socket && id) {
+      // Handler for booking updates
+      const handleUpdate = (data) => {
+        // Check if update relates to this booking
+        if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
+          console.log('Live update received:', data);
 
-    const userData = JSON.parse(localStorage.getItem('userData'));
-    if (userData?._id || userData?.id) {
-      const userId = userData._id || userData.id;
-      socket.emit('join', `user_${userId}`);
+          // Instant UI update for critical fields (status, OTPs, amounts)
+          setBooking(prev => {
+            if (!prev) return prev;
+            return { ...prev, ...(data.data || data) };
+          });
 
-      // Listen for generic notifications
-      socket.on('notification', (data) => {
-        if (data && (data.relatedId === id || data.data?.bookingId === id)) {
+          // Fetch full data to ensure consistency
           loadBooking();
-          toast(data.message || 'Booking updated', { icon: '🔔' });
+
+          if (data.message) {
+            toast(data.message, { icon: '🔔' });
+          }
         }
-      });
+      };
 
-      // Listen for specific booking updates if any
-      socket.on('booking_updated', (data) => {
-        if (data.bookingId === id) loadBooking();
-      });
+      socket.on('booking_updated', handleUpdate);
+      socket.on('notification', handleUpdate);
+
+      return () => {
+        socket.off('booking_updated', handleUpdate);
+        socket.off('notification', handleUpdate);
+      };
     }
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [id]);
+  }, [socket, id]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -221,19 +232,65 @@ const BookingDetails = () => {
   };
 
   const handleOnlinePayment = async () => {
+    if (paying) return;
+
+    // If a Razorpay order already exists for this booking and hasn't been used, skip creating a new one
+    if (booking.razorpayOrderId) {
+      console.log('Using existing Razorpay order:', booking.razorpayOrderId);
+      // Open Razorpay with existing order
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: Math.round((booking.finalAmount || 0) * 100),
+        currency: 'INR',
+        order_id: booking.razorpayOrderId,
+        name: 'Appzeto',
+        description: `Payment for ${booking.serviceName}`,
+        handler: async function (response) {
+          toast.loading('Verifying payment...');
+          const verifyResponse = await paymentService.verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          });
+          toast.dismiss();
+
+          if (verifyResponse.success) {
+            toast.success('Payment successful!');
+            loadBooking();
+          } else {
+            toast.error('Payment verification failed');
+          }
+          setPaying(false);
+        },
+        modal: {
+          ondismiss: function () {
+            setPaying(false);
+          }
+        },
+        prefill: { name: 'User', contact: '' },
+        theme: { color: themeColors.button }
+      };
+      setPaying(true);
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+      return;
+    }
+
     try {
+      setPaying(true);
       toast.loading('Creating payment order...');
       const orderResponse = await paymentService.createOrder(booking._id || booking.id);
       toast.dismiss();
 
       if (!orderResponse.success) {
         toast.error(orderResponse.message || 'Failed to create payment order');
+        setPaying(false);
         return;
       }
 
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: orderResponse.data.amount * 100,
+        amount: Math.round(orderResponse.data.amount * 100),
         currency: orderResponse.data.currency || 'INR',
         order_id: orderResponse.data.orderId,
         name: 'Appzeto',
@@ -253,6 +310,13 @@ const BookingDetails = () => {
           } else {
             toast.error('Payment verification failed');
           }
+          setPaying(false);
+        },
+        modal: {
+          onhighlight: function () { },
+          ondismiss: function () {
+            setPaying(false);
+          }
         },
         prefill: {
           name: 'User',
@@ -268,6 +332,7 @@ const BookingDetails = () => {
     } catch (error) {
       toast.dismiss();
       toast.error('Failed to process payment');
+      setPaying(false);
     }
   };
 
@@ -507,6 +572,160 @@ const BookingDetails = () => {
                   <FiPhone className="w-5 h-5" />
                 </a>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Arrival OTP Card - Show during early stages until verified */}
+        {(booking.arrivalOTP || booking.visitOtp) && ['confirmed', 'assigned', 'journey_started'].includes(booking.status?.toLowerCase()) && (
+          <div className="relative overflow-hidden rounded-3xl shadow-lg border border-blue-100 mb-6 active:scale-[0.99] transition-all">
+            {/* Animated gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 opacity-95"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15)_0%,transparent_50%)]"></div>
+
+            <div className="relative z-10 p-6 flex flex-col items-center">
+              <div className="flex items-center gap-3 w-full mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                  <FiMapPin className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white tracking-tight">Verification OTP</h3>
+                  <p className="text-xs text-blue-100 font-medium">Share when professional reaches</p>
+                </div>
+              </div>
+
+              {/* OTP Display */}
+              <div className="flex justify-center gap-3 mb-5">
+                {String(booking.arrivalOTP || booking.visitOtp).split('').map((digit, idx) => (
+                  <div
+                    key={idx}
+                    className="w-14 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border-2 border-white/40 shadow-xl"
+                  >
+                    <span className="text-3xl font-black text-white drop-shadow-md">{digit}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="w-full bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/20">
+                <div className="flex items-center justify-center gap-2 text-white text-sm">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
+                  <p className="font-medium">Waiting for professional to reach your location</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Professional Arrived Notification - Only after OTP verified */}
+        {booking?.status?.toLowerCase() === 'visited' && (
+          <div className="relative overflow-hidden rounded-3xl shadow-lg mb-6 active:scale-[0.98] transition-all">
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-700 opacity-95"></div>
+            <div className="relative z-10 p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 shrink-0">
+                <FiCheckCircle className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">Professional Arrived</h3>
+                <p className="text-sm text-teal-50 font-medium">Expert is at your location and starting the work.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Waiting for Vendor to initiate Payment */}
+        {!(booking.customerConfirmationOTP || booking.paymentOtp) && ['work_done'].includes(booking.status?.toLowerCase()) && !booking.cashCollected && (
+          <div className="bg-white rounded-3xl p-6 shadow-lg border border-teal-100 mb-6 flex items-center gap-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-teal-50 rounded-full -translate-y-12 translate-x-12 blur-2xl"></div>
+            <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center shrink-0 border border-teal-100">
+              <FiLoader className="w-6 h-6 text-teal-600 animate-spin" />
+            </div>
+            <div className="relative z-10">
+              <h3 className="font-bold text-gray-900">Finalizing Bill</h3>
+              <p className="text-sm text-gray-500">Professional is finalizing payment details. Please wait a moment...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Card - Show when work is done AND bill is finalized (OTP exists) or paid */}
+        {(booking.customerConfirmationOTP || booking.paymentOtp || booking.paymentStatus === 'success') && ['work_done'].includes(booking.status?.toLowerCase()) && !booking.cashCollected && (
+          <div
+            onClick={() => setShowPaymentModal(true)}
+            className={`relative overflow-hidden rounded-3xl shadow-lg border cursor-pointer active:scale-[0.98] transition-all ${booking.paymentStatus === 'success' ? 'border-green-100' : 'border-orange-100'
+              }`}>
+            {/* Animated gradient background */}
+            <div className={`absolute inset-0 opacity-95 ${booking.paymentStatus === 'success'
+              ? 'bg-gradient-to-br from-green-500 via-green-600 to-emerald-700'
+              : 'bg-gradient-to-br from-orange-500 via-orange-600 to-red-600'
+              }`}></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.15)_0%,transparent_50%)]"></div>
+
+            <div className="relative z-10 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                  {booking.paymentStatus === 'success' ? (
+                    <FiCheckCircle className="w-6 h-6 text-white" />
+                  ) : (
+                    <FiDollarSign className="w-6 h-6 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white tracking-tight">
+                    {booking.paymentStatus === 'success' ? 'Payment Received' : 'Final Payment'}
+                  </h3>
+                  <p className={`text-xs font-medium ${booking.paymentStatus === 'success' ? 'text-green-50' : 'text-orange-100'}`}>
+                    {booking.paymentStatus === 'success' ? 'Transaction verified successfully' : 'Final amount after service completion'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Button for Online Payment - Only show if not paid */}
+              {booking.paymentStatus !== 'success' && (
+                <>
+                  <button
+                    onClick={handleOnlinePayment}
+                    className="w-full py-4 mb-4 bg-white text-orange-600 rounded-2xl font-black text-sm shadow-xl hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    <FiDollarSign className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                    Pay Online Now
+                    <FiChevronRight className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex flex-col items-center mb-6">
+                    <p className="text-[10px] font-bold text-orange-100 uppercase tracking-[0.2em] mb-3 opacity-90">Verification Code</p>
+                    <div className="flex justify-center gap-2">
+                      {String(booking.customerConfirmationOTP || booking.paymentOtp || '0000').split('').map((digit, idx) => (
+                        <div
+                          key={idx}
+                          className="w-12 h-14 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/30 shadow-lg"
+                        >
+                          <span className="text-2xl font-black text-white">{digit}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-orange-50 mt-3 font-medium bg-black/10 px-3 py-1 rounded-full backdrop-blur-sm">
+                      Share this code with the professional ONLY after your satisfaction
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <div className={`backdrop-blur-sm rounded-xl p-4 border ${booking.paymentStatus === 'success' ? 'bg-white/10 border-white/10' : 'bg-white/15 border-white/20'
+                }`}>
+                <div className="flex items-center gap-3 text-white">
+                  {booking.paymentStatus === 'success' ? (
+                    <FiCheckCircle className="w-5 h-5 text-green-200" />
+                  ) : (
+                    <FiClock className="w-5 h-5 text-orange-200" />
+                  )}
+                  <div className="text-sm">
+                    {booking.paymentStatus === 'success'
+                      ? <p className="font-medium">Booking completed successfully. Thank you for choosing us!</p>
+                      : <p className="font-medium">Total Amount: <span className="text-lg font-black ml-1">₹{(booking.finalAmount || booking.totalAmount || 0).toLocaleString('en-IN')}</span></p>
+                    }
+                    {booking.paymentStatus !== 'success' && <p className="text-[10px] text-orange-100 mt-0.5 opacity-80">Pay online above or prepare cash for the professional.</p>}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

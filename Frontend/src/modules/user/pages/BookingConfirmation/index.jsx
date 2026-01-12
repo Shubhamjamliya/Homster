@@ -11,15 +11,88 @@ import {
   FiDollarSign,
   FiHome,
   FiArrowRight,
-  FiLoader
+  FiLoader,
+  FiArrowLeft,
+  FiBell
 } from 'react-icons/fi';
 import { bookingService } from '../../../../services/bookingService';
+
+// Inline Searching Animation Component
+const SearchingAnimation = () => {
+  const [dots, setDots] = useState('.');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? '.' : prev + '.');
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-8 px-6 relative">
+      {/* Map-like Background (Subtle) */}
+      <div className="absolute inset-0 opacity-5 pointer-events-none">
+        <div className="w-full h-full" style={{
+          backgroundImage: 'radial-gradient(#000 1px, transparent 1px)',
+          backgroundSize: '20px 20px'
+        }}></div>
+      </div>
+
+      {/* Central Radar Animation */}
+      <div className="relative w-48 h-48 flex items-center justify-center mb-6">
+        {/* Outer Ripples */}
+        <div className="absolute inset-0 rounded-full border-2 opacity-20 animate-ping"
+          style={{ borderColor: themeColors.brand.teal, animationDuration: '3s' }}></div>
+        <div className="absolute inset-4 rounded-full border opacity-40 animate-ping"
+          style={{ borderColor: themeColors.brand.teal, animationDuration: '3s', animationDelay: '0.6s' }}></div>
+
+        {/* Rotating Scanner Gradient */}
+        <div className="absolute inset-0 rounded-full animate-spin opacity-30"
+          style={{
+            background: `conic-gradient(transparent 180deg, ${themeColors.brand.teal})`,
+            animationDuration: '4s'
+          }}></div>
+
+        {/* Center Core */}
+        <div className="relative z-10 w-20 h-20 bg-white rounded-full shadow-lg flex items-center justify-center p-1">
+          <div className="w-full h-full rounded-full flex items-center justify-center relative overflow-hidden"
+            style={{ background: `linear-gradient(135deg, ${themeColors.brand.teal}15, ${themeColors.brand.teal}05)` }}>
+            <div className="w-3 h-3 rounded-full shadow-lg animate-pulse"
+              style={{ backgroundColor: themeColors.brand.teal }}></div>
+            <div className="absolute w-full h-full animate-pulse opacity-30 rounded-full"
+              style={{ backgroundColor: themeColors.brand.teal }}></div>
+          </div>
+        </div>
+
+        {/* Floating Dots Animation */}
+        <div className="absolute top-8 right-8 w-2 h-2 rounded-full animate-bounce opacity-50" style={{ backgroundColor: themeColors.brand.orange, animationDelay: '0.2s' }}></div>
+        <div className="absolute bottom-6 left-6 w-2 h-2 rounded-full animate-bounce opacity-50" style={{ backgroundColor: themeColors.brand.yellow, animationDelay: '1.5s' }}></div>
+      </div>
+
+      {/* Status Text */}
+      <div className="text-center relative z-20">
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Finding nearby experts</h3>
+        <p className="text-gray-500 text-sm max-w-[240px] mx-auto leading-relaxed">
+          Connecting you with the best available service providers{dots}
+        </p>
+      </div>
+
+      {/* Bottom Pill */}
+      <div className="mt-4">
+        <div className="px-4 py-1.5 bg-gray-50 rounded-full border border-gray-100 text-xs font-medium text-gray-400">
+          Process runs in background
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const BookingConfirmation = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(true); // Show searching by default
 
   useEffect(() => {
     const loadBooking = async () => {
@@ -28,6 +101,11 @@ const BookingConfirmation = () => {
         const response = await bookingService.getById(id);
         if (response.success) {
           setBooking(response.data);
+          // Check if vendor is already assigned
+          const currentStatus = response.data.status?.toLowerCase();
+          if (response.data.vendorId || (currentStatus !== 'requested' && currentStatus !== 'searching')) {
+            setIsSearching(false);
+          }
         } else {
           toast.error(response.message || 'Booking not found');
           navigate('/user/my-bookings');
@@ -44,6 +122,31 @@ const BookingConfirmation = () => {
       loadBooking();
     }
   }, [id, navigate]);
+
+  // Poll for vendor acceptance
+  useEffect(() => {
+    if (!isSearching || !id) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await bookingService.getById(id);
+        if (response.success) {
+          const updatedBooking = response.data;
+          setBooking(updatedBooking);
+          // If vendor accepted or status changed
+          const currentStatus = updatedBooking.status?.toLowerCase();
+          if (updatedBooking.vendorId || (currentStatus !== 'requested' && currentStatus !== 'searching')) {
+            setIsSearching(false);
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isSearching, id]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -102,17 +205,49 @@ const BookingConfirmation = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <main className="px-4 py-6">
-        {/* Success Icon */}
-        <div className="flex flex-col items-center justify-center mb-6">
-          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
-            <FiCheckCircle className="w-12 h-12 text-green-600" />
+      {/* Header with Back Button */}
+      <header className="bg-white/80 backdrop-blur-lg border-b border-slate-100 sticky top-0 z-30">
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2.5 hover:bg-slate-50 active:bg-slate-100 rounded-full transition-colors text-slate-700"
+              >
+                <FiArrowLeft className="w-5 h-5" />
+              </button>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Booking Confirmation</h1>
+            </div>
+            <button
+              onClick={() => navigate('/user/notifications')}
+              className="p-2 hover:bg-gray-50 rounded-full transition-colors"
+            >
+              <FiBell className="w-6 h-6 text-gray-700" />
+            </button>
           </div>
-          <h1 className="text-2xl font-bold text-black mb-2">Booking Confirmed!</h1>
-          <p className="text-sm text-gray-600 text-center">
-            Your booking has been confirmed. We'll send you updates via SMS.
-          </p>
         </div>
+      </header>
+
+      <main className="px-4 py-6">
+        {/* Searching Animation - Show at top when searching for vendor */}
+        {isSearching && (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-4 overflow-hidden">
+            <SearchingAnimation />
+          </div>
+        )}
+
+        {/* Success Icon - Show when not searching */}
+        {!isSearching && (
+          <div className="flex flex-col items-center justify-center mb-6">
+            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <FiCheckCircle className="w-12 h-12 text-green-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-black mb-2">Booking Confirmed!</h1>
+            <p className="text-sm text-gray-600 text-center">
+              Your booking has been confirmed. We'll send you updates via SMS.
+            </p>
+          </div>
+        )}
 
         {/* Booking ID Card */}
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-4">
@@ -121,8 +256,8 @@ const BookingConfirmation = () => {
               <p className="text-xs text-gray-500 mb-1">Booking ID</p>
               <p className="text-base font-bold text-black">{booking.bookingNumber || booking._id || booking.id}</p>
             </div>
-            <div className="px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200">
-              <span className="text-sm font-semibold">Confirmed</span>
+            <div className={`px-3 py-1.5 rounded-full ${isSearching ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+              <span className="text-sm font-semibold">{isSearching ? 'Finding Vendor...' : 'Confirmed'}</span>
             </div>
           </div>
         </div>
@@ -169,16 +304,14 @@ const BookingConfirmation = () => {
               </div>
             </div>
 
-            {/* Booked Items - from bookedItems array (new structure with section + card) */}
+            {/* Booked Items */}
             {booking.bookedItems && booking.bookedItems.length > 0 ? (
               <div className="space-y-3">
                 {booking.bookedItems.map((item, idx) => (
                   <div key={idx} className="bg-gray-50 rounded-lg p-3">
-                    {/* Section Title */}
                     {item.sectionTitle && (
                       <p className="text-xs text-gray-500 font-medium mb-2">{item.sectionTitle}</p>
                     )}
-                    {/* Card Details */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-gray-800">{item.card?.title || item.title}</p>
@@ -213,7 +346,6 @@ const BookingConfirmation = () => {
             Payment Summary
           </h3>
 
-          {/* Check if booking is covered by plan (free) */}
           {(booking.paymentMethod === 'plan_benefit' || (booking.finalAmount === 0 && !booking.paymentId)) ? (
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
               <div className="flex items-center gap-3 mb-3">
@@ -284,8 +416,6 @@ const BookingConfirmation = () => {
             onClick={handleViewDetails}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-base font-semibold text-white transition-all"
             style={{ backgroundColor: themeColors.button }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = themeColors.button}
-            onMouseLeave={(e) => e.target.style.backgroundColor = themeColors.button}
           >
             View Full Details
             <FiArrowRight className="w-5 h-5" />
@@ -303,4 +433,3 @@ const BookingConfirmation = () => {
 };
 
 export default BookingConfirmation;
-

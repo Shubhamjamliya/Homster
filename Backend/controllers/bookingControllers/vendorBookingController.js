@@ -14,11 +14,18 @@ const getVendorBookings = async (req, res) => {
     const vendorId = req.user.id;
     const { status, startDate, endDate, page = 1, limit = 10 } = req.query;
 
+    const vendor = await require('../../models/Vendor').findById(vendorId);
+    const vendorCategories = vendor?.service || [];
+
     // Build query
     const query = {
       $or: [
         { vendorId, status: { $ne: BOOKING_STATUS.AWAITING_PAYMENT } }, // Assigned to this vendor but not awaiting payment
-        { vendorId: null, status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] } } // Unassigned REQUESTED/SEARCHING bookings
+        {
+          vendorId: null,
+          status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] },
+          serviceCategory: { $in: vendorCategories } // Only show relevant ones
+        }
       ]
     };
     if (status) {
@@ -172,17 +179,12 @@ const acceptBooking = async (req, res) => {
         message
       });
 
-      // For plan_benefit bookings, also emit to vendor that booking is confirmed
-      if (booking.paymentMethod === 'plan_benefit') {
-        io.to(`vendor_${vendorId}`).emit('booking_confirmed', {
-          bookingId: booking._id,
-          bookingNumber: booking.bookingNumber,
-          serviceName: booking.serviceName,
-          message: `Booking ${booking.bookingNumber} is confirmed! Payment covered by customer's plan.`,
-          paymentStatus: 'success',
-          vendorEarnings: booking.vendorEarnings
-        });
-      }
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: booking.status,
+        message: 'Vendor has accepted your request'
+      });
+
     }
 
     // Send notification to user
@@ -205,18 +207,6 @@ const acceptBooking = async (req, res) => {
     // Send FCM push notification to user
     // Manual push removed - auto handled by createNotification
     // sendNotificationToUser(booking.userId, { ... });
-
-    // For plan_benefit bookings, also notify vendor about confirmation
-    if (booking.paymentMethod === 'plan_benefit') {
-      await createNotification({
-        vendorId: vendorId,
-        type: 'booking_confirmed',
-        title: 'Booking Confirmed!',
-        message: `Booking ${booking.bookingNumber} is confirmed. Payment is covered by customer's subscription plan. Your earnings: ₹${booking.vendorEarnings || 0}`,
-        relatedId: booking._id,
-        relatedType: 'booking'
-      });
-    }
 
     res.status(200).json({
       success: true,
@@ -368,6 +358,16 @@ const assignWorker = async (req, res) => {
           link: `/user/booking/${booking._id}`
         }
       });
+
+      // Emit socket event for real-time UI refresh
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user_${booking.userId}`).emit('booking_updated', {
+          bookingId: booking._id,
+          status: booking.status,
+          message: 'Professional assigned to your booking'
+        });
+      }
 
       return res.status(200).json({
         success: true,
@@ -547,6 +547,16 @@ const updateBookingStatus = async (req, res) => {
       // Send FCM push notification to user
       // Manual push removed - auto handled by createNotification
       // sendNotificationToUser(booking.userId, { ... });
+    }
+
+    // Emit socket event for real-time UI refresh
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: booking.status,
+        message: `Booking status updated to ${booking.status}`
+      });
     }
 
     res.status(200).json({
@@ -744,10 +754,7 @@ const completeSelfJob = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot complete from current status' });
     }
 
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-
     booking.status = BOOKING_STATUS.WORK_DONE;
-    booking.paymentOtp = otp;
     if (workPhotos) booking.workPhotos = workPhotos;
     if (workDoneDetails) booking.workDoneDetails = workDoneDetails;
 
@@ -758,13 +765,12 @@ const completeSelfJob = async (req, res) => {
       userId: booking.userId,
       type: 'work_done',
       title: 'Work Completed',
-      message: `Work done. Please confirm & pay. OTP: ${otp}. Amount: ₹${booking.finalAmount}`,
+      message: `Work done by vendor personally. Professional is finalizing the bill. Amount: ₹${booking.finalAmount}`,
       relatedId: booking._id,
       relatedType: 'booking',
       pushData: {
         type: 'work_done',
         bookingId: booking._id.toString(),
-        paymentOtp: otp,
         link: `/user/booking/${booking._id}`
       }
     });
@@ -777,12 +783,11 @@ const completeSelfJob = async (req, res) => {
     if (io) {
       io.to(`user_${booking.userId}`).emit('booking_updated', {
         bookingId: booking._id,
-        status: BOOKING_STATUS.WORK_DONE,
-        paymentOtp: otp
+        status: BOOKING_STATUS.WORK_DONE
       });
       io.to(`user_${booking.userId}`).emit('notification', {
         title: 'Work Completed',
-        message: `Work done. Please confirm & pay. OTP: ${otp}`,
+        message: `Work done. Professional is finalizing the bill.`,
         relatedId: booking._id
       });
     }

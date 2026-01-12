@@ -1,9 +1,68 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { playNotificationSound, isSoundEnabled, playAlertRing } from '../utils/notificationSound';
 import { registerFCMToken } from '../services/pushNotificationService';
+
+const SwipeableNotification = ({ t, data, onClick }) => {
+  const x = useMotionValue(0);
+  const opacity = useTransform(x, [-200, 0, 200], [0, 1, 0]);
+
+  return (
+    <motion.div
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      style={{ x, opacity }}
+      onDragEnd={(e, { offset, velocity }) => {
+        const swipe = Math.abs(offset.x) * velocity.x;
+        if (Math.abs(offset.x) > 80) { // Threshold
+          toast.dismiss(t.id);
+        }
+      }}
+      initial={{ opacity: 0, y: -20, scale: 0.9 }}
+      animate={{
+        opacity: t.visible ? 1 : 0,
+        y: t.visible ? 0 : -20,
+        scale: t.visible ? 1 : 0.95
+      }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      whileTap={{ scale: 0.98 }}
+      className="max-w-md w-full bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-gray-900/5 cursor-pointer dark:bg-gray-800 dark:ring-gray-700"
+      onClick={onClick}
+    >
+      <div className="flex-1 w-0 p-4">
+        <div className="flex items-start">
+          <div className="flex-shrink-0 pt-0.5">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md">
+              <span className="text-lg">🔔</span>
+            </div>
+          </div>
+          <div className="ml-3 flex-1">
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              {data.title}
+            </p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+              {data.message}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="flex border-l border-gray-200 dark:border-gray-700">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            toast.dismiss(t.id);
+          }}
+          className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-medium text-gray-400 hover:text-gray-500 focus:outline-none"
+        >
+          ✕
+        </button>
+      </div>
+    </motion.div>
+  );
+};
 
 const SocketContext = createContext(null);
 
@@ -93,7 +152,7 @@ export const SocketProvider = ({ children }) => {
       // Register FCM token for push notifications (on page load/refresh)
       if (userType && token) {
         console.log(`[SocketContext] Registering FCM token for ${userType}...`);
-        registerFCMToken(userType, false).then((fcmToken) => {
+        registerFCMToken(userType, true).then((fcmToken) => {
           if (fcmToken) {
             console.log(`[SocketContext] ✅ FCM token registered for ${userType}`);
           } else {
@@ -132,9 +191,9 @@ export const SocketProvider = ({ children }) => {
 
       // Show custom toast for all notifications
       toast.custom((t) => (
-        <div
-          className={`${t.visible ? 'animate-enter' : 'animate-leave'
-            } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 cursor-pointer`}
+        <SwipeableNotification
+          t={t}
+          data={data}
           onClick={() => {
             toast.dismiss(t.id);
             // Optional: navigate based on relatedId
@@ -144,39 +203,10 @@ export const SocketProvider = ({ children }) => {
               else navigate(`/user/booking/${data.relatedId}`);
             }
           }}
-        >
-          <div className="flex-1 w-0 p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 pt-0.5">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
-                  🔔
-                </div>
-              </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-gray-900">
-                  {data.title}
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                  {data.message}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex border-l border-gray-200">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toast.dismiss(t.id);
-              }}
-              className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        />
       ), {
         id: 'socket-notification', // Prevent stacking
-        duration: 4000,
+        duration: 3500, // Slightly longer to allow interaction/reading since it's dismissible
         position: 'top-right'
       });
 

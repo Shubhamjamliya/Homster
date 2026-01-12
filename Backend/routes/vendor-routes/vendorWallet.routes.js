@@ -11,7 +11,8 @@ const {
   getSettlements,
   getWalletSummary,
   payWorker,
-  requestWithdrawal
+  requestWithdrawal,
+  getWithdrawals
 } = require('../../controllers/vendorControllers/vendorWalletController');
 
 // Validation rules
@@ -59,5 +60,8 @@ router.post('/withdraw', authenticate, isVendor, [
   body('amount').isFloat({ min: 1 }).withMessage('Valid amount is required'),
   body('bankDetails').optional().isObject()
 ], requestWithdrawal);
+
+// Get withdrawal history
+router.get('/wallet/withdrawals', authenticate, isVendor, getWithdrawals);
 
 module.exports = router;

@@ -9,6 +9,8 @@ const { BOOKING_STATUS, PAYMENT_STATUS, WORKER_STATUS } = require('../../utils/c
 const getDashboardStats = async (req, res) => {
   try {
     const vendorId = req.user.id;
+    const vendor = await require('../../models/Vendor').findById(vendorId);
+    const vendorCategories = vendor?.service || [];
 
     // Total bookings (excluding accepted but unpaid)
     const totalBookings = await Booking.countDocuments({
@@ -17,9 +19,18 @@ const getDashboardStats = async (req, res) => {
     });
 
     // Pending bookings (Alerts)
+    // Includes: 
+    // 1. Bookings assigned to this vendor as REQUESTED
+    // 2. Unassigned bookings with matching category in SEARCHING or REQUESTED status
     const pendingBookings = await Booking.countDocuments({
-      vendorId,
-      status: BOOKING_STATUS.REQUESTED
+      $or: [
+        { vendorId, status: BOOKING_STATUS.REQUESTED },
+        {
+          vendorId: null,
+          status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] },
+          serviceCategory: { $in: vendorCategories }
+        }
+      ]
     });
 
     // Completed bookings
@@ -29,7 +40,6 @@ const getDashboardStats = async (req, res) => {
     });
 
     // Active Jobs (In Progress)
-    // Counts: Accepted (Awaiting Payment), Pending (Paid), Confirmed, In Progress
     const inProgressBookings = await Booking.countDocuments({
       vendorId,
       status: {
@@ -65,7 +75,7 @@ const getDashboardStats = async (req, res) => {
     ]);
     const rating = ratingResult.length > 0 ? parseFloat(ratingResult[0].avgRating.toFixed(1)) : 0;
 
-    // Total revenue (from completed bookings with successful payments)
+    // Total revenue
     const revenueResult = await Booking.aggregate([
       {
         $match: {
@@ -86,10 +96,17 @@ const getDashboardStats = async (req, res) => {
     const totalRevenue = revenueResult[0]?.totalRevenue || 0;
     const vendorEarnings = revenueResult[0]?.vendorEarnings || 0;
 
-    // Recent bookings (last 5, excluding accepted but unpaid)
+    // Recent bookings (last 5)
+    // Include both assigned and relevant unassigned alerts
     const recentBookings = await Booking.find({
-      vendorId,
-      status: { $ne: BOOKING_STATUS.AWAITING_PAYMENT }
+      $or: [
+        { vendorId, status: { $ne: BOOKING_STATUS.AWAITING_PAYMENT } },
+        {
+          vendorId: null,
+          status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] },
+          serviceCategory: { $in: vendorCategories }
+        }
+      ]
     })
       .populate('userId', 'name phone')
       .populate('serviceId', 'title iconUrl')

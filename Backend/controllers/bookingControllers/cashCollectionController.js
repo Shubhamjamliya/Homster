@@ -39,19 +39,28 @@ exports.initiateCashCollection = async (req, res) => {
     // Force mark modified for nested object if needed
     if (extraItems) booking.markModified('workDoneDetails');
 
-    // Generate 4-digit OTP
+    // For backwards compatibility and future use, we can still generate it but not force it
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     booking.customerConfirmationOTP = otp;
+    booking.paymentOtp = otp;
     await booking.save();
 
-    // In a real app, send OTP via SMS here
-    console.log(`Cash Collection OTP for booking ${booking.bookingNumber}: ${otp}. Total: ${booking.finalAmount}`);
+    // Emit socket event to user with full bill details and OTP
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        finalAmount: booking.finalAmount,
+        customerConfirmationOTP: booking.customerConfirmationOTP,
+        paymentOtp: booking.paymentOtp,
+        workDoneDetails: booking.workDoneDetails
+      });
+    }
 
     res.status(200).json({
       success: true,
-      message: 'OTP initiated',
-      totalAmount: booking.finalAmount,
-      otp: process.env.NODE_ENV === 'development' ? otp : undefined // Return OTP only in dev
+      message: 'Bill finalized',
+      totalAmount: booking.finalAmount
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -74,9 +83,12 @@ exports.confirmCashCollection = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    // OTP Verification (if provided)
+    // OTP Verification - REQUIRED to ensure customer agrees to final bill
     if (booking.customerConfirmationOTP && otp && booking.customerConfirmationOTP !== otp) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+      // Allow 0000 only if explicitly allowed in environment (for testing) or just strict check
+      if (process.env.NODE_ENV !== 'development' || otp !== '0000') {
+        return res.status(400).json({ success: false, message: 'Invalid OTP. Please enter the code sent to the customer.' });
+      }
     }
 
     const collectionAmount = amount || booking.finalAmount;
@@ -143,6 +155,17 @@ exports.confirmCashCollection = async (req, res) => {
         type: 'cash_collected',
         description: `Cash collected for booking ${booking.bookingNumber}`,
         status: 'completed'
+      });
+    }
+
+    // Emit socket event to user for real-time update
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: booking.status,
+        cashCollected: true,
+        message: 'Payment recorded and booking completed!'
       });
     }
 

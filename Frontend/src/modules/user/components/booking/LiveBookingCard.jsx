@@ -8,7 +8,7 @@ import RatingModal from './RatingModal';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../../context/SocketContext';
 
-const LiveBookingCard = () => {
+const LiveBookingCard = ({ hasBottomNav }) => {
   const navigate = useNavigate();
   const socket = useSocket();
   const [activeBooking, setActiveBooking] = useState(null);
@@ -128,8 +128,18 @@ const LiveBookingCard = () => {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-        onClick={() => navigate(`/user/booking/${activeBooking._id}`)}
-        className="fixed bottom-24 left-4 right-4 z-50"
+        onClick={() => {
+          const status = activeBooking.status?.toUpperCase();
+          // If worker is on the way, go to tracking map
+          if (status === 'STARTED' || status === 'JOURNEY_STARTED') {
+            navigate(`/user/booking/${activeBooking._id || activeBooking.id}/track`);
+          } else if (status === 'SEARCHING' || status === 'REQUESTED') {
+            navigate(`/user/booking-confirmation/${activeBooking._id || activeBooking.id}`);
+          } else {
+            navigate(`/user/booking/${activeBooking._id || activeBooking.id}`);
+          }
+        }}
+        className={`fixed ${hasBottomNav ? 'bottom-24' : 'bottom-6'} left-4 right-4 z-50`}
       >
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 flex items-center gap-4 relative overflow-hidden cursor-pointer active:scale-95 transition-transform">
 
@@ -161,10 +171,22 @@ const LiveBookingCard = () => {
             </p>
           </div>
 
-          {/* Action Arrow */}
-          <div className="bg-gray-50 p-2 rounded-full">
-            <FiChevronRight className="text-gray-400 w-5 h-5" />
-          </div>
+          {/* Action Arrow or Pay Button */}
+          {activeBooking.status?.toUpperCase() === 'WORK_DONE' && !activeBooking.cashCollected ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/user/booking/${activeBooking._id || activeBooking.id}`);
+              }}
+              className="px-4 py-2 bg-teal-600 text-white text-xs font-black rounded-xl shadow-lg shadow-teal-100 active:scale-95 transition-all"
+            >
+              PAY NOW
+            </button>
+          ) : (
+            <div className="bg-gray-50 p-2 rounded-full">
+              <FiChevronRight className="text-gray-400 w-5 h-5" />
+            </div>
+          )}
 
         </div>
       </motion.div>

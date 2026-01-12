@@ -126,7 +126,7 @@ const UserRoutes = () => {
           </Routes>
         </PageTransition>
       </Suspense>
-      {!isBookingDetailsPage && !isPublicPage && <LiveBookingCard />}
+      {!isBookingDetailsPage && !isPublicPage && <LiveBookingCard hasBottomNav={shouldShowBottomNav} />}
       {shouldShowBottomNav && <BottomNav />}
     </ErrorBoundary>
   );

@@ -7,6 +7,7 @@ import { workerAuthService } from '../../../../services/authService';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import workerService from '../../../../services/workerService';
+import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -82,6 +83,28 @@ const Settings = () => {
     const updated = { ...settings, [key]: !settings[key] };
     setSettings(updated);
     await updateDBSettings(updated);
+
+    // Handle FCM Token registration/removal if notifications toggled
+    if (key === 'notifications') {
+      if (updated.notifications) {
+        // Turning ON
+        try {
+          await registerFCMToken('worker', true);
+          toast.success('Notifications enabled');
+        } catch (error) {
+          console.error('Error enabling notifications:', error);
+          toast.error('Failed to enable notifications');
+        }
+      } else {
+        // Turning OFF
+        try {
+          await removeFCMToken('worker');
+          toast.success('Notifications disabled');
+        } catch (error) {
+          console.error('Error disabling notifications:', error);
+        }
+      }
+    }
   };
 
   const handleLanguageChange = async (lang) => {

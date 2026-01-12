@@ -12,6 +12,7 @@ const Login = lazy(() => import('../pages/login'));
 const Signup = lazy(() => import('../pages/signup'));
 const Dashboard = lazy(() => import('../pages/Dashboard'));
 const BookingAlert = lazy(() => import('../pages/BookingAlert'));
+const BookingAlerts = lazy(() => import('../pages/BookingAlerts'));
 const BookingDetails = lazy(() => import('../pages/BookingDetails'));
 const BookingTimeline = lazy(() => import('../pages/BookingTimeline'));
 const ActiveJobs = lazy(() => import('../pages/ActiveJobs'));
@@ -65,6 +66,7 @@ const VendorRoutes = () => {
             {/* Protected routes (auth required) */}
             <Route path="/" element={<ProtectedRoute userType="vendor"><Navigate to="dashboard" replace /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute userType="vendor"><Dashboard /></ProtectedRoute>} />
+            <Route path="/booking-alerts" element={<ProtectedRoute userType="vendor"><BookingAlerts /></ProtectedRoute>} />
             <Route path="/booking-alert/:id" element={<ProtectedRoute userType="vendor"><BookingAlert /></ProtectedRoute>} />
             <Route path="/booking/:id" element={<ProtectedRoute userType="vendor"><BookingDetails /></ProtectedRoute>} />
             <Route path="/booking/:id/map" element={<ProtectedRoute userType="vendor"><BookingMap /></ProtectedRoute>} />

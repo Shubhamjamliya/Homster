@@ -37,12 +37,21 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
               </div>
               <h3 className="text-white font-black text-lg tracking-tight">Payment & Verification</h3>
             </div>
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
-            >
-              <FiX className="w-5 h-5 text-white" />
-            </button>
+            <div className="absolute top-4 right-4 flex gap-2">
+              <button
+                onClick={onClose}
+                title="Minimize"
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-md transition-colors border border-white/20"
+              >
+                <div className="w-5 h-1 bg-white rounded-full opacity-60"></div>
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-md transition-colors border border-white/20"
+              >
+                <FiX className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
 
           <div className="p-6 overflow-y-auto custom-scrollbar">
@@ -53,72 +62,95 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                 <p className="text-2xl font-black text-gray-900">₹{finalTotal.toLocaleString()}</p>
               </div>
 
-              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 space-y-2">
+              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Base Amount</span>
-                  <span className="font-medium">₹{baseAmount.toLocaleString()}</span>
+                  <span className="font-bold text-gray-800">₹{baseAmount.toLocaleString()}</span>
                 </div>
+
+                {tax > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Tax</span>
+                    <span className="font-bold text-gray-800">+₹{tax.toLocaleString()}</span>
+                  </div>
+                )}
+
+                {convenienceFee > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Convenience Fee</span>
+                    <span className="font-bold text-gray-800">+₹{convenienceFee.toLocaleString()}</span>
+                  </div>
+                )}
+
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600 font-medium">
+                    <span>Discount</span>
+                    <span>-₹{discount.toLocaleString()}</span>
+                  </div>
+                )}
+
                 {extraItems.length > 0 && (
-                  <div className="pt-2 border-t border-gray-200 mt-2">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Extras Added</p>
+                  <div className="pt-3 border-t border-gray-200 mt-2 space-y-2">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Extra Services Added</p>
                     {extraItems.map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-xs text-gray-600">
-                        <span>{item.title} x{item.qty || 1}</span>
-                        <span>₹{(item.price * (item.qty || 1)).toLocaleString()}</span>
+                      <div key={idx} className="flex justify-between text-xs text-gray-700">
+                        <span className="flex items-center gap-1.5">
+                          <FiPackage className="w-3 h-3 text-teal-600" />
+                          {item.title} <span className="text-[10px] text-gray-400">x{item.qty || 1}</span>
+                        </span>
+                        <span className="font-bold font-mono">₹{(item.price * (item.qty || 1)).toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
 
-            <h4 className="text-xs font-black text-gray-900 uppercase mb-3">Select Payment Method</h4>
-
-            <div className="space-y-4">
-              {/* Option 2: Online */}
-              <button
-                onClick={onPayOnline}
-                className="w-full py-4 rounded-xl bg-gray-900 text-white font-bold flex items-center justify-center gap-3 shadow-xl shadow-gray-200 active:scale-95 transition-all hover:bg-black"
-              >
-                <span>Pay Online Now</span>
-                <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-medium">Razorpay / UPI</span>
-              </button>
-
-              <div className="relative py-1 text-center">
-                <span className="text-[10px] text-gray-400 font-bold bg-white px-3 relative z-10 uppercase tracking-widest">OR</span>
-                <div className="absolute top-1/2 left-0 right-0 h-px bg-gray-100 z-0"></div>
-              </div>
-
-              {/* Option 1: Cash OTP */}
-              <div className="bg-emerald-50 border-2 border-dashed border-emerald-100 rounded-2xl p-5 text-center relative overflow-hidden">
-                <div className="relative z-10">
-                  <p className="text-xs font-bold text-emerald-800 mb-1">Pay Cash to Professional</p>
-                  <p className="text-[10px] text-emerald-600 mb-4 opacity-80">Share this OTP to confirm receipt</p>
-
-                  <div className="flex justify-center gap-3">
-                    {(booking.customerConfirmationOTP || booking.paymentOtp || '0000').toString().split('').map((digit, i) => (
-                      <div key={i} className="w-10 h-12 bg-white shadow-sm border border-emerald-100 rounded-xl flex items-center justify-center">
-                        <span className="text-xl font-black text-emerald-900">{digit}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="pt-3 border-t-2 border-dashed border-gray-200 mt-2 flex justify-between items-center">
+                  <span className="text-sm font-black text-gray-900">Total Amount</span>
+                  <span className="text-xl font-black text-teal-700">₹{finalTotal.toLocaleString()}</span>
                 </div>
               </div>
             </div>
 
-            {/* Warning Message */}
-            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3 mt-6">
-              <FiAlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-amber-900 leading-tight mb-1">Important</p>
-                <p className="text-[10px] text-amber-700 leading-relaxed">
-                  Only share the OTP if you are paying by CASH directly to the professional.
-                </p>
-              </div>
+            <h4 className="text-xs font-black text-gray-900 uppercase mb-3">Finalize Payment</h4>
+
+            <div className="space-y-4">
+              {booking.paymentStatus === 'success' ? (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-center shadow-inner">
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-emerald-100">
+                    <FiCheckCircle className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <h4 className="text-lg font-black text-emerald-900 mb-1">Payment Successful!</h4>
+                  <p className="text-xs text-emerald-600 font-medium">Your online payment of ₹{finalTotal.toLocaleString()} has been verified.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Option 2: Online */}
+                  <button
+                    onClick={onPayOnline}
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-700 text-white font-black flex items-center justify-center gap-3 shadow-xl shadow-teal-200 active:scale-[0.98] transition-all hover:shadow-teal-300 relative overflow-hidden group"
+                  >
+                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
+                    <span className="relative">Pay Online Now</span>
+                    <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-black tracking-tight">FAST & SECURE</span>
+                  </button>
+
+                  <div className="relative py-1 text-center">
+                    <span className="text-[10px] text-gray-400 font-bold bg-white px-3 relative z-10 uppercase tracking-widest">OR</span>
+                    <div className="absolute top-1/2 left-0 right-0 h-px bg-gray-100 z-0"></div>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center">
+                    <p className="text-sm font-black text-slate-800 mb-1 tracking-tight">Cash Payment</p>
+                    <p className="text-[10px] text-slate-500 mb-0 opacity-80 leading-relaxed">
+                      You can pay the professional in cash. They will mark the booking as completed once the payment is received.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
-            <button onClick={onClose} className="w-full mt-4 text-xs font-bold text-gray-400 hover:text-gray-600">
-              Close
+            <button onClick={onClose} className="w-full mt-6 py-2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-widest">
+              Close Details
             </button>
           </div>
         </motion.div>

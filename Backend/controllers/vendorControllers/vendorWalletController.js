@@ -592,6 +592,45 @@ const payWorker = async (req, res) => {
   }
 };
 
+/**
+ * Get vendor's withdrawal history
+ */
+const getWithdrawals = async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    const { page = 1, limit = 20, status } = req.query;
+
+    const query = { vendorId };
+    if (status) query.status = status;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const withdrawals = await Withdrawal.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Withdrawal.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: withdrawals,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get withdrawals error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch withdrawals'
+    });
+  }
+};
+
 module.exports = {
   getWallet,
   getTransactions,
@@ -600,5 +639,6 @@ module.exports = {
   getSettlements,
   getWalletSummary,
   payWorker,
-  requestWithdrawal
+  requestWithdrawal,
+  getWithdrawals
 };

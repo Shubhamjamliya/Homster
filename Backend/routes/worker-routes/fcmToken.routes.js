@@ -8,6 +8,8 @@ const router = express.Router();
 const { authenticate } = require('../../middleware/authMiddleware');
 const { sendPushNotification } = require('../../services/firebaseAdmin');
 const Worker = require('../../models/Worker');
+const User = require('../../models/User');
+const Vendor = require('../../models/Vendor');
 
 const MAX_TOKENS = 10; // Maximum tokens per platform
 
@@ -51,6 +53,21 @@ router.post('/save', authenticate, async (req, res) => {
     }
 
     await worker.save();
+
+    // Remove this token from User and Vendor collections to prevent cross-account notifications
+    try {
+      await User.updateMany(
+        { $or: [{ fcmTokens: token }, { fcmTokenMobile: token }] },
+        { $pull: { fcmTokens: token, fcmTokenMobile: token } }
+      );
+
+      await Vendor.updateMany(
+        { $or: [{ fcmTokens: token }, { fcmTokenMobile: token }] },
+        { $pull: { fcmTokens: token, fcmTokenMobile: token } }
+      );
+    } catch (cleanupError) {
+      console.error('Error removing token from other collections:', cleanupError);
+    }
 
     res.json({ success: true, message: 'FCM token saved successfully' });
   } catch (error) {

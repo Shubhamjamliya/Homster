@@ -107,7 +107,22 @@ const BookingTimeline = () => {
     };
 
     loadBooking();
+
+    const handleUpdate = () => {
+      loadBooking();
+    };
+
+    window.addEventListener('vendorJobsUpdated', handleUpdate);
+    return () => window.removeEventListener('vendorJobsUpdated', handleUpdate);
   }, [id, isWorkApproved]);
+
+  // Handle modal closing if payment is detected
+  useEffect(() => {
+    if (booking?.paymentStatus === 'SUCCESS' && isPaymentModalOpen) {
+      setIsPaymentModalOpen(false);
+      toast.success('Online Payment Received!');
+    }
+  }, [booking?.paymentStatus, isPaymentModalOpen]);
 
   /* Handlers */
   const handleWorkerPayment = async () => {
@@ -306,7 +321,7 @@ const BookingTimeline = () => {
       title: booking?.isSelfJob ? 'Collect Payment' : 'Approve Worker Work',
       icon: FiCheckCircle,
       action: (() => {
-        if (booking?.status === 'completed' || booking?.status === 'COMPLETED') return null;
+        if (booking?.status === 'completed' || booking?.status === 'COMPLETED' || booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid') return null;
 
         if (booking?.isSelfJob && currentStage === 7) {
           return () => setIsPaymentModalOpen(true);
@@ -476,10 +491,22 @@ const BookingTimeline = () => {
                             stage.id === 4 ? 'Start Journey' :
                               stage.id === 5 ? 'Mark Arrived' :
                                 stage.id === 6 ? 'Mark workdone' :
-                                  stage.id === 7 ? (booking?.assignedTo ? 'Approve Work' : 'Collect Cash') :
+                                  stage.id === 7 ? (
+                                    (booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid')
+                                      ? 'Online Payment Done'
+                                      : (booking?.isSelfJob ? 'Collect Cash' : 'Approve Work')
+                                  ) :
                                     stage.id === 8 ? 'Pay Worker' :
                                       stage.id === 9 ? 'Final Settlement' : 'Continue'}
                         </button>
+                      )}
+
+                      {/* Online Payment Status Badge for Stage 7 */}
+                      {stage.id === 7 && (booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid') && !isCompleted && (
+                        <div className="mt-2 flex items-center gap-1.5 text-green-600 font-bold text-xs bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+                          <FiCheckCircle className="w-4 h-4" />
+                          ONLINE PAYMENT RECEIVED
+                        </div>
                       )}
 
                       {/* Timestamp */}

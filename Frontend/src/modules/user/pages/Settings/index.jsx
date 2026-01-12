@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiBell, FiMail, FiPhone, FiMessageCircle, FiShield, FiChevronRight } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
+import { userAuthService } from '../../../../services/authService';
+import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
 import BottomNav from '../../components/layout/BottomNav';
 
 const Settings = () => {
   const navigate = useNavigate();
-  
+
   // State for notification toggles
   const [notifications, setNotifications] = useState({
     whatsapp: true,
@@ -17,11 +20,66 @@ const Settings = () => {
     voiceCalls: true,
   });
 
-  const handleToggle = (key) => {
+  // Load user settings on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const response = await userAuthService.getProfile();
+      if (response.success && response.user?.settings) {
+        setNotifications(prev => ({
+          ...prev,
+          push: response.user.settings.notifications ?? true
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const handleToggle = async (key) => {
+    // Optimistic update
     setNotifications(prev => ({
       ...prev,
       [key]: !prev[key]
     }));
+
+    // Handle Push Toggle specifically
+    if (key === 'push') {
+      const newState = !notifications.push;
+      const toastId = toast.loading(newState ? 'Enabling notifications...' : 'Disabling notifications...');
+      
+      try {
+        if (newState) {
+          // Enable
+          const token = await registerFCMToken('user', true);
+          if (!token) {
+             toast.error('Failed to enable. Check permissions.', { id: toastId });
+             // Revert state
+             setNotifications(prev => ({ ...prev, push: false }));
+             return;
+          }
+        } else {
+          // Disable
+          await removeFCMToken('user');
+        }
+
+        // Persist preference to backend
+        await userAuthService.updateProfile({ 
+          settings: { notifications: newState } 
+        });
+        
+        toast.success(newState ? 'Notifications enabled' : 'Notifications disabled', { id: toastId });
+
+      } catch (error) {
+        console.error('Error updating notification settings:', error);
+        toast.error('Failed to update settings', { id: toastId });
+        // Revert
+        setNotifications(prev => ({ ...prev, push: !newState }));
+      }
+    }
   };
 
   const handlePrivacyClick = () => {
@@ -58,7 +116,7 @@ const Settings = () => {
         {/* Notifications & Reminders Section */}
         <div className="mb-6">
           <h2 className="text-base font-bold text-black mb-4">Notifications & reminders</h2>
-          
+
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {/* WhatsApp */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
@@ -70,15 +128,13 @@ const Settings = () => {
               </div>
               <button
                 onClick={() => handleToggle('whatsapp')}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
-                  notifications.whatsapp ? 'bg-green-700' : 'bg-gray-300'
-                }`}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${notifications.whatsapp ? 'bg-green-700' : 'bg-gray-300'
+                  }`}
                 style={notifications.whatsapp ? { backgroundColor: '#15803d' } : {}}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
-                    notifications.whatsapp ? 'translate-x-6' : 'translate-x-0'
-                  }`}
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${notifications.whatsapp ? 'translate-x-6' : 'translate-x-0'
+                    }`}
                 />
               </button>
             </div>
@@ -93,15 +149,13 @@ const Settings = () => {
               </div>
               <button
                 onClick={() => handleToggle('push')}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
-                  notifications.push ? 'bg-green-700' : 'bg-gray-300'
-                }`}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${notifications.push ? 'bg-green-700' : 'bg-gray-300'
+                  }`}
                 style={notifications.push ? { backgroundColor: '#15803d' } : {}}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
-                    notifications.push ? 'translate-x-6' : 'translate-x-0'
-                  }`}
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${notifications.push ? 'translate-x-6' : 'translate-x-0'
+                    }`}
                 />
               </button>
             </div>
@@ -116,15 +170,13 @@ const Settings = () => {
               </div>
               <button
                 onClick={() => handleToggle('email')}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
-                  notifications.email ? 'bg-green-700' : 'bg-gray-300'
-                }`}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${notifications.email ? 'bg-green-700' : 'bg-gray-300'
+                  }`}
                 style={notifications.email ? { backgroundColor: '#15803d' } : {}}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
-                    notifications.email ? 'translate-x-6' : 'translate-x-0'
-                  }`}
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${notifications.email ? 'translate-x-6' : 'translate-x-0'
+                    }`}
                 />
               </button>
             </div>
@@ -139,15 +191,13 @@ const Settings = () => {
               </div>
               <button
                 onClick={() => handleToggle('sms')}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
-                  notifications.sms ? 'bg-green-700' : 'bg-gray-300'
-                }`}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${notifications.sms ? 'bg-green-700' : 'bg-gray-300'
+                  }`}
                 style={notifications.sms ? { backgroundColor: '#15803d' } : {}}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
-                    notifications.sms ? 'translate-x-6' : 'translate-x-0'
-                  }`}
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${notifications.sms ? 'translate-x-6' : 'translate-x-0'
+                    }`}
                 />
               </button>
             </div>
@@ -162,15 +212,13 @@ const Settings = () => {
               </div>
               <button
                 onClick={() => handleToggle('voiceCalls')}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
-                  notifications.voiceCalls ? 'bg-green-700' : 'bg-gray-300'
-                }`}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${notifications.voiceCalls ? 'bg-green-700' : 'bg-gray-300'
+                  }`}
                 style={notifications.voiceCalls ? { backgroundColor: '#15803d' } : {}}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
-                    notifications.voiceCalls ? 'translate-x-6' : 'translate-x-0'
-                  }`}
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${notifications.voiceCalls ? 'translate-x-6' : 'translate-x-0'
+                    }`}
                 />
               </button>
             </div>
@@ -178,7 +226,7 @@ const Settings = () => {
         </div>
 
         {/* Privacy & Data Section */}
-        <div className="mb-6">
+        <div className="space-y-4 mb-6">
           <button
             onClick={handlePrivacyClick}
             className="w-full bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between hover:bg-gray-50 active:scale-[0.98] transition-all"
@@ -190,6 +238,55 @@ const Settings = () => {
               <span className="text-sm font-medium text-black">Privacy & data</span>
             </div>
             <FiChevronRight className="w-5 h-5 text-gray-400" />
+          </button>
+
+          {/* Diagnostic Test Button */}
+          <button
+            onClick={async () => {
+              try {
+                const { registerFCMToken } = await import('../../../../services/pushNotificationService');
+                const toastId = toast.loading('Attempting to register for notifications...');
+                
+                // 1. Register Token
+                const token = await registerFCMToken('user', true);
+                if (!token) {
+                  toast.error('Could not register. Check browser permissions.', { id: toastId });
+                  return;
+                }
+
+                // 2. Send Test Notification from Backend
+                toast.loading('Sending test notification...', { id: toastId });
+                
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/users/fcm-tokens/test`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                  }
+                });
+                
+                const data = await response.json();
+
+                if (data.success) {
+                  toast.success(`Sent! Success: ${data.successCount}`, { id: toastId });
+                } else {
+                  toast.error(`Failed to send: ${data.message || 'Unknown error'}`, { id: toastId });
+                }
+
+              } catch (err) {
+                toast.error('Test failed. See console.', { id: toastId });
+                console.error(err);
+              }
+            }}
+            className="w-full bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3 hover:bg-gray-50 active:scale-[0.98] transition-all"
+          >
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+              <FiBell className="w-5 h-5" style={{ color: themeColors.button }} />
+            </div>
+            <div className="text-left">
+              <span className="text-sm font-medium text-black block">Test Push Notifications</span>
+              <span className="text-xs text-gray-500">Tap to register & simulate alert</span>
+            </div>
           </button>
         </div>
       </main>

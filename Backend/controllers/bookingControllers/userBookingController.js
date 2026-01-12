@@ -300,8 +300,9 @@ const createBooking = async (req, res) => {
       console.log('Geocoded address for vendor search:', bookingLocation);
     }
 
-    // Find vendors within 10km radius
-    const nearbyVendors = await findNearbyVendors(bookingLocation, 10);
+    // Find vendors within 10km radius who offer this service category
+    const vendorFilters = category ? { service: category.title } : {};
+    const nearbyVendors = await findNearbyVendors(bookingLocation, 10, vendorFilters);
     console.log(`[CreateBooking] Found ${nearbyVendors.length} nearby vendors for booking ${booking._id}`);
     if (nearbyVendors.length > 0) {
       console.log(`[CreateBooking] Target Vendor IDs:`, nearbyVendors.map(v => v._id));

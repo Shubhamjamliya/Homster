@@ -25,7 +25,9 @@ const EditProfile = () => {
     phone: '',
     email: '',
     address: '',
-    serviceCategory: '',
+    address: '',
+    serviceCategories: [], // Array for multiple selection
+    skills: [],
     skills: [],
     profilePhoto: '', // URL
     aadharDocument: '', // URL
@@ -77,52 +79,65 @@ const EditProfile = () => {
   }, []);
 
   useEffect(() => {
-    const loadProfile = () => {
+    const loadProfile = async () => {
       try {
-        const vendorProfile = JSON.parse(localStorage.getItem('vendorProfile') || '{}');
-        const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
+        // Try to get fresh profile from API
+        const response = await vendorAuthService.getProfile();
 
-        // Merge data, similar to ProfileDetails logic
-        const storedData = { ...vendorProfile, ...vendorData };
+        if (response.success && response.vendor) {
+          const v = response.vendor;
 
-        if (Object.keys(storedData).length > 0) {
-          let addressData = storedData.address;
-          if (typeof storedData.address === 'string') {
-            addressData = { fullAddress: storedData.address };
-          } else if (!storedData.address) {
+          let addressData = v.address;
+          if (typeof v.address === 'string') {
+            addressData = { fullAddress: v.address };
+          } else if (!v.address) {
             addressData = {};
           }
 
           setFormData({
-            name: storedData.name || '',
-            businessName: storedData.businessName || '',
-            phone: storedData.phone || '',
-            email: storedData.email || '',
+            name: v.name || '',
+            businessName: v.businessName || '',
+            phone: v.phone || '',
+            email: v.email || '',
             address: addressData,
-            serviceCategory: vendorProfile.serviceCategory || '',
-            skills: vendorProfile.skills || [],
-            profilePhoto: vendorProfile.profilePhoto || '',
-            aadharDocument: vendorProfile.aadharDocument || '',
+            address: addressData,
+            serviceCategories: Array.isArray(v.service) ? v.service : (v.service ? [v.service] : []),
+            skills: v.skills || [],
+            skills: v.skills || [],
+            profilePhoto: v.profilePhoto || '',
+            aadharDocument: v.aadharDocument || (v.aadhar && v.aadhar.document) || '',
           });
+
+          // Update local storage
+          localStorage.setItem('vendorProfile', JSON.stringify(v));
+          localStorage.setItem('vendorData', JSON.stringify(v));
         } else {
-          // Set default values if no profile exists
-          setFormData({
-            name: 'Vendor Name',
-            businessName: 'Business Name',
-            phone: '+91 9876543210',
-            email: 'vendor@example.com',
-            address: {
-              fullAddress: 'Indore, Madhya Pradesh',
-              addressLine1: '',
-              city: 'Indore',
-              state: 'Madhya Pradesh',
-              pincode: ''
-            },
-            serviceCategory: '',
-            skills: [],
-            profilePhoto: '',
-            aadharDocument: '',
-          });
+          // Fallback to local storage if API fails
+          const vendorProfile = JSON.parse(localStorage.getItem('vendorProfile') || '{}');
+          const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
+          const storedData = { ...vendorProfile, ...vendorData };
+
+          if (Object.keys(storedData).length > 0) {
+            // ... existing fallback logic ...
+            let addressData = storedData.address;
+            if (typeof storedData.address === 'string') {
+              addressData = { fullAddress: storedData.address };
+            } else if (!storedData.address) {
+              addressData = {};
+            }
+
+            setFormData({
+              name: storedData.name || '',
+              businessName: storedData.businessName || '',
+              phone: storedData.phone || '',
+              email: storedData.email || '',
+              address: addressData,
+              serviceCategory: storedData.service || storedData.serviceCategory || '',
+              skills: storedData.skills || [],
+              profilePhoto: storedData.profilePhoto || '',
+              aadharDocument: storedData.aadharDocument || (storedData.aadhar && storedData.aadhar.document) || '',
+            });
+          }
         }
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -137,6 +152,7 @@ const EditProfile = () => {
     let pincode = '';
     let addressLine2 = '';
 
+    // Parse Google Maps address components
     if (location.components) {
       location.components.forEach(comp => {
         if (comp.types.includes('locality')) city = comp.long_name;
@@ -146,16 +162,19 @@ const EditProfile = () => {
       });
     }
 
+    // Update FormData with structured address object
     setFormData(prev => ({
       ...prev,
       address: {
         ...(typeof prev.address === 'object' ? prev.address : {}),
-        addressLine1: houseNumber,
-        addressLine2: addressLine2,
+        fullAddress: location.address,
+        addressLine1: houseNumber, // House/Flat No
+        addressLine2: addressLine2, // Sublocality/Street
         city: city,
         state: state,
         pincode: pincode,
-        fullAddress: location.address
+        lat: location.lat,
+        lng: location.lng
       }
     }));
     setIsAddressModalOpen(false);
@@ -214,11 +233,21 @@ const EditProfile = () => {
   };
 
   const handleCategoryChange = (val) => {
-    setFormData(prev => ({
-      ...prev,
-      serviceCategory: val,
-      skills: []
-    }));
+    setFormData(prev => {
+      const current = prev.serviceCategories || [];
+      const updated = current.includes(val)
+        ? current.filter(c => c !== val)
+        : [...current, val];
+
+      // When categories change, we might want to filter out skills that no longer apply?
+      // For now, let's keep all skills or clear them if categories become empty.
+      // Better: Keep skills, user can remove them manually.
+      return {
+        ...prev,
+        serviceCategories: updated,
+        // skills: [] // Optional: clear skills on category change? Maybe annoying. Let's keep them.
+      };
+    });
   };
 
   const toggleSkill = (skill) => {
@@ -260,8 +289,8 @@ const EditProfile = () => {
       newErrors.address = 'Address is required';
     }
 
-    if (!formData.serviceCategory.trim()) {
-      newErrors.serviceCategory = 'Service category is required';
+    if (!formData.serviceCategories || formData.serviceCategories.length === 0) {
+      newErrors.serviceCategories = 'At least one service category is required';
     }
 
     if (!formData.skills || formData.skills.length === 0) {
@@ -305,16 +334,13 @@ const EditProfile = () => {
       }
 
       // Prepare payload to match backend structure
+      // Prepare payload to match backend structure
       const payload = {
         name: formData.name,
         businessName: formData.businessName,
         address: formData.address,
-        serviceCategory: formData.serviceCategory,
-        // Note: Backend might need to be consistent if 'skills' is supported. The current controller update I made doesn't explicitly save 'skills' to a DB field if it's not in the model or handled.
-        // Let's assume for now we send it but backend might ignore if not added to model. 
-        // But wait, the model HAS 'skills'? No, model has 'service' (string). Vendor model doesn't seem to have 'skills' array?
-        // Checking Vendor.js: it has 'service' (String). No 'skills' array.
-        // So for now, we just update name, businessName, address, profilePhoto, service.
+        serviceCategory: formData.serviceCategories,
+        skills: formData.skills,
         profilePhoto: photoUrl,
         aadharDocument: aadharUrl
       };
@@ -350,8 +376,13 @@ const EditProfile = () => {
     }
   };
 
-  // Get selected category object for skills
-  const selectedCategoryObj = categories.find(c => c.title === formData.serviceCategory);
+  // Get aggregated sub-services (skills) from ALL selected categories
+  const availableSkills = categories
+    .filter(c => formData.serviceCategories.includes(c.title))
+    .flatMap(c => c.subServices || []);
+
+  // Remove duplicates
+  const uniqueAvailableSkills = [...new Set(availableSkills.map(s => typeof s === 'string' ? s : (s.name || s.title)))];
 
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
@@ -534,7 +565,7 @@ const EditProfile = () => {
             {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
           </div>
 
-          {/* Service Category */}
+          {/* Service Category (Multi-Select) */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <div
@@ -545,7 +576,7 @@ const EditProfile = () => {
               >
                 <FiTag className="w-4 h-4" style={{ color: themeColors.icon }} />
               </div>
-              <span>Service Category <span className="text-red-500">*</span></span>
+              <span>Service Categories <span className="text-red-500">*</span></span>
             </label>
             <div className="relative">
               <button
@@ -553,9 +584,17 @@ const EditProfile = () => {
                 onClick={() => setIsCategoryOpen(!isCategoryOpen)}
                 className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-100"
               >
-                <span className={`font-medium truncate ${formData.serviceCategory ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {formData.serviceCategory || 'Select a Category'}
-                </span>
+                <div className="flex flex-wrap gap-2 overflow-hidden">
+                  {formData.serviceCategories.length > 0 ? (
+                    formData.serviceCategories.map((cat, idx) => (
+                      <span key={idx} className="text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded-md">
+                        {cat}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-400">Select Categories</span>
+                  )}
+                </div>
                 <FiChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
               </button>
 
@@ -567,22 +606,26 @@ const EditProfile = () => {
                   />
                   <div className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto">
                     {categories.length > 0 ? (
-                      categories.map(cat => (
-                        <button
-                          key={cat._id}
-                          type="button"
-                          onClick={() => {
-                            handleCategoryChange(cat.title);
-                            setIsCategoryOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 font-medium text-gray-700 border-b border-gray-50 last:border-0 flex items-center justify-between"
-                        >
-                          {cat.title}
-                          {formData.serviceCategory === cat.title && (
-                            <div className="w-2 h-2 rounded-full bg-green-500" />
-                          )}
-                        </button>
-                      ))
+                      categories.map((cat, index) => {
+                        const isSelected = formData.serviceCategories.includes(cat.title);
+                        return (
+                          <button
+                            key={cat._id || index}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent closing dropdown immediately
+                              handleCategoryChange(cat.title);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 font-medium text-gray-700 border-b border-gray-50 last:border-0 flex items-center justify-between"
+                          >
+                            {cat.title}
+                            <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                              {isSelected && <FiX className="w-3 h-3 text-white transform rotate-45" style={{ transform: 'none' /* Just a checkmark really */ }} />}
+                              {isSelected && <span className="text-white text-xs">✓</span>}
+                            </div>
+                          </button>
+                        );
+                      })
                     ) : (
                       <div className="px-4 py-3 text-gray-400 text-sm">No categories found</div>
                     )}
@@ -590,11 +633,11 @@ const EditProfile = () => {
                 </>
               )}
             </div>
-            {errors.serviceCategory && <p className="text-red-500 text-sm mt-1">{errors.serviceCategory}</p>}
+            {errors.serviceCategories && <p className="text-red-500 text-sm mt-1">{errors.serviceCategories}</p>}
           </div>
 
           {/* Skills Dropdown */}
-          {formData.serviceCategory && (
+          {formData.serviceCategories.length > 0 && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <div
@@ -627,18 +670,17 @@ const EditProfile = () => {
                       onClick={() => setIsServicesOpen(false)}
                     />
                     <div className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto">
-                      {selectedCategoryObj?.subServices && selectedCategoryObj.subServices.length > 0 ? (
-                        selectedCategoryObj.subServices.map((skill, idx) => {
-                          const sName = typeof skill === 'string' ? skill : (skill.name || skill.title);
-                          const isSelected = formData.skills.includes(sName);
+                      {uniqueAvailableSkills.length > 0 ? (
+                        uniqueAvailableSkills.map((skillName, idx) => {
+                          const isSelected = formData.skills.includes(skillName);
                           return (
                             <button
-                              key={idx}
+                              key={skillName || idx}
                               type="button"
-                              onClick={() => toggleSkill(sName)}
+                              onClick={() => toggleSkill(skillName)}
                               className="w-full text-left px-4 py-3 hover:bg-gray-50 font-medium text-gray-700 border-b border-gray-50 last:border-0 flex items-center justify-between"
                             >
-                              {sName}
+                              {skillName}
                               {isSelected && (
                                 <div className="w-2 h-2 rounded-full" style={{ background: themeColors.button }} />
                               )}
@@ -658,7 +700,7 @@ const EditProfile = () => {
                 <div className="flex flex-wrap gap-2 mt-3">
                   {formData.skills.map((skill, idx) => (
                     <span
-                      key={idx}
+                      key={skill || idx}
                       className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700"
                       style={{ border: '1px solid #e5e7eb' }}
                     >

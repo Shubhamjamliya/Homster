@@ -4,6 +4,7 @@ import { FiBell, FiVolume2, FiGlobe, FiInfo, FiLogOut, FiTrash2, FiMapPin } from
 import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { vendorAuthService } from '../../../../services/authService';
+import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 
@@ -47,10 +48,33 @@ const Settings = () => {
     loadSettings();
   }, []);
 
-  const handleToggle = (key) => {
+  const handleToggle = async (key) => {
     const updated = { ...settings, [key]: !settings[key] };
     setSettings(updated);
     localStorage.setItem('vendorSettings', JSON.stringify(updated));
+
+    // Handle FCM Token registration/removal if notifications toggled
+    if (key === 'notifications') {
+      if (updated.notifications) {
+        // Turning ON
+        try {
+          await registerFCMToken('vendor', true);
+          toast.success('Notifications enabled');
+        } catch (error) {
+          console.error('Error enabling notifications:', error);
+          toast.error('Failed to enable notifications');
+          // Revert toggle if failed? For now, we keep UI in sync with intent.
+        }
+      } else {
+        // Turning OFF
+        try {
+          await removeFCMToken('vendor');
+          toast.success('Notifications disabled');
+        } catch (error) {
+          console.error('Error disabling notifications:', error);
+        }
+      }
+    }
   };
 
   const handleLanguageChange = (lang) => {

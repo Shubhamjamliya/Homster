@@ -33,6 +33,7 @@ const getProfile = async (req, res) => {
         email: vendor.email,
         phone: vendor.phone,
         service: vendor.service,
+        skills: vendor.skills || [],
         address: vendor.address || null,
         rating: ratingData ? ratingData.avgRating : 0,
         totalJobs,
@@ -94,20 +95,39 @@ const updateProfile = async (req, res) => {
           fullAddress: address
         };
       } else {
+        // Address is an object from advanced picker
         vendor.address = {
+          fullAddress: address.fullAddress || vendor.address?.fullAddress || '',
           addressLine1: address.addressLine1 || vendor.address?.addressLine1 || '',
           addressLine2: address.addressLine2 || vendor.address?.addressLine2 || '',
           city: address.city || vendor.address?.city || '',
           state: address.state || vendor.address?.state || '',
           pincode: address.pincode || vendor.address?.pincode || '',
-          landmark: address.landmark || vendor.address?.landmark || ''
+          landmark: address.landmark || vendor.address?.landmark || '',
+          lat: address.lat !== undefined ? address.lat : vendor.address?.lat,
+          lng: address.lng !== undefined ? address.lng : vendor.address?.lng
         };
       }
     }
 
     if (profilePhoto !== undefined) vendor.profilePhoto = profilePhoto;
-    if (serviceCategory) vendor.service = serviceCategory;
-    // Assuming 'skills' field exists in Vendor model or we ignore it if not.
+
+    // Handle multiple service categories
+    if (serviceCategory !== undefined) {
+      if (Array.isArray(serviceCategory)) {
+        vendor.service = serviceCategory;
+        vendor.categories = serviceCategory; // Sync categories field too
+      } else if (typeof serviceCategory === 'string') {
+        // If string, likely single value or comma separated
+        vendor.service = [serviceCategory];
+        vendor.categories = [serviceCategory];
+      }
+    }
+
+    // Handle skills
+    if (skills !== undefined) {
+      vendor.skills = Array.isArray(skills) ? skills : [];
+    }
     // If aadharDocument exists and is not empty, update it
     if (aadharDocument) {
       if (vendor.aadhar) {
@@ -134,7 +154,8 @@ const updateProfile = async (req, res) => {
         isPhoneVerified: vendor.isPhoneVerified,
         isEmailVerified: vendor.isEmailVerified,
         profilePhoto: vendor.profilePhoto,
-        service: vendor.service
+        service: vendor.service,
+        skills: vendor.skills
       }
     });
   } catch (error) {

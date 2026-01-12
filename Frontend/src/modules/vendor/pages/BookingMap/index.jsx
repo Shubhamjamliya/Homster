@@ -1,9 +1,10 @@
+// BookingMap component for tracking vendor journey and arrival verification
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView, PolylineF } from '@react-google-maps/api';
-import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiClock } from 'react-icons/fi';
+import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiClock, FiCheckCircle, FiX } from 'react-icons/fi';
 import { FaMotorcycle } from 'react-icons/fa';
-import { getBookingById } from '../../services/bookingService';
+import { getBookingById, verifySelfVisit } from '../../services/bookingService';
 import vendorService from '../../../../services/vendorService';
 import { toast } from 'react-hot-toast';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
@@ -47,6 +48,9 @@ const BookingMap = () => {
   const [isAutoCenter, setIsAutoCenter] = useState(true);
   const [isNavigationMode, setIsNavigationMode] = useState(false);
   const [heading, setHeading] = useState(0); // Lifted state up
+  const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
+  const [otpInput, setOtpInput] = useState(['', '', '', '']);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID;
@@ -405,9 +409,18 @@ const BookingMap = () => {
 
         {/* Action Buttons */}
         <div className="flex gap-3">
+          {booking?.status === 'journey_started' && (
+            <button
+              onClick={() => setIsVisitModalOpen(true)}
+              className="px-6 bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 transition-all active:scale-95"
+            >
+              <FiCheckCircle className="w-5 h-5" /> Reached
+            </button>
+          )}
+
           {(booking?.userId?.phone || booking?.customerPhone) && (
             <a href={`tel:${booking.userId?.phone || booking.customerPhone}`} className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-teal-600/30 transition-all active:scale-95">
-              <FiPhone className="w-5 h-5" /> Call Customer
+              <FiPhone className="w-5 h-5" /> Call
             </a>
           )}
           <button
@@ -423,6 +436,139 @@ const BookingMap = () => {
           </button>
         </div>
       </div>
+
+      {/* OTP Modal - Redesigned for Clarity */}
+      {isVisitModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300 relative">
+
+            {/* Modal Header/Banner */}
+            <div className="h-24 bg-gradient-to-br from-teal-600 to-emerald-700 flex items-center justify-center relative">
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 left-0 w-20 h-20 bg-white rounded-full -translate-x-10 -translate-y-10" />
+                <div className="absolute bottom-0 right-0 w-32 h-32 bg-white rounded-full translate-x-10 translate-y-10" />
+              </div>
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 mb-1">
+                  <FiCheckCircle className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsVisitModalOpen(false);
+                  setOtpInput(['', '', '', '']);
+                }}
+                className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <FiX className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            <div className="p-8">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Verify Arrival</h3>
+                <p className="text-sm text-gray-500 leading-relaxed font-medium">
+                  Please enter the <span className="text-teal-600 font-bold">4-digit code</span> shared by the customer to start the service.
+                </p>
+              </div>
+
+              {/* OTP Entry Boxes - High Visibility */}
+              <div className="flex justify-center gap-3 mb-8">
+                {otpInput.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    id={`otp-input-${idx}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    autoFocus={idx === 0}
+                    className={`w-14 h-18 text-center text-3xl font-black rounded-2xl transition-all outline-none border-2 shadow-sm
+                      ${digit
+                        ? 'border-teal-500 bg-teal-50/30 text-teal-900 shadow-teal-100'
+                        : 'border-gray-200 bg-gray-50 text-gray-900 focus:border-teal-400 focus:bg-white focus:shadow-lg focus:shadow-teal-100'
+                      }`}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9]/g, '');
+                      if (value.length > 1) return;
+                      const newOtp = [...otpInput];
+                      newOtp[idx] = value;
+                      setOtpInput(newOtp);
+                      if (value && idx < 3) {
+                        document.getElementById(`otp-input-${idx + 1}`)?.focus();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Backspace' && !otpInput[idx] && idx > 0) {
+                        document.getElementById(`otp-input-${idx - 1}`)?.focus();
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Action Button */}
+              <button
+                onClick={async () => {
+                  const otp = otpInput.join('');
+                  if (otp.length !== 4) return toast.error('Enter 4-digit OTP');
+
+                  try {
+                    setActionLoading(true);
+                    if (!navigator.geolocation) {
+                      toast.error('Geolocation required for verification');
+                      return;
+                    }
+
+                    navigator.geolocation.getCurrentPosition(async (position) => {
+                      try {
+                        const location = { lat: position.coords.latitude, lng: position.coords.longitude };
+                        const response = await verifySelfVisit(id, otp, location);
+                        if (response.success) {
+                          toast.success('Visit Verified Successfully!');
+                          setIsVisitModalOpen(false);
+                          navigate(`/vendor/booking/${id}`);
+                        } else {
+                          toast.error(response.message || 'Verification failed');
+                        }
+                      } catch (err) {
+                        toast.error(err.response?.data?.message || 'Verification failed');
+                      } finally {
+                        setActionLoading(false);
+                      }
+                    }, (error) => {
+                      toast.error('Please enable GPS to verify your location.');
+                      setActionLoading(false);
+                    });
+                  } catch (error) {
+                    toast.error('Something went wrong. Please try again.');
+                    setActionLoading(false);
+                  }
+                }}
+                disabled={actionLoading}
+                className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-black text-lg shadow-xl shadow-teal-600/20 transition-all active:scale-[0.98] disabled:bg-gray-200 disabled:shadow-none flex items-center justify-center gap-3"
+              >
+                {actionLoading ? (
+                  <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <FiCheckCircle className="w-6 h-6" />
+                    Verify & Start Work
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setIsVisitModalOpen(false)}
+                className="w-full mt-4 py-2 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={actionLoading}
+              >
+                Go Back to Map
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

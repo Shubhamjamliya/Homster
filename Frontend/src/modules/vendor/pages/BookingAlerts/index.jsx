@@ -1,0 +1,243 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiArrowLeft, FiClock, FiMapPin, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
+import Header from '../../components/layout/Header';
+import { vendorTheme as themeColors } from '../../../../theme';
+import { vendorDashboardService } from '../../services/dashboardService';
+import { acceptBooking, rejectBooking, getBookings } from '../../services/bookingService';
+
+// Timer Component
+const CountdownTimer = ({ durationSeconds, onExpire }) => {
+  const [timeLeft, setTimeLeft] = useState(durationSeconds);
+
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      onExpire && onExpire();
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timeLeft, onExpire]);
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+
+  // Color changes based on urgency
+  const getTimerColor = () => {
+    if (timeLeft < 30) return '#EF4444'; // Red for < 30s
+    if (timeLeft < 60) return '#F59E0B'; // Orange for < 1m
+    return '#10B981'; // Green otherwise
+  };
+
+  return (
+    <div className="flex items-center gap-1 font-mono font-bold text-sm" style={{ color: getTimerColor() }}>
+      <FiClock className="w-4 h-4" />
+      <span>{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</span>
+    </div>
+  );
+};
+
+const BookingAlerts = () => {
+  const navigate = useNavigate();
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch pending alerts
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        setLoading(true);
+        // Fetch all relevant bookings (backend default query handles unassigned searching/requested)
+        const response = await getBookings();
+
+        if (response.success && response.data) {
+          // Get API pending bookings - SOURCE OF TRUTH
+          // Filter for SEARCHING and REQUESTED that are not assigned to others
+          let bookings = [];
+          const rawData = Array.isArray(response.data) ? response.data : (response.data.bookings || []);
+
+          bookings = rawData.filter(b =>
+            (b.status === 'searching' || b.status === 'requested') &&
+            (!b.vendorId || b.vendorId === localStorage.getItem('vendorId')) // Should already be handled by backend
+          );
+
+          const apiIds = new Set(bookings.map(b => String(b._id || b.id)));
+
+          // Cleanup localStorage: Remove items that are not in API response
+          const localPending = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+          const validLocalPending = localPending.filter(localB => {
+            const id = String(localB.id || localB._id);
+            return apiIds.has(id);
+          });
+          localStorage.setItem('vendorPendingJobs', JSON.stringify(validLocalPending));
+
+          // Set alerts from API only
+          setAlerts(bookings);
+        }
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        toast.error('Failed to load alerts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAlerts();
+
+    // Listen for realtime updates
+    const handleUpdate = () => fetchAlerts();
+    window.addEventListener('vendorJobsUpdated', handleUpdate);
+    return () => window.removeEventListener('vendorJobsUpdated', handleUpdate);
+  }, []);
+
+  const handleAccept = async (bookingId) => {
+    try {
+      await acceptBooking(bookingId);
+      toast.success('Booking accepted!');
+      // Remove from list
+      setAlerts(prev => prev.filter(a => a._id !== bookingId));
+
+      // Remove from localStorage
+      const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+      const updatedPending = pendingJobs.filter(job => job.id !== bookingId && job._id !== bookingId);
+      localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
+
+      // Trigger global update
+      window.dispatchEvent(new Event('vendorStatsUpdated'));
+      window.dispatchEvent(new Event('vendorJobsUpdated'));
+    } catch (error) {
+      console.error('Accept error:', error);
+      toast.error('Failed to accept booking');
+    }
+  };
+
+  const handleReject = async (bookingId) => {
+    try {
+      await rejectBooking(bookingId);
+      toast.success('Booking rejected');
+      setAlerts(prev => prev.filter(a => a._id !== bookingId));
+
+      // Remove from localStorage
+      const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+      const updatedPending = pendingJobs.filter(job => job.id !== bookingId && job._id !== bookingId);
+      localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
+
+      window.dispatchEvent(new Event('vendorStatsUpdated'));
+      window.dispatchEvent(new Event('vendorJobsUpdated'));
+    } catch (error) {
+      console.error('Reject error:', error);
+      toast.error('Failed to reject booking');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <Header title="Pending Alerts" showBack={true} />
+
+      <main className="px-4 py-4 space-y-4">
+        {loading ? (
+          <div className="flex justify-center pt-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : alerts.length === 0 ? (
+          <div className="text-center pt-20 px-6">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiCheckCircle className="w-10 h-10 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">No Pending Alerts</h3>
+            <p className="text-gray-500">You're all caught up! No new booking requests at the moment.</p>
+            <button
+              onClick={() => navigate('/vendor/dashboard')}
+              className="mt-6 text-primary font-semibold hover:underline"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        ) : (
+          alerts.map(alert => (
+            <div
+              key={alert._id}
+              className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 animate-slide-up"
+            >
+              {/* Header with Timer */}
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">New Request</span>
+                {/* Fake timer for demo - purely visual urgency as requested "with timer" */}
+                {/* In real app, calculate actual remaining time from createdAt */}
+                <CountdownTimer durationSeconds={300} onExpire={() => { }} />
+              </div>
+
+              <div className="p-4">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 leading-tight mb-1">
+                      {alert.serviceId?.title || 'Service Request'}
+                    </h3>
+                    <p className="text-sm text-gray-500 font-medium">
+                      {alert.userId?.name || 'Customer'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-extrabold" style={{ color: themeColors.primary }}>
+                      ₹{alert.vendorEarnings || alert.finalAmount || 0}
+                    </p>
+                    <p className="text-xs text-gray-400">Earnings</p>
+                  </div>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="bg-gray-50 p-2.5 rounded-lg">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+                      <FiClock /> Scheduled For
+                    </div>
+                    <p className="text-sm font-semibold text-gray-700">
+                      {new Date(alert.scheduledDate).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {alert.scheduledTimeSlot || 'ASAP'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-2.5 rounded-lg">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+                      <FiMapPin /> Location
+                    </div>
+                    <p className="text-sm font-semibold text-gray-700 line-clamp-2">
+                      {alert.address?.addressLine1 || 'View Map'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleReject(alert._id)}
+                    className="flex-1 py-3.5 rounded-xl border border-red-100 text-red-500 font-bold text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <FiXCircle /> Decline
+                  </button>
+                  <button
+                    onClick={() => handleAccept(alert._id)}
+                    className="flex-1 py-3.5 rounded-xl text-white font-bold text-sm shadow-lg shadow-green-200 hover:shadow-green-300 transition-all flex items-center justify-center gap-2 transform active:scale-95"
+                    style={{
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+                    }}
+                  >
+                    <FiCheckCircle /> Accept Job
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default BookingAlerts;

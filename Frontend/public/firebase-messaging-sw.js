@@ -44,9 +44,10 @@ messaging.onBackgroundMessage((payload) => {
   const notificationType = data.type || 'default';
 
   // Determine notification style based on type
-  let notificationTitle = notification.title || data.title || 'New Notification';
-  let notificationBody = notification.body || data.body || '';
-  let icon = notification.icon || '/Homster-logo.png';
+  // Prioritize data.title as we are using data-only notifications now
+  let notificationTitle = data.title || notification.title || 'App Notification';
+  let notificationBody = data.body || notification.body || '';
+  let icon = data.icon || notification.icon || '/Homster-logo.png';
   let badge = '/Homster-logo.png';
   let tag = data.bookingId || `notification-${Date.now()}`;
   let requireInteraction = false;
@@ -57,7 +58,8 @@ messaging.onBackgroundMessage((payload) => {
   switch (notificationType) {
     case 'new_booking':
       // High priority booking alert - like Ola/Uber
-      notificationTitle = notification.title || data.title || '🔔 New Booking Request!';
+      notificationTitle = data.title || notification.title || '🔔 New Booking Request!';
+      notificationBody = data.body || notification.body || 'You have a new service request.';
       requireInteraction = true; // Keep notification visible until user interacts
       vibrate = [500, 200, 500, 200, 500]; // Strong vibration pattern
       actions = [
@@ -68,7 +70,8 @@ messaging.onBackgroundMessage((payload) => {
 
     case 'job_assigned':
       // Worker job assignment - urgent
-      notificationTitle = notification.title || data.title || '🔔 New Job Assigned!';
+      notificationTitle = data.title || notification.title || '🔔 New Job Assigned!';
+      notificationBody = data.body || notification.body || 'You have been assigned a new job.';
       requireInteraction = true;
       vibrate = [500, 200, 500, 200, 500];
       actions = [
@@ -78,7 +81,8 @@ messaging.onBackgroundMessage((payload) => {
       break;
 
     case 'booking_accepted':
-      notificationTitle = notification.title || '✅ Booking Confirmed!';
+      notificationTitle = data.title || notification.title || '✅ Booking Confirmed!';
+      notificationBody = data.body || notification.body || 'Your booking has been accepted.';
       vibrate = [200, 100, 200];
       actions = [
         { action: 'view', title: '👁️ View Booking' }
@@ -86,7 +90,8 @@ messaging.onBackgroundMessage((payload) => {
       break;
 
     case 'worker_assigned':
-      notificationTitle = notification.title || '👷 Worker Assigned';
+      notificationTitle = data.title || notification.title || '👷 Worker Assigned';
+      notificationBody = data.body || notification.body || 'A professional has been assigned to your booking.';
       vibrate = [200, 100, 200];
       actions = [
         { action: 'track', title: '📍 Track Worker' }
@@ -94,7 +99,8 @@ messaging.onBackgroundMessage((payload) => {
       break;
 
     case 'booking_completed':
-      notificationTitle = notification.title || '🎉 Booking Completed!';
+      notificationTitle = data.title || notification.title || '🎉 Booking Completed!';
+      notificationBody = data.body || notification.body || 'Service has been completed successfully.';
       vibrate = [200, 100, 200, 100, 200];
       actions = [
         { action: 'rate', title: '⭐ Rate Now' }

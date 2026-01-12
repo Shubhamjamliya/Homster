@@ -91,6 +91,7 @@ const BookingAlert = () => {
       booking={booking}
       onAccept={handleAccept}
       onReject={handleReject}
+      onMinimize={() => navigate('/vendor/dashboard')}
     />
   );
 };

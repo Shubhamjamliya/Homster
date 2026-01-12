@@ -29,6 +29,7 @@ const getProfile = async (req, res) => {
         profilePhoto: user.profilePhoto || null,
         addresses: user.addresses || [],
         plans: user.plans || {},
+        settings: user.settings || {},
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }
@@ -57,7 +58,7 @@ const updateProfile = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { name, email, addresses, profilePhoto } = req.body;
+    const { name, email, addresses, profilePhoto, settings } = req.body;
 
     const user = await User.findById(userId);
 
@@ -90,6 +91,12 @@ const updateProfile = async (req, res) => {
       user.addresses = addresses;
     }
 
+    // Update settings
+    if (settings) {
+      if (settings.notifications !== undefined) user.settings.notifications = settings.notifications;
+      if (settings.language) user.settings.language = settings.language;
+    }
+
     await user.save();
 
     res.status(200).json({
@@ -104,7 +111,9 @@ const updateProfile = async (req, res) => {
         isEmailVerified: user.isEmailVerified,
         profilePhoto: user.profilePhoto || null,
         addresses: user.addresses || [],
-        plans: user.plans || {}
+        addresses: user.addresses || [],
+        plans: user.plans || {},
+        settings: user.settings || {}
       }
     });
   } catch (error) {

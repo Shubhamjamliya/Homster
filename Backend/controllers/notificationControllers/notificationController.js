@@ -76,10 +76,10 @@ const createNotification = async ({
       const io = getIO();
 
       let room = null;
-      if (userId) room = `user_${userId}`;
-      else if (vendorId) room = `vendor_${vendorId}`;
-      else if (workerId) room = `worker_${workerId}`;
-      else if (adminId) room = `admin_${adminId}`;
+      if (userId) room = `user_${userId.toString()}`;
+      else if (vendorId) room = `vendor_${vendorId.toString()}`;
+      else if (workerId) room = `worker_${workerId.toString()}`;
+      else if (adminId) room = `admin_${adminId.toString()}`;
 
       if (room && io) {
         io.to(room).emit('notification', notification);
