@@ -520,6 +520,13 @@ const BookingMap = () => {
                       return;
                     }
 
+                    // Updated Geolocation Options
+                    const options = {
+                      enableHighAccuracy: true,
+                      timeout: 10000,
+                      maximumAge: 0
+                    };
+
                     navigator.geolocation.getCurrentPosition(async (position) => {
                       try {
                         const location = { lat: position.coords.latitude, lng: position.coords.longitude };
@@ -537,9 +544,16 @@ const BookingMap = () => {
                         setActionLoading(false);
                       }
                     }, (error) => {
-                      toast.error('Please enable GPS to verify your location.');
+                      console.error("Geo Error:", error);
+                      if (error.code === error.TIMEOUT) {
+                        toast.error('Location timeout. Please ensure GPS is on.');
+                      } else if (error.code === error.PERMISSION_DENIED) {
+                        toast.error('Location permission denied.');
+                      } else {
+                        toast.error('Failed to get location. Ensure GPS is enabled.');
+                      }
                       setActionLoading(false);
-                    });
+                    }, options);
                   } catch (error) {
                     toast.error('Something went wrong. Please try again.');
                     setActionLoading(false);
