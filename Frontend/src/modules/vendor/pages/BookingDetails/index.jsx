@@ -16,6 +16,7 @@ import {
 import { CashCollectionModal, ConfirmDialog } from '../../components/common';
 import vendorWalletService from '../../../../services/vendorWalletService';
 import { toast } from 'react-hot-toast';
+import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 
 const BookingDetails = () => {
   const { id } = useParams();

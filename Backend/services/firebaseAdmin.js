@@ -134,22 +134,24 @@ async function sendPushNotification(tokens, payload) {
     };
 
     // Only add notification block if NOT data-only
-    if (!payload.dataOnly) {
-      message.notification = {
-        title: payload.title,
-        body: payload.body,
-      };
-      // Add icon if provided
-      if (payload.icon) {
-        message.notification.image = payload.icon;
-      }
-    } else {
-      console.log('[FCM] Sending DATA-ONLY notification (Custom UI):', payload.title);
-      // For data-only, ensure critical fields are in data
-      message.data.title = payload.title;
-      message.data.body = payload.body;
-      if (payload.icon) message.data.icon = payload.icon;
+    // Always include notification block for reliable system tray display
+    message.notification = {
+      title: payload.title || 'App Notification',
+      body: payload.body || 'New Update',
+    };
+
+    // Add icon if provided
+    if (payload.icon) {
+      message.notification.image = payload.icon;
     }
+
+    // Ensure critical fields are ALSO in data for app handling
+    message.data.title = payload.title || 'App Notification';
+    message.data.body = payload.body || 'New Update';
+    if (payload.icon) message.data.icon = payload.icon;
+
+    // Log intent (removed dataOnly check since we are enforcing notification block)
+    console.log('[FCM] Sending standard notification:', payload.title);
 
     // message.notification.image handled above
 
