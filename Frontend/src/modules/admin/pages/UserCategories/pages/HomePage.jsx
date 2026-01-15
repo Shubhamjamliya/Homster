@@ -7,29 +7,158 @@ import { ensureIds, saveCatalog, slugify, toAssetUrl } from "../utils";
 
 import { homeContentService, serviceService } from "../../../../../services/catalogService";
 
+const RedirectionSelector = ({
+  targetCategoryId,
+  slug,
+  onChange,
+  label = "Redirection Target",
+  categories = [],
+  allServices = []
+}) => {
+  // Local state to manage the UI selections
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSlug, setSelectedSlug] = useState("");
+
+  // Sync props to state
+  useEffect(() => {
+    // 1. Sync the slug (Service selection)
+    setSelectedSlug(slug || "");
+
+    // 2. Determine the correctly selected category
+    // If we have a service slug, we try to find its category from the full service list.
+    // This is the most accurate source of truth.
+    const serviceFromSlug = (slug && allServices?.length)
+      ? allServices.find(s => s.slug === slug)
+      : null;
+
+    if (serviceFromSlug?.categoryId) {
+      // If service found, enforce its category
+      // Handle potential object/string mismatch
+      const catId = serviceFromSlug.categoryId?._id || serviceFromSlug.categoryId;
+      setSelectedCategory(typeof catId === 'object' ? String(catId) : catId);
+    } else if (targetCategoryId) {
+      // Fallback: If no service found (or no slug), trust the explicit targetCategoryId
+      const catId = targetCategoryId?._id || targetCategoryId;
+      setSelectedCategory(typeof catId === 'object' ? String(catId || "") : (catId || ""));
+    } else if (!slug) {
+      // If no slug and no category, reset (e.g. fresh add)
+      setSelectedCategory("");
+    }
+    // Note: If slug exists but service not found AND no targetCategoryId, 
+    // we leave selectedCategory as is (or it might be waiting for services to load).
+
+  }, [slug, targetCategoryId, allServices]);
+
+  const handleCategoryChange = (e) => {
+    const catId = e.target.value;
+    setSelectedCategory(catId);
+    setSelectedSlug(""); // Reset service when category changes
+
+    // Notify parent: Only Category selected
+    onChange({ targetCategoryId: catId, slug: null, targetServiceId: null });
+  };
+
+  const handleServiceChange = (e) => {
+    const svcSlug = e.target.value;
+    setSelectedSlug(svcSlug);
+
+    // Notify parent: Service selected (Category implied)
+    // We pass the currently selected category as well
+    const svc = allServices.find(s => s.slug === svcSlug);
+    onChange({
+      targetCategoryId: selectedCategory,
+      slug: svcSlug || null,
+      targetServiceId: svc ? (svc.id || svc._id) : null
+    });
+  };
+
+  const filteredServices = selectedCategory
+    ? allServices.filter(s => {
+      const sCatId = s.categoryId?._id || s.categoryId;
+      return String(sCatId) === String(selectedCategory);
+    })
+    : [];
+
+  return (
+    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+      <label className="block text-sm font-bold text-gray-700 mb-3">{label}</label>
+
+      <div className="space-y-4">
+        {/* Step 1: Category Selection */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+            1. Select Category
+          </label>
+          <select
+            value={selectedCategory}
+            onChange={handleCategoryChange}
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
+          >
+            <option value="">-- Choose Category --</option>
+            {(categories || []).map((c) => (
+              <option key={c.id || c._id} value={c.id || c._id}>
+                {c.title || "Untitled Category"}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Step 2: Service Selection */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+            2. Select Service
+          </label>
+          <select
+            value={selectedSlug}
+            onChange={handleServiceChange}
+            disabled={!selectedCategory}
+            className={`w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white transition-all text-sm ${!selectedCategory ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+              }`}
+          >
+            <option value="" disabled>-- Select Service --</option>
+            {filteredServices.map((s) => (
+              <option key={s.id || s._id} value={s.slug || ""}>
+                {s.title || "Untitled Service"}
+              </option>
+            ))}
+            {selectedCategory && filteredServices.length === 0 && (
+              <option disabled>No services found in this category</option>
+            )}
+          </select>
+          {selectedSlug && (
+            <p className="text-xs text-blue-600 mt-1 font-medium">
+              * Will redirect to Service Details page
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const HomePage = ({ catalog, setCatalog }) => {
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
-  const [bannerForm, setBannerForm] = useState({ imageUrl: "", text: "", targetCategoryId: "", scrollToSection: "" });
+  const [bannerForm, setBannerForm] = useState({ imageUrl: "", text: "", targetCategoryId: "", slug: "", targetServiceId: "", scrollToSection: "" });
   const [editingBannerId, setEditingBannerId] = useState(null);
 
   const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
-  const [promoForm, setPromoForm] = useState({ title: "", subtitle: "", buttonText: "Explore", gradientClass: "from-blue-600 to-blue-800", imageUrl: "", targetCategoryId: "", scrollToSection: "" });
+  const [promoForm, setPromoForm] = useState({ title: "", subtitle: "", buttonText: "Explore", gradientClass: "from-blue-600 to-blue-800", imageUrl: "", targetCategoryId: "", slug: "", targetServiceId: "", scrollToSection: "" });
   const [editingPromoId, setEditingPromoId] = useState(null);
 
   const [isCuratedModalOpen, setIsCuratedModalOpen] = useState(false);
-  const [curatedForm, setCuratedForm] = useState({ title: "", gifUrl: "", youtubeUrl: "", targetCategoryId: "" });
+  const [curatedForm, setCuratedForm] = useState({ title: "", gifUrl: "", youtubeUrl: "", targetCategoryId: "", slug: "", targetServiceId: "" });
   const [editingCuratedId, setEditingCuratedId] = useState(null);
 
   const [isNoteworthyModalOpen, setIsNoteworthyModalOpen] = useState(false);
-  const [noteworthyForm, setNoteworthyForm] = useState({ title: "", imageUrl: "", targetCategoryId: "" });
+  const [noteworthyForm, setNoteworthyForm] = useState({ title: "", imageUrl: "", targetCategoryId: "", slug: "", targetServiceId: "" });
   const [editingNoteworthyId, setEditingNoteworthyId] = useState(null);
 
   const [isBookedModalOpen, setIsBookedModalOpen] = useState(false);
-  const [bookedForm, setBookedForm] = useState({ title: "", rating: "", reviews: "", price: "", originalPrice: "", discount: "", imageUrl: "", targetCategoryId: "" });
+  const [bookedForm, setBookedForm] = useState({ title: "", rating: "", reviews: "", price: "", originalPrice: "", discount: "", imageUrl: "", targetCategoryId: "", slug: "", targetServiceId: "" });
   const [editingBookedId, setEditingBookedId] = useState(null);
 
   const [isCategorySectionModalOpen, setIsCategorySectionModalOpen] = useState(false);
-  const [categorySectionForm, setCategorySectionForm] = useState({ title: "", seeAllTargetCategoryId: "", cards: [] });
+  const [categorySectionForm, setCategorySectionForm] = useState({ title: "", seeAllTargetCategoryId: "", seeAllSlug: "", seeAllTargetServiceId: "", cards: [] });
   const [editingCategorySectionId, setEditingCategorySectionId] = useState(null);
 
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
@@ -41,12 +170,15 @@ const HomePage = ({ catalog, setCatalog }) => {
     price: "",
     originalPrice: "",
     discount: "",
-    targetCategoryId: ""
+    targetCategoryId: "",
+    slug: "",
+    targetServiceId: ""
   });
   const [editingCardId, setEditingCardId] = useState(null);
 
   // Uploading state for all modals
   const [uploading, setUploading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const categories = useMemo(() => {
     const list = ensureIds(catalog).categories || [];
@@ -74,12 +206,15 @@ const HomePage = ({ catalog, setCatalog }) => {
               ...item,
               id: item.id || (item._id ? item._id.toString() : `item-${Date.now()}-${idx}`),
               targetCategoryId: item.targetCategoryId ? (typeof item.targetCategoryId === 'object' ? item.targetCategoryId.toString() : item.targetCategoryId) : item.targetCategoryId,
+              targetServiceId: item.targetServiceId ? (typeof item.targetServiceId === 'object' ? item.targetServiceId.toString() : item.targetServiceId) : item.targetServiceId,
               seeAllTargetCategoryId: item.seeAllTargetCategoryId ? (typeof item.seeAllTargetCategoryId === 'object' ? item.seeAllTargetCategoryId.toString() : item.seeAllTargetCategoryId) : item.seeAllTargetCategoryId,
+              seeAllTargetServiceId: item.seeAllTargetServiceId ? (typeof item.seeAllTargetServiceId === 'object' ? item.seeAllTargetServiceId.toString() : item.seeAllTargetServiceId) : item.seeAllTargetServiceId,
               // For category sections cards
               cards: item.cards ? item.cards.map((card, cIdx) => ({
                 ...card,
                 id: card.id || (card._id ? card._id.toString() : `hcard-${Date.now()}-${idx}-${cIdx}`),
-                targetCategoryId: card.targetCategoryId ? (typeof card.targetCategoryId === 'object' ? card.targetCategoryId.toString() : card.targetCategoryId) : card.targetCategoryId
+                targetCategoryId: card.targetCategoryId ? (typeof card.targetCategoryId === 'object' ? card.targetCategoryId.toString() : card.targetCategoryId) : card.targetCategoryId,
+                targetServiceId: card.targetServiceId ? (typeof card.targetServiceId === 'object' ? card.targetServiceId.toString() : card.targetServiceId) : card.targetServiceId,
               })) : item.cards
             }));
           };
@@ -112,24 +247,22 @@ const HomePage = ({ catalog, setCatalog }) => {
 
 
 
-  const CategoryRedirectSelect = ({ value, onChange, label = "Redirect to service page", help }) => (
-    <div>
-      <label className="block text-sm font-semibold text-gray-600 mb-1">{label}</label>
-      <select
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-      >
-        <option value="">None</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.title || "Untitled"}
-          </option>
-        ))}
-      </select>
-      {help ? <div className="text-[11px] text-gray-500 mt-1">{help}</div> : null}
-    </div>
-  );
+  // Fetch services for redirection selector
+  const [allServices, setAllServices] = useState([]);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await serviceService.getAll();
+        if (response.success) {
+          setAllServices(response.services || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch services", error);
+      }
+    };
+    fetchServices();
+  }, []);
 
   const updateCategory = (id, patch) => {
     const next = ensureIds(catalog);
@@ -159,6 +292,7 @@ const HomePage = ({ catalog, setCatalog }) => {
   };
 
   const syncHomeToBackend = async (homeData) => {
+    setIsSyncing(true);
     try {
       const payload = {
         banners: homeData.banners,
@@ -169,141 +303,159 @@ const HomePage = ({ catalog, setCatalog }) => {
         categorySections: homeData.categorySections,
       };
       await homeContentService.update(payload);
+      toast.success('Home page updated successfully!');
     } catch (error) {
       console.error('Failed to sync home content:', error);
       const msg = error.response?.data?.message || error.message || 'Failed to save changes to server';
       toast.error(msg);
+      throw error; // Rethrow to allow callers to handle it
+    } finally {
+      setIsSyncing(false);
     }
   };
 
-  const setHomeBanners = (banners) => {
+  const setHomeBanners = async (banners) => {
     const next = ensureIds(catalog);
     next.home = { ...(next.home || { banners: [] }), banners };
     setCatalog(next);
     saveCatalog(next);
-    syncHomeToBackend(next.home);
+    return await syncHomeToBackend(next.home);
   };
 
-  const patchHome = (patch) => {
+  const patchHome = async (patch) => {
     const next = ensureIds(catalog);
     next.home = { ...(next.home || {}), ...patch };
     setCatalog(next);
     saveCatalog(next);
-    syncHomeToBackend(next.home);
+    return await syncHomeToBackend(next.home);
   };
 
   // Banner handlers
   const resetBannerForm = () => {
     setEditingBannerId(null);
-    setBannerForm({ imageUrl: "", text: "", targetCategoryId: "", scrollToSection: "" });
+    setBannerForm({ imageUrl: "", text: "", targetCategoryId: "", slug: "", targetServiceId: "", scrollToSection: "" });
     setIsBannerModalOpen(false);
   };
 
-  const saveBanner = () => {
-    const banners = home?.banners || [];
-    if (editingBannerId) {
-      setHomeBanners(banners.map((b) => (b.id === editingBannerId ? { ...b, ...bannerForm } : b)));
-    } else {
-      setHomeBanners([...banners, { id: `hbnr-${Date.now()}`, ...bannerForm }]);
+  const saveBanner = async () => {
+    try {
+      const banners = home?.banners || [];
+      if (editingBannerId) {
+        await setHomeBanners(banners.map((b) => (b.id === editingBannerId ? { ...b, ...bannerForm } : b)));
+      } else {
+        await setHomeBanners([...banners, { id: `hbnr-${Date.now()}`, ...bannerForm }]);
+      }
+      resetBannerForm();
+    } catch (error) {
+      // Error already toasted in sync function
     }
-    resetBannerForm();
   };
 
   // Promo handlers
   const resetPromoForm = () => {
     setEditingPromoId(null);
-    setPromoForm({ title: "", subtitle: "", buttonText: "Explore", gradientClass: "from-blue-600 to-blue-800", imageUrl: "", targetCategoryId: "", scrollToSection: "" });
+    setPromoForm({ title: "", subtitle: "", buttonText: "Explore", gradientClass: "from-blue-600 to-blue-800", imageUrl: "", targetCategoryId: "", slug: "", targetServiceId: "", scrollToSection: "" });
     setIsPromoModalOpen(false);
   };
 
-  const savePromo = () => {
-    const promos = home?.promoCarousel || [];
-    if (editingPromoId) {
-      patchHome({ promoCarousel: promos.map((p) => (p.id === editingPromoId ? { ...p, ...promoForm } : p)) });
-    } else {
-      patchHome({ promoCarousel: [...promos, { id: `hprm-${Date.now()}`, ...promoForm }] });
-    }
-    resetPromoForm();
+  const savePromo = async () => {
+    try {
+      const promos = home?.promoCarousel || [];
+      if (editingPromoId) {
+        await patchHome({ promoCarousel: promos.map((p) => (p.id === editingPromoId ? { ...p, ...promoForm } : p)) });
+      } else {
+        await patchHome({ promoCarousel: [...promos, { id: `hprm-${Date.now()}`, ...promoForm }] });
+      }
+      resetPromoForm();
+    } catch (error) { }
   };
 
   // Curated handlers
   const resetCuratedForm = () => {
     setEditingCuratedId(null);
-    setCuratedForm({ title: "", gifUrl: "", youtubeUrl: "", targetCategoryId: "" });
+    setCuratedForm({ title: "", gifUrl: "", youtubeUrl: "", targetCategoryId: "", slug: "", targetServiceId: "" });
     setIsCuratedModalOpen(false);
   };
 
-  const saveCurated = () => {
-    const curated = home?.curatedServices || [];
-    if (editingCuratedId) {
-      patchHome({ curatedServices: curated.map((c) => (c.id === editingCuratedId ? { ...c, ...curatedForm } : c)) });
-    } else {
-      patchHome({ curatedServices: [...curated, { id: `hcur-${Date.now()}`, ...curatedForm }] });
-    }
-    resetCuratedForm();
+  const saveCurated = async () => {
+    try {
+      const curated = home?.curatedServices || [];
+      if (editingCuratedId) {
+        await patchHome({ curatedServices: curated.map((c) => (c.id === editingCuratedId ? { ...c, ...curatedForm } : c)) });
+      } else {
+        await patchHome({ curatedServices: [...curated, { id: `hcur-${Date.now()}`, ...curatedForm }] });
+      }
+      resetCuratedForm();
+    } catch (error) { }
   };
 
   // Noteworthy handlers
   const resetNoteworthyForm = () => {
     setEditingNoteworthyId(null);
-    setNoteworthyForm({ title: "", imageUrl: "", targetCategoryId: "" });
+    setNoteworthyForm({ title: "", imageUrl: "", targetCategoryId: "", slug: "", targetServiceId: "" });
     setIsNoteworthyModalOpen(false);
   };
 
-  const saveNoteworthy = () => {
-    const noteworthy = home?.newAndNoteworthy || [];
-    if (editingNoteworthyId) {
-      patchHome({ newAndNoteworthy: noteworthy.map((n) => (n.id === editingNoteworthyId ? { ...n, ...noteworthyForm } : n)) });
-    } else {
-      patchHome({ newAndNoteworthy: [...noteworthy, { id: `hnnw-${Date.now()}`, ...noteworthyForm }] });
-    }
-    resetNoteworthyForm();
+  const saveNoteworthy = async () => {
+    try {
+      const noteworthy = home?.newAndNoteworthy || [];
+      if (editingNoteworthyId) {
+        await patchHome({ newAndNoteworthy: noteworthy.map((n) => (n.id === editingNoteworthyId ? { ...n, ...noteworthyForm } : n)) });
+      } else {
+        await patchHome({ newAndNoteworthy: [...noteworthy, { id: `hnnw-${Date.now()}`, ...noteworthyForm }] });
+      }
+      resetNoteworthyForm();
+    } catch (error) { }
   };
 
   // Most Booked handlers
   const resetBookedForm = () => {
     setEditingBookedId(null);
-    setBookedForm({ title: "", rating: "", reviews: "", price: "", originalPrice: "", discount: "", imageUrl: "", targetCategoryId: "" });
+    setBookedForm({ title: "", rating: "", reviews: "", price: "", originalPrice: "", discount: "", imageUrl: "", targetCategoryId: "", slug: "", targetServiceId: "" });
     setIsBookedModalOpen(false);
   };
 
-  const saveBooked = () => {
-    const booked = home?.mostBooked || [];
-    if (editingBookedId) {
-      patchHome({ mostBooked: booked.map((b) => (b.id === editingBookedId ? { ...b, ...bookedForm } : b)) });
-    } else {
-      patchHome({ mostBooked: [...booked, { id: `hmb-${Date.now()}`, ...bookedForm }] });
-    }
-    resetBookedForm();
+  const saveBooked = async () => {
+    try {
+      const booked = home?.mostBooked || [];
+      if (editingBookedId) {
+        await patchHome({ mostBooked: booked.map((b) => (b.id === editingBookedId ? { ...b, ...bookedForm } : b)) });
+      } else {
+        await patchHome({ mostBooked: [...booked, { id: `hmb-${Date.now()}`, ...bookedForm }] });
+      }
+      resetBookedForm();
+    } catch (error) { }
   };
 
   // Category Section handlers
   const resetCategorySectionForm = () => {
     setEditingCategorySectionId(null);
-    setCategorySectionForm({ title: "", seeAllTargetCategoryId: "", cards: [] });
+    setCategorySectionForm({ title: "", seeAllTargetCategoryId: "", seeAllSlug: "", seeAllTargetServiceId: "", cards: [] });
     setIsCategorySectionModalOpen(false);
   };
 
-  const saveCategorySection = () => {
-    const title = categorySectionForm.title.trim();
-    if (!title) return alert("Section title required");
+  const saveCategorySection = async () => {
+    try {
+      const title = categorySectionForm.title.trim();
+      if (!title) return alert("Section title required");
 
-    const sections = home?.categorySections || [];
-    if (editingCategorySectionId) {
-      patchHome({
-        categorySections: sections.map((s) =>
-          s.id === editingCategorySectionId ? { ...s, ...categorySectionForm } : s
-        ),
-      });
-    } else {
-      patchHome({
-        categorySections: [
-          ...sections,
-          { id: `hsec-${Date.now()}`, ...categorySectionForm },
-        ],
-      });
-    }
-    resetCategorySectionForm();
+      const sections = home?.categorySections || [];
+      if (editingCategorySectionId) {
+        await patchHome({
+          categorySections: sections.map((s) =>
+            s.id === editingCategorySectionId ? { ...s, ...categorySectionForm } : s
+          ),
+        });
+      } else {
+        await patchHome({
+          categorySections: [
+            ...sections,
+            { id: `hsec-${Date.now()}`, ...categorySectionForm },
+          ],
+        });
+      }
+      resetCategorySectionForm();
+    } catch (error) { }
   };
 
   // Card handlers for category sections
@@ -317,7 +469,9 @@ const HomePage = ({ catalog, setCatalog }) => {
       price: "",
       originalPrice: "",
       discount: "",
-      targetCategoryId: ""
+      targetCategoryId: "",
+      slug: "",
+      targetServiceId: ""
     });
     setIsCardModalOpen(false);
   };
@@ -414,7 +568,12 @@ const HomePage = ({ catalog, setCatalog }) => {
                           <div className="text-sm text-gray-900">{b.text || "—"}</div>
                         </td>
                         <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-600">{b.targetCategoryId ? getCategoryTitle(b.targetCategoryId) : "—"}</div>
+                          <div className="text-sm text-gray-600">
+                            {b.slug
+                              ? `Service: ${allServices.find(s => s.slug === b.slug)?.title || b.slug}`
+                              : (b.targetCategoryId ? getCategoryTitle(b.targetCategoryId) : "—")
+                            }
+                          </div>
                         </td>
                         <td className="py-2.5 px-3">
                           <div className="text-sm text-gray-600">{b.scrollToSection || "—"}</div>
@@ -620,7 +779,12 @@ const HomePage = ({ catalog, setCatalog }) => {
                           <div className="text-sm text-gray-600">{s.youtubeUrl || "—"}</div>
                         </td>
                         <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-600">{s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—"}</div>
+                          <div className="text-sm text-gray-600">
+                            {s.slug
+                              ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
+                              : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
+                            }
+                          </div>
                         </td>
                         <td className="py-2.5 px-3">
                           <div className="flex items-center justify-center gap-1.5">
@@ -711,7 +875,12 @@ const HomePage = ({ catalog, setCatalog }) => {
                           <div className="text-sm font-semibold text-gray-900">{s.title || "—"}</div>
                         </td>
                         <td className="py-4 px-4">
-                          <div className="text-sm text-gray-600">{s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—"}</div>
+                          <div className="text-sm text-gray-600">
+                            {s.slug
+                              ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
+                              : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
+                            }
+                          </div>
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex items-center justify-center gap-2">
@@ -822,7 +991,12 @@ const HomePage = ({ catalog, setCatalog }) => {
                           <div className="text-sm text-gray-600">{s.discount || "—"}</div>
                         </td>
                         <td className="py-4 px-4">
-                          <div className="text-sm text-gray-600">{s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—"}</div>
+                          <div className="text-sm text-gray-600">
+                            {s.slug
+                              ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
+                              : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
+                            }
+                          </div>
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex items-center justify-center gap-2">
@@ -1121,13 +1295,16 @@ const HomePage = ({ catalog, setCatalog }) => {
               placeholder="Winter offers"
             />
           </div>
-          <CategoryRedirectSelect
-            value={bannerForm.targetCategoryId}
-            onChange={(targetCategoryId) => setBannerForm((p) => ({ ...p, targetCategoryId }))}
-            label="Redirect to service page (optional)"
+          <RedirectionSelector
+            categories={categories}
+            allServices={allServices}
+            targetCategoryId={bannerForm.targetCategoryId}
+            slug={bannerForm.slug}
+            onChange={(patch) => setBannerForm((p) => ({ ...p, ...patch }))}
+            label="Redirect to..."
           />
           <div>
-            <label className="block text-base font-bold text-gray-900 mb-2">Scroll To Section (optional)</label>
+            <label className="block text-base font-bold text-gray-900 mb-2">Scroll To Section (ID)</label>
             <input
               value={bannerForm.scrollToSection}
               onChange={(e) => setBannerForm((p) => ({ ...p, scrollToSection: e.target.value }))}
@@ -1138,16 +1315,19 @@ const HomePage = ({ catalog, setCatalog }) => {
           <div className="flex gap-3 pt-4">
             <button
               onClick={saveBanner}
-              disabled={uploading}
-              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${uploading ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
-              style={{ backgroundColor: uploading ? '#cbd5e1' : '#2874F0' }}
+              disabled={uploading || isSyncing}
+              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${(uploading || isSyncing) ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+              style={{ backgroundColor: (uploading || isSyncing) ? '#cbd5e1' : '#2874F0' }}
             >
-              <FiSave className="w-5 h-5" />
-              {uploading ? "Uploading..." : (editingBannerId ? "Update Banner" : "Add Banner")}
+              {(uploading || isSyncing) ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : <FiSave className="w-5 h-5" />}
+              {uploading ? "Uploading..." : isSyncing ? "Saving..." : (editingBannerId ? "Update Banner" : "Add Banner")}
             </button>
             <button
               onClick={resetBannerForm}
-              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+              disabled={isSyncing}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -1249,10 +1429,13 @@ const HomePage = ({ catalog, setCatalog }) => {
               />
             </div>
           </div>
-          <CategoryRedirectSelect
-            value={promoForm.targetCategoryId}
-            onChange={(targetCategoryId) => setPromoForm((p) => ({ ...p, targetCategoryId }))}
-            label="Redirect to service page (optional)"
+          <RedirectionSelector
+            categories={categories}
+            allServices={allServices}
+            targetCategoryId={promoForm.targetCategoryId}
+            slug={promoForm.slug}
+            onChange={(patch) => setPromoForm((p) => ({ ...p, ...patch }))}
+            label="Redirect to..."
           />
           <div>
             <label className="block text-base font-bold text-gray-900 mb-2">Scroll To Section (optional)</label>
@@ -1266,16 +1449,19 @@ const HomePage = ({ catalog, setCatalog }) => {
           <div className="flex gap-3 pt-4">
             <button
               onClick={savePromo}
-              disabled={uploading}
-              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              style={{ backgroundColor: uploading ? '#cbd5e1' : '#2874F0' }}
+              disabled={uploading || isSyncing}
+              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${(uploading || isSyncing) ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+              style={{ backgroundColor: (uploading || isSyncing) ? '#cbd5e1' : '#2874F0' }}
             >
-              <FiSave className="w-5 h-5" />
-              {uploading ? "Uploading..." : (editingPromoId ? "Update Promo" : "Add Promo")}
+              {(uploading || isSyncing) ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : <FiSave className="w-5 h-5" />}
+              {uploading ? "Uploading..." : isSyncing ? "Saving..." : (editingPromoId ? "Update Promo" : "Add Promo")}
             </button>
             <button
               onClick={resetPromoForm}
-              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+              disabled={isSyncing}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -1358,24 +1544,30 @@ const HomePage = ({ catalog, setCatalog }) => {
               placeholder="https://youtube.com/..."
             />
           </div>
-          <CategoryRedirectSelect
-            value={curatedForm.targetCategoryId}
-            onChange={(targetCategoryId) => setCuratedForm((p) => ({ ...p, targetCategoryId }))}
-            label="Redirect to service page (optional)"
+          <RedirectionSelector
+            categories={categories}
+            allServices={allServices}
+            targetCategoryId={curatedForm.targetCategoryId}
+            slug={curatedForm.slug}
+            onChange={(patch) => setCuratedForm((p) => ({ ...p, ...patch }))}
+            label="Redirect to..."
           />
           <div className="flex gap-3 pt-4">
             <button
               onClick={saveCurated}
-              disabled={uploading}
-              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${uploading ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
-              style={{ backgroundColor: uploading ? '#cbd5e1' : '#2874F0' }}
+              disabled={uploading || isSyncing}
+              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${(uploading || isSyncing) ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+              style={{ backgroundColor: (uploading || isSyncing) ? '#cbd5e1' : '#2874F0' }}
             >
-              <FiSave className="w-5 h-5" />
-              {uploading ? "Uploading..." : (editingCuratedId ? "Update Curated Service" : "Add Curated Service")}
+              {(uploading || isSyncing) ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : <FiSave className="w-5 h-5" />}
+              {uploading ? "Uploading..." : isSyncing ? "Saving..." : (editingCuratedId ? "Update Curated Service" : "Add Curated Service")}
             </button>
             <button
               onClick={resetCuratedForm}
-              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+              disabled={isSyncing}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -1446,24 +1638,32 @@ const HomePage = ({ catalog, setCatalog }) => {
               )}
             </div>
           </div>
-          <CategoryRedirectSelect
-            value={noteworthyForm.targetCategoryId}
-            onChange={(targetCategoryId) => setNoteworthyForm((p) => ({ ...p, targetCategoryId }))}
-            label="Redirect to service page (optional)"
+
+          <RedirectionSelector
+            categories={categories}
+            allServices={allServices}
+            targetCategoryId={noteworthyForm.targetCategoryId}
+            slug={noteworthyForm.slug}
+            onChange={(patch) => setNoteworthyForm((p) => ({ ...p, ...patch }))}
+            label="Redirect to..."
           />
+
           <div className="flex gap-3 pt-4">
             <button
               onClick={saveNoteworthy}
-              disabled={uploading}
-              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${uploading ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
-              style={{ backgroundColor: uploading ? '#cbd5e1' : '#2874F0' }}
+              disabled={uploading || isSyncing}
+              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${(uploading || isSyncing) ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+              style={{ backgroundColor: (uploading || isSyncing) ? '#cbd5e1' : '#2874F0' }}
             >
-              <FiSave className="w-5 h-5" />
-              {uploading ? "Uploading..." : (editingNoteworthyId ? "Update" : "Add")}
+              {(uploading || isSyncing) ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : <FiSave className="w-5 h-5" />}
+              {uploading ? "Uploading..." : isSyncing ? "Saving..." : (editingNoteworthyId ? "Update" : "Add")}
             </button>
             <button
               onClick={resetNoteworthyForm}
-              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+              disabled={isSyncing}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -1614,24 +1814,30 @@ const HomePage = ({ catalog, setCatalog }) => {
               />
             </div>
           </div>
-          <CategoryRedirectSelect
-            value={bookedForm.targetCategoryId}
-            onChange={(targetCategoryId) => setBookedForm((p) => ({ ...p, targetCategoryId }))}
-            label="Redirect to service page (optional)"
+          <RedirectionSelector
+            categories={categories}
+            allServices={allServices}
+            targetCategoryId={bookedForm.targetCategoryId}
+            slug={bookedForm.slug}
+            onChange={(patch) => setBookedForm((p) => ({ ...p, ...patch }))}
+            label="Redirect to..."
           />
           <div className="flex gap-3 pt-4">
             <button
               onClick={saveBooked}
-              disabled={uploading}
-              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${uploading ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
-              style={{ backgroundColor: uploading ? '#cbd5e1' : '#2874F0' }}
+              disabled={uploading || isSyncing}
+              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${(uploading || isSyncing) ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+              style={{ backgroundColor: (uploading || isSyncing) ? '#cbd5e1' : '#2874F0' }}
             >
-              <FiSave className="w-5 h-5" />
-              {uploading ? "Uploading..." : (editingBookedId ? "Update" : "Add")}
+              {(uploading || isSyncing) ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : <FiSave className="w-5 h-5" />}
+              {uploading ? "Uploading..." : isSyncing ? "Saving..." : (editingBookedId ? "Update" : "Add")}
             </button>
             <button
               onClick={resetBookedForm}
-              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+              disabled={isSyncing}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -1656,11 +1862,17 @@ const HomePage = ({ catalog, setCatalog }) => {
               placeholder="e.g. Cleaning Essentials"
             />
           </div>
-          <CategoryRedirectSelect
-            value={categorySectionForm.seeAllTargetCategoryId}
-            onChange={(seeAllTargetCategoryId) => setCategorySectionForm((p) => ({ ...p, seeAllTargetCategoryId }))}
-            label="See All Redirect (Category)"
-            help="When user clicks 'See All', redirect to this category"
+          <RedirectionSelector
+            categories={categories}
+            allServices={allServices}
+            targetCategoryId={categorySectionForm.seeAllTargetCategoryId}
+            slug={categorySectionForm.seeAllSlug}
+            onChange={(patch) => setCategorySectionForm((p) => ({
+              ...p,
+              seeAllTargetCategoryId: patch.targetCategoryId,
+              seeAllSlug: patch.slug
+            }))}
+            label="See All Redirect"
           />
 
           <div>
@@ -1763,17 +1975,21 @@ const HomePage = ({ catalog, setCatalog }) => {
           <div className="flex gap-3 pt-4">
             <button
               onClick={saveCategorySection}
-              className="flex-1 py-3.5 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-              style={{ backgroundColor: '#2874F0' }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#1e5fd4'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#2874F0'}
+              disabled={isSyncing}
+              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${isSyncing ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+              style={{ backgroundColor: isSyncing ? '#cbd5e1' : '#2874F0' }}
+              onMouseEnter={(e) => !isSyncing && (e.target.style.backgroundColor = '#1e5fd4')}
+              onMouseLeave={(e) => !isSyncing && (e.target.style.backgroundColor = '#2874F0')}
             >
-              <FiSave className="w-5 h-5" />
-              {editingCategorySectionId ? "Update Section" : "Add Section"}
+              {isSyncing ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : <FiSave className="w-5 h-5" />}
+              {isSyncing ? "Saving..." : (editingCategorySectionId ? "Update Section" : "Add Section")}
             </button>
             <button
               onClick={resetCategorySectionForm}
-              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+              disabled={isSyncing}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -1940,22 +2156,24 @@ const HomePage = ({ catalog, setCatalog }) => {
               />
             </div>
           </div>
-
-          <CategoryRedirectSelect
-            value={cardForm.targetCategoryId}
-            onChange={(targetCategoryId) => setCardForm((p) => ({ ...p, targetCategoryId }))}
-            label="Target Category (optional)"
-            help="When user clicks this card, redirect to this category"
+          <RedirectionSelector
+            categories={categories}
+            allServices={allServices}
+            targetCategoryId={cardForm.targetCategoryId}
+            slug={cardForm.slug}
+            onChange={(patch) => setCardForm((p) => ({ ...p, ...patch }))}
+            label="Redirect to..."
           />
-
           <div className="flex gap-3 pt-4">
             <button
               onClick={saveCard}
-              disabled={uploading}
-              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${uploading ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
-              style={{ backgroundColor: uploading ? '#cbd5e1' : '#2874F0' }}
+              disabled={uploading || isSyncing}
+              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${(uploading || isSyncing) ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+              style={{ backgroundColor: (uploading || isSyncing) ? '#cbd5e1' : '#2874F0' }}
             >
-              <FiSave className="w-5 h-5" />
+              {uploading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : <FiSave className="w-5 h-5" />}
               {uploading ? "Uploading..." : (editingCardId ? "Update Card" : "Add Card")}
             </button>
             <button

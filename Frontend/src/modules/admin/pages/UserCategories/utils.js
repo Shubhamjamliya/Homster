@@ -71,6 +71,8 @@ export const ensureIds = (catalog) => {
           imageUrl: b.imageUrl || "",
           text: b.text || "",
           targetCategoryId: b.targetCategoryId || getTargetCategoryIdFromRoute(b.routePath),
+          slug: b.slug || "",
+          targetServiceId: b.targetServiceId || null,
           scrollToSection: b.scrollToSection || "",
         }))
         : [],
@@ -84,6 +86,8 @@ export const ensureIds = (catalog) => {
           imageUrl: p.imageUrl || p.image || "",
           targetCategoryId:
             p.targetCategoryId || getTargetCategoryIdFromRoute(p.routePath || p.route),
+          slug: p.slug || "",
+          targetServiceId: p.targetServiceId || null,
           scrollToSection: p.scrollToSection || "",
         }))
         : [],
@@ -94,6 +98,8 @@ export const ensureIds = (catalog) => {
           gifUrl: s.gifUrl || "",
           youtubeUrl: s.youtubeUrl || "",
           targetCategoryId: s.targetCategoryId || getTargetCategoryIdFromRoute(s.routePath),
+          slug: s.slug || "",
+          targetServiceId: s.targetServiceId || null,
         }))
         : [],
       newAndNoteworthy: Array.isArray(catalog?.home?.newAndNoteworthy)
@@ -102,6 +108,8 @@ export const ensureIds = (catalog) => {
           title: s.title || "",
           imageUrl: s.imageUrl || "",
           targetCategoryId: s.targetCategoryId || getTargetCategoryIdFromRoute(s.routePath),
+          slug: s.slug || "",
+          targetServiceId: s.targetServiceId || null,
         }))
         : [],
       mostBooked: Array.isArray(catalog?.home?.mostBooked)
@@ -115,6 +123,8 @@ export const ensureIds = (catalog) => {
           discount: s.discount || "",
           imageUrl: s.imageUrl || "",
           targetCategoryId: s.targetCategoryId || getTargetCategoryIdFromRoute(s.routePath),
+          slug: s.slug || "",
+          targetServiceId: s.targetServiceId || null,
         }))
         : [],
       categorySections: Array.isArray(catalog?.home?.categorySections)
@@ -123,11 +133,15 @@ export const ensureIds = (catalog) => {
           title: sec.title || "",
           seeAllTargetCategoryId:
             sec.seeAllTargetCategoryId || getTargetCategoryIdFromRoute(sec.seeAllRoutePath),
+          seeAllSlug: sec.seeAllSlug || "",
+          seeAllTargetServiceId: sec.seeAllTargetServiceId || null,
           cards: Array.isArray(sec.cards)
             ? sec.cards.map((c) => ({
               ...c,
               id: c.id || `hcard-${Date.now()}-${Math.random().toString(16).slice(2)}`,
               targetCategoryId: c.targetCategoryId || getTargetCategoryIdFromRoute(c.routePath),
+              slug: c.slug || "",
+              targetServiceId: c.targetServiceId || null,
             }))
             : [],
         }))

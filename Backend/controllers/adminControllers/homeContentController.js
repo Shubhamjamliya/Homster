@@ -80,12 +80,15 @@ const updateHomeContent = async (req, res) => {
         // Handle targetCategoryId/seeAllTargetCategoryId
         if (newItem.targetCategoryId === '') newItem.targetCategoryId = null;
         if (newItem.seeAllTargetCategoryId === '') newItem.seeAllTargetCategoryId = null;
+        if (newItem.targetServiceId === '') newItem.targetServiceId = null;
+        if (newItem.seeAllTargetServiceId === '') newItem.seeAllTargetServiceId = null;
 
         // Handle nested cards in categorySections
         if (Array.isArray(newItem.cards)) {
           newItem.cards = newItem.cards.map(card => {
             const newCard = { ...card };
             if (newCard.targetCategoryId === '') newCard.targetCategoryId = null;
+            if (newCard.targetServiceId === '') newCard.targetServiceId = null;
 
             // Remove frontend-only 'id' fields from cards ie. 'hcard-'
             if (typeof newCard.id === 'string' && newCard.id.startsWith('hcard-')) {

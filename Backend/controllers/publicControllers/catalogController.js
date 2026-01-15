@@ -216,6 +216,8 @@ const getPublicHomeContent = async (req, res) => {
         imageUrl: banner.imageUrl || '',
         text: banner.text || '',
         targetCategoryId: banner.targetCategoryId ? banner.targetCategoryId.toString() : null,
+        slug: banner.slug || '',
+        targetServiceId: banner.targetServiceId ? banner.targetServiceId.toString() : null,
         scrollToSection: banner.scrollToSection || '',
         order: banner.order || 0
       })),
@@ -228,6 +230,8 @@ const getPublicHomeContent = async (req, res) => {
         buttonText: promo.buttonText || 'Explore',
         gradientClass: promo.gradientClass || '',
         targetCategoryId: promo.targetCategoryId ? promo.targetCategoryId.toString() : null,
+        slug: promo.slug || '',
+        targetServiceId: promo.targetServiceId ? promo.targetServiceId.toString() : null,
         scrollToSection: promo.scrollToSection || '',
         order: promo.order || 0
       })),
@@ -238,6 +242,8 @@ const getPublicHomeContent = async (req, res) => {
         youtubeUrl: item.youtubeUrl || '',
         title: item.title || '',
         targetCategoryId: item.targetCategoryId ? item.targetCategoryId.toString() : null,
+        slug: item.slug || '',
+        targetServiceId: item.targetServiceId ? item.targetServiceId.toString() : null,
         order: item.order || 0
       })),
       noteworthy: (homeContent.noteworthy || []).map(item => ({
@@ -245,6 +251,8 @@ const getPublicHomeContent = async (req, res) => {
         imageUrl: item.imageUrl || '',
         title: item.title || '',
         targetCategoryId: item.targetCategoryId ? item.targetCategoryId.toString() : null,
+        slug: item.slug || '',
+        targetServiceId: item.targetServiceId ? item.targetServiceId.toString() : null,
         order: item.order || 0
       })),
       booked: (homeContent.booked || []).map(item => ({
@@ -257,6 +265,8 @@ const getPublicHomeContent = async (req, res) => {
         originalPrice: item.originalPrice || '',
         discount: item.discount || '',
         targetCategoryId: item.targetCategoryId ? item.targetCategoryId.toString() : null,
+        slug: item.slug || '',
+        targetServiceId: item.targetServiceId ? item.targetServiceId.toString() : null,
         order: item.order || 0
       })),
       categorySections: (homeContent.categorySections || []).map(section => ({
@@ -264,6 +274,8 @@ const getPublicHomeContent = async (req, res) => {
         title: section.title || '',
         subtitle: section.subtitle || '',
         seeAllTargetCategoryId: section.seeAllTargetCategoryId ? section.seeAllTargetCategoryId.toString() : null,
+        seeAllSlug: section.seeAllSlug || '',
+        seeAllTargetServiceId: section.seeAllTargetServiceId ? section.seeAllTargetServiceId.toString() : null,
         cards: (section.cards || []).map(card => ({
           id: card._id ? card._id.toString() : card.id || Date.now().toString(),
           title: card.title || '',
@@ -275,6 +287,8 @@ const getPublicHomeContent = async (req, res) => {
           discount: card.discount || '',
           badge: card.badge || '',
           targetCategoryId: card.targetCategoryId ? card.targetCategoryId.toString() : null,
+          slug: card.slug || '',
+          targetServiceId: card.targetServiceId ? card.targetServiceId.toString() : null,
           order: card.order || 0
         })),
         order: section.order || 0

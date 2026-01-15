@@ -20,6 +20,15 @@ const homeContentSchema = new mongoose.Schema({
       ref: 'Category',
       default: null
     },
+    slug: {
+      type: String,
+      default: ''
+    },
+    targetServiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Service',
+      default: null
+    },
     scrollToSection: {
       type: String,
       default: ''
@@ -57,6 +66,15 @@ const homeContentSchema = new mongoose.Schema({
       ref: 'Category',
       default: null
     },
+    slug: {
+      type: String,
+      default: ''
+    },
+    targetServiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Service',
+      default: null
+    },
     scrollToSection: {
       type: String,
       default: ''
@@ -86,6 +104,15 @@ const homeContentSchema = new mongoose.Schema({
       ref: 'Category',
       default: null
     },
+    slug: {
+      type: String,
+      default: ''
+    },
+    targetServiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Service',
+      default: null
+    },
     order: {
       type: Number,
       default: 0
@@ -105,6 +132,15 @@ const homeContentSchema = new mongoose.Schema({
     targetCategoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',
+      default: null
+    },
+    slug: {
+      type: String,
+      default: ''
+    },
+    targetServiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Service',
       default: null
     },
     order: {
@@ -148,6 +184,15 @@ const homeContentSchema = new mongoose.Schema({
       ref: 'Category',
       default: null
     },
+    slug: {
+      type: String,
+      default: ''
+    },
+    targetServiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Service',
+      default: null
+    },
     order: {
       type: Number,
       default: 0
@@ -165,6 +210,15 @@ const homeContentSchema = new mongoose.Schema({
       ref: 'Category',
       default: null
     },
+    seeAllSlug: {
+      type: String,
+      default: ''
+    },
+    seeAllTargetServiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Service',
+      default: null
+    },
     cards: [{
       title: String,
       imageUrl: String,
@@ -177,6 +231,15 @@ const homeContentSchema = new mongoose.Schema({
       targetCategoryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
+        default: null
+      },
+      slug: {
+        type: String,
+        default: ''
+      },
+      targetServiceId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Service',
         default: null
       }
     }],

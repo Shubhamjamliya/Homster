@@ -11,7 +11,7 @@ const checkHomeContent = async () => {
     console.log('✅ Connected to MongoDB\n');
 
     const homeContent = await HomeContent.findOne();
-    
+
     if (!homeContent) {
       console.log('❌ No HomeContent found in database');
     } else {
@@ -25,7 +25,7 @@ const checkHomeContent = async () => {
       console.log(`Booked: ${homeContent.booked?.length || 0}`);
       console.log(`Category Sections: ${homeContent.categorySections?.length || 0}`);
       console.log('='.repeat(50));
-      
+
       if (homeContent.banners && homeContent.banners.length > 0) {
         console.log('\n📸 Banners:');
         homeContent.banners.forEach((banner, i) => {
@@ -33,7 +33,7 @@ const checkHomeContent = async () => {
           console.log(`     Image: ${banner.imageUrl ? '✅ Has URL' : '❌ No URL'}`);
         });
       }
-      
+
       if (homeContent.booked && homeContent.booked.length > 0) {
         console.log('\n📦 Most Booked Services:');
         homeContent.booked.forEach((item, i) => {
@@ -41,12 +41,14 @@ const checkHomeContent = async () => {
           console.log(`     Image: ${item.imageUrl ? '✅ Has URL' : '❌ No URL'}`);
         });
       }
-      
+
       if (homeContent.noteworthy && homeContent.noteworthy.length > 0) {
         console.log('\n⭐ New and Noteworthy:');
         homeContent.noteworthy.forEach((item, i) => {
           console.log(`  ${i + 1}. ${item.title}`);
           console.log(`     Image: ${item.imageUrl ? '✅ Has URL' : '❌ No URL'}`);
+          console.log(`     Slug: ${item.slug || '❌ No Slug'}`);
+          console.log(`     CatId: ${item.targetCategoryId || '❌ No CatId'}`);
         });
       }
     }

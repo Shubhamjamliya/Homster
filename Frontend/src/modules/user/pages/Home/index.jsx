@@ -229,6 +229,12 @@ const Home = () => {
   };
 
   const handlePromoClick = (promo) => {
+    // Priority 0: Navigate by service slug
+    if (promo.slug) {
+      navigate(`/user/${promo.slug}`);
+      return;
+    }
+
     // Priority 1: Navigate by targetCategoryId if provided
     if (promo.targetCategoryId) {
       const cat = categories.find(c => c.id === promo.targetCategoryId);
@@ -402,6 +408,7 @@ const Home = () => {
                 className: promo.gradientClass || 'from-[#00A6A6] to-[#008a8a]',
                 image: toAssetUrl(promo.imageUrl),
                 targetCategoryId: promo.targetCategoryId,
+                slug: promo.slug,
                 scrollToSection: promo.scrollToSection,
                 route: '/'
               }))}
@@ -427,7 +434,9 @@ const Home = () => {
             services={(homeContent?.curated || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map(item => ({
               id: item.id || item._id,
               title: item.title,
-              gif: toAssetUrl(item.gifUrl)
+              gif: toAssetUrl(item.gifUrl),
+              slug: item.slug,
+              targetCategoryId: item.targetCategoryId
             }))}
             onServiceClick={handleServiceClick}
           />
@@ -439,7 +448,9 @@ const Home = () => {
             services={(homeContent?.noteworthy || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map(item => ({
               id: item.id || item._id,
               title: item.title,
-              image: toAssetUrl(item.imageUrl)
+              image: toAssetUrl(item.imageUrl),
+              slug: item.slug,
+              targetCategoryId: item.targetCategoryId
             }))}
             onServiceClick={handleServiceClick}
           />
@@ -457,7 +468,8 @@ const Home = () => {
               originalPrice: item.originalPrice,
               discount: item.discount,
               image: toAssetUrl(item.imageUrl),
-              targetCategoryId: item.targetCategoryId
+              targetCategoryId: item.targetCategoryId,
+              slug: item.slug
             }))}
             onServiceClick={handleServiceClick}
             onAddClick={handleAddClick}
@@ -470,6 +482,10 @@ const Home = () => {
             imageUrl={homeContent?.banners?.[0] ? toAssetUrl(homeContent.banners[0].imageUrl) : null}
             onClick={() => {
               const b = homeContent?.banners?.[0];
+              if (b?.slug) {
+                navigate(`/user/${b.slug}`);
+                return;
+              }
               if (b?.targetCategoryId) {
                 const cat = categories.find(c => c.id === b.targetCategoryId);
                 if (cat) handleCategoryClick(cat);
@@ -495,21 +511,21 @@ const Home = () => {
                   originalPrice: card.originalPrice,
                   discount: card.discount,
                   image: processedImage,
-                  targetCategoryId: card.targetCategoryId
+                  targetCategoryId: card.targetCategoryId,
+                  slug: card.slug
                 };
               }) || []}
-              onSeeAllClick={section.seeAllTargetCategoryId ? () => {
-                const cat = categories.find(c => c.id === section.seeAllTargetCategoryId);
-                if (cat) handleCategoryClick(cat);
-              } : null}
-              onServiceClick={(service) => {
-                if (service.targetCategoryId) {
-                  const cat = categories.find(c => c.id === service.targetCategoryId);
+              onSeeAllClick={() => {
+                if (section.seeAllSlug) {
+                  navigate(`/user/${section.seeAllSlug}`);
+                  return;
+                }
+                if (section.seeAllTargetCategoryId) {
+                  const cat = categories.find(c => c.id === section.seeAllTargetCategoryId);
                   if (cat) handleCategoryClick(cat);
-                } else {
-                  handleServiceClick(service);
                 }
               }}
+              onServiceClick={(service) => handleServiceClick(service)}
               onAddClick={handleAddClick}
             />
           </Suspense>
@@ -521,6 +537,10 @@ const Home = () => {
             imageUrl={homeContent?.banners?.[1] ? toAssetUrl(homeContent.banners[1].imageUrl) : null}
             onClick={() => {
               const b = homeContent?.banners?.[1];
+              if (b?.slug) {
+                navigate(`/user/${b.slug}`);
+                return;
+              }
               if (b?.targetCategoryId) {
                 const cat = categories.find(c => c.id === b.targetCategoryId);
                 if (cat) handleCategoryClick(cat);
