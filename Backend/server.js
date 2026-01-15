@@ -15,6 +15,10 @@ dotenv.config();
 // Connect to database
 connectDB();
 
+// Initialize Redis (if enabled)
+const { initRedis } = require('./services/redisService');
+initRedis();
+
 // Initialize Express app
 const app = express();
 

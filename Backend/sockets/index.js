@@ -46,6 +46,8 @@ const initializeSocket = (server) => {
       socket.join(`user_${socket.userId}`);
     } else if (socket.userRole === 'VENDOR') {
       socket.join(`vendor_${socket.userId}`);
+      // Update vendor online status
+      updateVendorOnlineStatus(socket.userId, true, socket.id);
     } else if (socket.userRole === 'WORKER') {
       socket.join(`worker_${socket.userId}`);
     } else if (socket.userRole === 'ADMIN') {
@@ -81,6 +83,33 @@ const initializeSocket = (server) => {
       console.log(`User ${socket.userId} joined tracking for booking_${bookingId}`);
     });
 
+    // Vendor acknowledges receiving booking alert
+    socket.on('booking_alert_received', async (data) => {
+      try {
+        const BookingRequest = require('../models/BookingRequest');
+        await BookingRequest.findOneAndUpdate(
+          { bookingId: data.bookingId, vendorId: socket.userId },
+          { status: 'VIEWED', viewedAt: new Date(), socketDelivered: true }
+        );
+        console.log(`[Socket] Vendor ${socket.userId} viewed booking ${data.bookingId}`);
+      } catch (error) {
+        console.error('[Socket] Error updating booking request:', error);
+      }
+    });
+
+    // Vendor sets availability
+    socket.on('set_availability', async (data) => {
+      try {
+        const Vendor = require('../models/Vendor');
+        await Vendor.findByIdAndUpdate(socket.userId, {
+          availability: data.status // 'AVAILABLE', 'BUSY', etc.
+        });
+        console.log(`[Socket] Vendor ${socket.userId} set availability to ${data.status}`);
+      } catch (error) {
+        console.error('[Socket] Error setting availability:', error);
+      }
+    });
+
     socket.on('update_location', async (data) => {
       // data: { bookingId, lat, lng }
       const lat = parseFloat(data.lat);
@@ -99,17 +128,25 @@ const initializeSocket = (server) => {
       try {
         const Vendor = require('../models/Vendor');
         const Worker = require('../models/Worker');
+        const { setVendorLocation } = require('../services/redisService');
 
         const updateData = {
           location: {
             lat,
             lng,
             updatedAt: new Date()
+          },
+          // Also update geoLocation for geo queries
+          geoLocation: {
+            type: 'Point',
+            coordinates: [lng, lat] // GeoJSON is [lng, lat]
           }
         };
 
         if (socket.userRole === 'VENDOR') {
           await Vendor.findByIdAndUpdate(socket.userId, updateData);
+          // Update Redis geo cache for fast lookups
+          await setVendorLocation(socket.userId, lat, lng);
         } else if (socket.userRole === 'WORKER') {
           await Worker.findByIdAndUpdate(socket.userId, updateData);
         }
@@ -120,10 +157,45 @@ const initializeSocket = (server) => {
 
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id}`);
+      // Update vendor offline status
+      if (socket.userRole === 'VENDOR') {
+        updateVendorOnlineStatus(socket.userId, false, null);
+      }
     });
   });
 
   console.log('Socket.io initialized successfully');
+};
+
+// Helper function to update vendor online status
+const updateVendorOnlineStatus = async (vendorId, isOnline, socketId) => {
+  try {
+    const Vendor = require('../models/Vendor');
+    const { setVendorOnline, setVendorAvailability } = require('../services/redisService');
+
+    const updateData = {
+      isOnline,
+      currentSocketId: socketId
+    };
+
+    if (isOnline) {
+      updateData.availability = 'AVAILABLE';
+    } else {
+      updateData.lastSeenAt = new Date();
+      updateData.availability = 'OFFLINE';
+    }
+
+    // Update MongoDB
+    await Vendor.findByIdAndUpdate(vendorId, updateData);
+
+    // Update Redis cache (fast lookup)
+    await setVendorOnline(vendorId, isOnline);
+    await setVendorAvailability(vendorId, updateData.availability);
+
+    console.log(`[Socket] Vendor ${vendorId} is now ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
+  } catch (error) {
+    console.error('[Socket] Error updating vendor online status:', error);
+  }
 };
 
 // Get io instance for emitting notifications
