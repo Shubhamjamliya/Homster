@@ -1,4 +1,5 @@
 import api from './api';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 /**
  * Catalog Service
@@ -95,17 +96,22 @@ export const serviceService = {
     return response.data;
   },
 
-  // Upload service image
-  uploadImage: async (file, folder = 'services') => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', folder);
-    const response = await api.post('/admin/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    return response.data;
+  // Upload service image/video directly to Cloudinary
+  uploadImage: async (file, folder = 'services', onProgress) => {
+    try {
+      const url = await uploadToCloudinary(file, folder, onProgress);
+      return {
+        success: true,
+        imageUrl: url,
+        message: 'File uploaded successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to upload file',
+        error: error.message
+      };
+    }
   }
 };
 
@@ -128,12 +134,22 @@ export const homeContentService = {
 
 /**
  * Public Catalog Service (for user app - no authentication required)
+ * Now with caching for faster data retrieval
  */
+import { apiCache } from './api';
+
 export const publicCatalogService = {
-  // Get all active categories
+  // Get all active categories (cached for 5 minutes)
   getCategories: async () => {
+    const cacheKey = 'public:categories';
+    const cached = apiCache.get(cacheKey);
+    if (cached) return cached;
+
     const response = await api.get('/public/categories');
-    return response.data; // The controller returns { success: true, categories: [...] }
+    if (response.data.success) {
+      apiCache.set(cacheKey, response.data, 300); // 5 minutes
+    }
+    return response.data;
   },
 
   // Get all active services
@@ -142,20 +158,46 @@ export const publicCatalogService = {
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
     if (params.categorySlug) queryParams.append('categorySlug', params.categorySlug);
 
+    const cacheKey = `public:services:${queryParams.toString()}`;
+    const cached = apiCache.get(cacheKey);
+    if (cached) return cached;
+
     const response = await api.get(`/public/services${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    if (response.data.success) {
+      apiCache.set(cacheKey, response.data, 120); // 2 minutes
+    }
     return response.data;
   },
 
-  // Get service by slug
+  // Get service by slug (cached for 1 minute)
   getServiceBySlug: async (slug) => {
+    const cacheKey = `public:service:${slug}`;
+    const cached = apiCache.get(cacheKey);
+    if (cached) return cached;
+
     const response = await api.get(`/public/services/slug/${slug}`);
+    if (response.data.success) {
+      apiCache.set(cacheKey, response.data, 60); // 1 minute
+    }
     return response.data;
   },
 
-  // Get home content
+  // Get home content (cached for 2 minutes)
   getHomeContent: async () => {
+    const cacheKey = 'public:homeContent';
+    const cached = apiCache.get(cacheKey);
+    if (cached) return cached;
+
     const response = await api.get('/public/home-content');
+    if (response.data.success) {
+      apiCache.set(cacheKey, response.data, 120); // 2 minutes
+    }
     return response.data;
+  },
+
+  // Invalidate all public caches (useful after admin updates)
+  invalidateCache: () => {
+    apiCache.invalidatePrefix('public:');
   }
 };
 

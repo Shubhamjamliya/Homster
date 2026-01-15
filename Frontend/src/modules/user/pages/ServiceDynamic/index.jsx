@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { cartService } from '../../../../services/cartService';
+import { useCart } from '../../../../context/CartContext';
 import { FiArrowLeft, FiSearch, FiShare2, FiStar, FiChevronRight, FiLayers } from 'react-icons/fi';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { themeColors } from '../../../../theme';
@@ -14,6 +14,8 @@ import ServiceCategoriesGrid from '../../components/common/ServiceCategoriesGrid
 import MenuModal from '../../components/common/MenuModal';
 import CategoryCart from '../../components/common/CategoryCart';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import OptimizedImage from '../../../../components/common/OptimizedImage';
+import { optimizeCloudinaryUrl } from '../../../../utils/cloudinaryOptimize';
 
 const toAssetUrl = (url) => {
   if (!url) return '';
@@ -57,8 +59,10 @@ const ServiceDynamic = () => {
   const navigate = useNavigate();
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [cartCount, setCartCount] = useState(0);
-  const [cartItems, setCartItems] = useState([]);
+
+  // Use cart context for instant updates (no polling!)
+  const { cartCount, cartItems, addToCart } = useCart();
+
   const [showStickyHeader, setShowStickyHeader] = useState(false);
   const [currentSection, setCurrentSection] = useState('');
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
@@ -88,24 +92,6 @@ const ServiceDynamic = () => {
 
     if (slug) fetchService();
   }, [slug, navigate]);
-
-  useEffect(() => {
-    const loadCart = async () => {
-      try {
-        const response = await cartService.getCart();
-        if (response.success) {
-          const items = response.data || [];
-          setCartItems(items);
-          setCartCount(items.length);
-        }
-      } catch (error) {
-      }
-    };
-    loadCart();
-    // Refresh cart every 5 seconds
-    const interval = setInterval(loadCart, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -156,7 +142,7 @@ const ServiceDynamic = () => {
         // Create Flying Element
         const flyEl = document.createElement('div');
         flyEl.classList.add('fly-item');
-        flyEl.style.backgroundImage = `url(${toAssetUrl(item.imageUrl || service.icon)})`;
+        flyEl.style.backgroundImage = `url(${optimizeCloudinaryUrl(toAssetUrl(item.imageUrl || service.icon), { width: 100, quality: 'auto' })})`;
         flyEl.style.setProperty('--start-x', `${startX}px`);
         flyEl.style.setProperty('--start-y', `${startY}px`);
         flyEl.style.setProperty('--end-x', `${endX}px`);
@@ -199,14 +185,10 @@ const ServiceDynamic = () => {
         }
       };
 
-      const response = await cartService.addToCart(cartItemData);
+      const response = await addToCart(cartItemData);
       if (response.success) {
         toast.success(`${item.title} added to cart!`);
-        // Update local cart items state for UI
-        const updatedCart = await cartService.getCart();
-        if (updatedCart.success) {
-          setCartItems(updatedCart.data || []);
-        }
+        // Cart state is automatically updated by CartContext
       } else {
         toast.error(response.message || 'Failed to add to cart');
       }
@@ -396,13 +378,10 @@ const ServiceDynamic = () => {
                       {/* Right Image + Add Button */}
                       <div className="relative shrink-0">
                         <div className="w-32 h-32 rounded-lg overflow-hidden bg-gray-50 border border-gray-100">
-                          <img
+                          <OptimizedImage
                             src={toAssetUrl(card.imageUrl)}
                             alt={String(card.title)}
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.src = 'https://via.placeholder.com/128x128?text=No+Image';
-                            }}
                           />
                         </div>
                         <button
@@ -533,7 +512,7 @@ const ServiceDynamic = () => {
                   {/* Image */}
                   {selectedCard.imageUrl && (
                     <div className="mb-4">
-                      <img
+                      <OptimizedImage
                         src={toAssetUrl(selectedCard.imageUrl)}
                         alt={String(selectedCard.title)}
                         className="h-48 w-full rounded-lg object-cover"

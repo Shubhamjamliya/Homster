@@ -6,7 +6,7 @@ import BottomNav from '../../components/layout/BottomNav';
 import SearchBar from './components/SearchBar';
 import ServiceCategories from './components/ServiceCategories';
 import { publicCatalogService } from '../../../../services/catalogService';
-import { cartService } from '../../../../services/cartService';
+import { useCart } from '../../../../context/CartContext';
 import { toast } from 'react-hot-toast';
 
 // Lazy load heavy components for better initial load performance
@@ -83,7 +83,10 @@ const Home = () => {
 
     autoDetectLocation();
   }, []);
-  const [cartCount, setCartCount] = useState(0);
+
+  // Use cart context for instant cart count updates (no polling!)
+  const { cartCount, addToCart } = useCart();
+
   const [categories, setCategories] = useState([]);
   const [homeContent, setHomeContent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -119,37 +122,6 @@ const Home = () => {
       window.history.replaceState({}, '', location.pathname);
     }
   }, [location.state?.scrollToTop, location.pathname]);
-
-  // Load cart count from backend
-  useEffect(() => {
-    const loadCartCount = async () => {
-      try {
-        // Check if user is logged in
-        const token = localStorage.getItem('accessToken');
-        if (!token) {
-          setCartCount(0);
-          return;
-        }
-
-        const response = await cartService.getCart();
-        if (response.success) {
-          setCartCount((response.data || []).length);
-        }
-      } catch (error) {
-        // Silently fail if user not authenticated
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          setCartCount(0);
-        } else {
-          setCartCount(0);
-        }
-      }
-    };
-
-    loadCartCount();
-    // Refresh cart count every 10 seconds
-    const interval = setInterval(loadCartCount, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -323,14 +295,10 @@ const Home = () => {
           vendorId: service.vendorId || null
         };
 
-        const response = await cartService.addToCart(cartItemData);
+        const response = await addToCart(cartItemData);
         if (response.success) {
           toast.success(`${service.title} added to cart!`);
-          // Update cart count
-          const updatedCart = await cartService.getCart();
-          if (updatedCart.success) {
-            setCartCount((updatedCart.data || []).length);
-          }
+          // Cart count is automatically updated by CartContext
         } else {
           toast.error(response.message || 'Failed to add to cart');
         }

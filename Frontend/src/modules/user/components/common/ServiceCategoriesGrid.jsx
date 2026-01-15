@@ -1,5 +1,6 @@
 import React from 'react';
 import { themeColors } from '../../../../theme';
+import OptimizedImage from '../../../../components/common/OptimizedImage';
 
 const ServiceCategoriesGrid = ({ categories = [], onCategoryClick, layout = 'grid' }) => {
   if (!categories || categories.length === 0) {
@@ -29,12 +30,10 @@ const ServiceCategoriesGrid = ({ categories = [], onCategoryClick, layout = 'gri
                   }}
                 >
                   {category.image ? (
-                    <img
+                    <OptimizedImage
                       src={category.image}
                       alt={category.title}
                       className="w-full h-full object-cover"
-                      loading="lazy"
-                      decoding="async"
                     />
                   ) : category.icon ? (
                     <div className="w-full h-full flex items-center justify-center">
@@ -81,7 +80,7 @@ const ServiceCategoriesGrid = ({ categories = [], onCategoryClick, layout = 'gri
               }}
             >
               {category.image ? (
-                <img
+                <OptimizedImage
                   src={category.image}
                   alt={category.title}
                   className="w-full h-full object-cover"

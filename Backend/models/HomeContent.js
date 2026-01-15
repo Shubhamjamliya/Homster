@@ -43,7 +43,8 @@ const homeContentSchema = new mongoose.Schema({
   promos: [{
     title: {
       type: String,
-      required: true
+      required: false,
+      default: ''
     },
     subtitle: {
       type: String,
@@ -89,7 +90,8 @@ const homeContentSchema = new mongoose.Schema({
   curated: [{
     title: {
       type: String,
-      required: true
+      required: false,
+      default: ''
     },
     gifUrl: {
       type: String,
@@ -98,20 +100,6 @@ const homeContentSchema = new mongoose.Schema({
     youtubeUrl: {
       type: String,
       default: ''
-    },
-    targetCategoryId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Category',
-      default: null
-    },
-    slug: {
-      type: String,
-      default: ''
-    },
-    targetServiceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Service',
-      default: null
     },
     order: {
       type: Number,
@@ -123,7 +111,8 @@ const homeContentSchema = new mongoose.Schema({
   noteworthy: [{
     title: {
       type: String,
-      required: true
+      required: false,
+      default: ''
     },
     imageUrl: {
       type: String,
@@ -153,7 +142,8 @@ const homeContentSchema = new mongoose.Schema({
   booked: [{
     title: {
       type: String,
-      required: true
+      required: false,
+      default: ''
     },
     rating: {
       type: String,

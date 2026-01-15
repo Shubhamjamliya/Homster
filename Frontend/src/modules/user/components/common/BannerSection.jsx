@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiArrowLeft, FiSearch, FiShare2, FiBell } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import OptimizedImage from '../../../../components/common/OptimizedImage';
 
 const BannerSection = ({ banners = [], onBack, onSearch, onShare, showStickyNav = false, bannerRef = null }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -42,10 +43,9 @@ const BannerSection = ({ banners = [], onBack, onSearch, onShare, showStickyNav 
   return (
     <>
       {/* Banner Icons - Fixed at top */}
-      <div 
-        className={`px-4 py-3 flex items-center justify-between transition-all duration-200 ease-out ${
-          showStickyNav ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'
-        }`}
+      <div
+        className={`px-4 py-3 flex items-center justify-between transition-all duration-200 ease-out ${showStickyNav ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'
+          }`}
         style={{
           position: 'fixed',
           top: 0,
@@ -86,24 +86,23 @@ const BannerSection = ({ banners = [], onBack, onSearch, onShare, showStickyNav 
         {/* Carousel Container */}
         <div
           className="flex transition-transform duration-500 ease-in-out h-full"
-          style={{ 
+          style={{
             transform: `translateX(-${currentIndex * 100}%)`,
             willChange: 'transform'
           }}
         >
-          {banners.map((banner) => (
+          {banners.map((banner, index) => (
             <div
               key={banner.id}
               className="min-w-full h-full relative flex-shrink-0"
               style={{ width: '100%' }}
             >
-              <img
+              <OptimizedImage
                 src={banner.image}
                 alt={banner.text || banner.title || 'Banner'}
                 className="w-full h-full object-cover"
-                style={{ display: 'block', width: '100%', height: '100%' }}
-                loading="lazy"
-                decoding="async"
+                style={{ width: '100%', height: '100%' }}
+                priority={index === 0}
               />
               {(banner.text || banner.title) && (
                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
@@ -132,9 +131,8 @@ const BannerSection = ({ banners = [], onBack, onSearch, onShare, showStickyNav 
                 <button
                   key={index}
                   onClick={() => goToSlide(index)}
-                  className={`w-1.5 h-1.5 rounded-full transition-all ${
-                    index === currentIndex ? 'bg-white' : 'bg-white/50'
-                  }`}
+                  className={`w-1.5 h-1.5 rounded-full transition-all ${index === currentIndex ? 'bg-white' : 'bg-white/50'
+                    }`}
                   aria-label={`Go to slide ${index + 1}`}
                 />
               ))}

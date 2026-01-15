@@ -5,6 +5,8 @@ import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
 import BottomNav from '../layout/BottomNav';
 import { cartService } from '../../../../services/cartService';
+import OptimizedImage from '../../../../components/common/OptimizedImage';
+import { useCart } from '../../../../context/CartContext';
 
 const CategoryCart = ({
   isOpen,
@@ -13,35 +15,15 @@ const CategoryCart = ({
   categoryTitle
 }) => {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Use global cart state
+  const { cartItems, removeItem, updateItem, isLoading: loading } = useCart();
 
-  // Load cart items from backend
-  useEffect(() => {
-    const loadCart = async () => {
-      try {
-        setLoading(true);
-        const response = await cartService.getCart();
-        if (response.success) {
-          // Filter by category
-          const categoryItems = (response.data || []).filter(item => item.category === category);
-          setCartItems(categoryItems);
-        } else {
-          toast.error(response.message || 'Failed to load cart');
-          setCartItems([]);
-        }
-      } catch (error) {
-        toast.error('Failed to load cart');
-        setCartItems([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Filter items for this category from global cart
+  const categoryItems = React.useMemo(() => {
+    return cartItems.filter(item => item.category === category);
+  }, [cartItems, category]);
 
-    if (isOpen) {
-      loadCart();
-    }
-  }, [category, isOpen]);
+
 
   const handleClose = () => {
     onClose();
@@ -49,11 +31,8 @@ const CategoryCart = ({
 
   const handleDelete = async (itemId) => {
     try {
-      const response = await cartService.removeItem(itemId);
+      const response = await removeItem(itemId);
       if (response.success) {
-        // Filter by category from updated cart
-        const categoryItems = (response.data || []).filter(item => item.category === category);
-        setCartItems(categoryItems);
         toast.success('Item removed from cart');
       } else {
         toast.error(response.message || 'Failed to remove item');
@@ -65,17 +44,13 @@ const CategoryCart = ({
 
   const handleQuantityChange = async (itemId, change) => {
     try {
-      const item = cartItems.find(i => i._id === itemId || i.id === itemId);
+      const item = categoryItems.find(i => i._id === itemId || i.id === itemId);
       if (!item) return;
 
       const newCount = Math.max(1, (item.serviceCount || 1) + change);
-      const response = await cartService.updateItem(itemId, newCount);
+      const response = await updateItem(itemId, newCount);
 
-      if (response.success) {
-        // Filter by category from updated cart
-        const categoryItems = (response.data || []).filter(item => item.category === category);
-        setCartItems(categoryItems);
-      } else {
+      if (!response.success) {
         toast.error(response.message || 'Failed to update quantity');
       }
     } catch (error) {
@@ -94,13 +69,13 @@ const CategoryCart = ({
   if (!isOpen) return null;
 
   // Calculate totals
-  const totalPrice = cartItems.reduce((sum, item) => sum + (item.price || 0), 0);
-  const totalOriginalPrice = cartItems.reduce((sum, item) => {
+  const totalPrice = categoryItems.reduce((sum, item) => sum + (item.price || 0), 0);
+  const totalOriginalPrice = categoryItems.reduce((sum, item) => {
     const unitOriginalPrice = item.originalPrice || (item.unitPrice || (item.price / (item.serviceCount || 1)));
     return sum + (unitOriginalPrice * (item.serviceCount || 1));
   }, 0);
 
-  const cartCount = cartItems.length;
+  const cartCount = categoryItems.length;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -129,13 +104,13 @@ const CategoryCart = ({
       </header>
 
       {/* Cart Items */}
-      <main className="px-4 py-4" style={{ paddingBottom: cartItems.length > 0 ? '240px' : '100px' }}>
+      <main className="px-4 py-4" style={{ paddingBottom: categoryItems.length > 0 ? '240px' : '100px' }}>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <FiLoader className="w-16 h-16 text-gray-300 mb-4 animate-spin" />
             <p className="text-gray-500 text-lg font-medium">Loading cart...</p>
           </div>
-        ) : cartItems.length === 0 ? (
+        ) : categoryItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <FiShoppingCart className="w-16 h-16 text-gray-300 mb-4" />
             <p className="text-gray-500 text-lg font-medium">Your cart is empty</p>
@@ -143,7 +118,7 @@ const CategoryCart = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {cartItems.map((item) => (
+            {categoryItems.map((item) => (
               <div
                 key={item._id || item.id}
                 className="bg-white rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow"
@@ -165,23 +140,12 @@ const CategoryCart = ({
                     }}
                   >
                     {item.icon ? (
-                      <img
+                      <OptimizedImage
                         src={item.icon}
                         alt={item.title}
                         className="w-14 h-14 object-contain"
-                        style={{
-                          display: 'block',
-                          margin: 0,
-                          padding: 0,
-                          verticalAlign: 'top',
-                          lineHeight: 0
-                        }}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          if (e.target.nextSibling) {
-                            e.target.nextSibling.style.display = 'flex';
-                          }
-                        }}
+                        height={56}
+                        width={56}
                       />
                     ) : null}
                     <div
@@ -270,7 +234,7 @@ const CategoryCart = ({
         )}
 
         {/* Order Summary - Fixed at bottom if items exist */}
-        {cartItems.length > 0 && (
+        {categoryItems.length > 0 && (
           <div
             className="fixed left-0 right-0 z-[9997] px-4 py-4 border-t border-gray-200"
             style={{

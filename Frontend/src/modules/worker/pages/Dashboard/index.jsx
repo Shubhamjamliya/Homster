@@ -6,6 +6,8 @@ import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import workerService from '../../../../services/workerService';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
+import { SkeletonProfileHeader, SkeletonDashboardStats, SkeletonList } from '../../../../components/common/SkeletonLoaders';
+import OptimizedImage from '../../../../components/common/OptimizedImage';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -142,6 +144,24 @@ const Dashboard = () => {
     };
   }, []);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
+        {/* Render Header immediately for perceived performance */}
+        <Header title="Dashboard" showBack={false} notificationCount={stats.pendingJobs} />
+
+        <main className="pt-0">
+          <SkeletonProfileHeader />
+          <SkeletonDashboardStats />
+          <div className="px-4 pt-4">
+            <div className="h-6 w-32 bg-gray-200/50 rounded mb-4 animate-pulse"></div>
+            <SkeletonList count={2} />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
       <Header title="Dashboard" showBack={false} notificationCount={stats.pendingJobs} />
@@ -175,11 +195,14 @@ const Dashboard = () => {
                   border: `2.5px solid #FFFFFF`,
                 }}
               >
+              >
                 {workerProfile.photo ? (
-                  <img
+                  <OptimizedImage
                     src={workerProfile.photo}
                     alt={workerProfile.name}
                     className="w-full h-full object-cover"
+                    width={56}
+                    height={56}
                   />
                 ) : (
                   <FiUser className="w-7 h-7" style={{ color: '#FFFFFF' }} />

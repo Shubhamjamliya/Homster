@@ -4,6 +4,7 @@ import { FiBriefcase, FiClock, FiCheckCircle, FiXCircle, FiMapPin, FiChevronRigh
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import workerService from '../../../../services/workerService';
+import { SkeletonList } from '../../../../components/common/SkeletonLoaders';
 
 const AssignedJobs = () => {
   const navigate = useNavigate();
@@ -154,8 +155,8 @@ const AssignedJobs = () => {
 
         {/* Jobs List */}
         {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: themeColors.button }}></div>
+          <div className="py-2">
+            <SkeletonList count={5} cardHeight="140px" />
           </div>
         ) : filteredJobs.length === 0 ? (
           <div

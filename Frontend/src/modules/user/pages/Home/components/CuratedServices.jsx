@@ -104,7 +104,7 @@ const CuratedServices = React.memo(({ services, onServiceClick }) => {
             title={service.title}
             gif={service.gif}
             youtubeUrl={service.youtubeUrl}
-            onClick={() => onServiceClick?.(service)}
+
           />
         ))}
       </div>

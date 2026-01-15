@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { themeColors } from '../../../../theme';
+import { optimizeCloudinaryUrl } from '../../../../utils/cloudinaryOptimize';
 
 const SimpleServiceCard = memo(({ image, title, onClick }) => {
   return (
@@ -13,7 +14,7 @@ const SimpleServiceCard = memo(({ image, title, onClick }) => {
     >
       {image ? (
         <img
-          src={image}
+          src={optimizeCloudinaryUrl(image, { width: 320, quality: 'auto' })}
           alt={title}
           className="w-full h-28 object-cover"
           loading="lazy"

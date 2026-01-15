@@ -26,10 +26,13 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           icons: ['react-icons'],
+          gsap: ['gsap'],
+          toast: ['react-hot-toast'],
         },
       },
     },
     chunkSizeWarningLimit: 1000,
+    sourcemap: false, // Disable sourcemaps in production for smaller builds
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],

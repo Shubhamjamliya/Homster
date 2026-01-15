@@ -146,7 +146,7 @@ const HomePage = ({ catalog, setCatalog }) => {
   const [editingPromoId, setEditingPromoId] = useState(null);
 
   const [isCuratedModalOpen, setIsCuratedModalOpen] = useState(false);
-  const [curatedForm, setCuratedForm] = useState({ title: "", gifUrl: "", youtubeUrl: "", targetCategoryId: "", slug: "", targetServiceId: "" });
+  const [curatedForm, setCuratedForm] = useState({ title: "", gifUrl: "", youtubeUrl: "" });
   const [editingCuratedId, setEditingCuratedId] = useState(null);
 
   const [isNoteworthyModalOpen, setIsNoteworthyModalOpen] = useState(false);
@@ -178,6 +178,7 @@ const HomePage = ({ catalog, setCatalog }) => {
 
   // Uploading state for all modals
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const categories = useMemo(() => {
@@ -373,7 +374,7 @@ const HomePage = ({ catalog, setCatalog }) => {
   // Curated handlers
   const resetCuratedForm = () => {
     setEditingCuratedId(null);
-    setCuratedForm({ title: "", gifUrl: "", youtubeUrl: "", targetCategoryId: "", slug: "", targetServiceId: "" });
+    setCuratedForm({ title: "", gifUrl: "", youtubeUrl: "" });
     setIsCuratedModalOpen(false);
   };
 
@@ -1249,8 +1250,11 @@ const HomePage = ({ catalog, setCatalog }) => {
                   const file = e.target.files?.[0];
                   if (file) {
                     setUploading(true);
+                    setUploadProgress(0);
                     try {
-                      const response = await serviceService.uploadImage(file);
+                      const response = await serviceService.uploadImage(file, 'banners', (progress) => {
+                        setUploadProgress(progress);
+                      });
                       if (response.success) {
                         setBannerForm((p) => ({ ...p, imageUrl: response.imageUrl }));
                         toast.success("Image uploaded!");
@@ -1261,15 +1265,27 @@ const HomePage = ({ catalog, setCatalog }) => {
                       toast.error(msg);
                     } finally {
                       setUploading(false);
+                      setUploadProgress(0);
                     }
                   }
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {uploading && (
-                <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  Uploading...
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-blue-600 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      Uploading...
+                    </div>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
                 </div>
               )}
               {bannerForm.imageUrl && !uploading && (
@@ -1352,8 +1368,11 @@ const HomePage = ({ catalog, setCatalog }) => {
                   const file = e.target.files?.[0];
                   if (file) {
                     setUploading(true);
+                    setUploadProgress(0);
                     try {
-                      const response = await serviceService.uploadImage(file);
+                      const response = await serviceService.uploadImage(file, 'promos', (progress) => {
+                        setUploadProgress(progress);
+                      });
                       if (response.success) {
                         setPromoForm((p) => ({ ...p, imageUrl: response.imageUrl }));
                         toast.success("Image uploaded!");
@@ -1364,15 +1383,27 @@ const HomePage = ({ catalog, setCatalog }) => {
                       toast.error(msg);
                     } finally {
                       setUploading(false);
+                      setUploadProgress(0);
                     }
                   }
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {uploading && (
-                <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  Uploading...
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-blue-600 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      Uploading...
+                    </div>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
                 </div>
               )}
               {promoForm.imageUrl && !uploading && (
@@ -1495,8 +1526,11 @@ const HomePage = ({ catalog, setCatalog }) => {
                   const file = e.target.files?.[0];
                   if (file) {
                     setUploading(true);
+                    setUploadProgress(0);
                     try {
-                      const response = await serviceService.uploadImage(file);
+                      const response = await serviceService.uploadImage(file, 'curated', (progress) => {
+                        setUploadProgress(progress);
+                      });
                       if (response.success) {
                         setCuratedForm((p) => ({ ...p, gifUrl: response.imageUrl }));
                         toast.success("Media uploaded!");
@@ -1506,15 +1540,27 @@ const HomePage = ({ catalog, setCatalog }) => {
                       toast.error("Failed to upload image/video");
                     } finally {
                       setUploading(false);
+                      setUploadProgress(0);
                     }
                   }
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {uploading && (
-                <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  Uploading media...
+                <div className="space-y-2 mt-2">
+                  <div className="flex items-center justify-between text-blue-600 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      Uploading...
+                    </div>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
                 </div>
               )}
               {curatedForm.gifUrl && !uploading && (
@@ -1544,14 +1590,7 @@ const HomePage = ({ catalog, setCatalog }) => {
               placeholder="https://youtube.com/..."
             />
           </div>
-          <RedirectionSelector
-            categories={categories}
-            allServices={allServices}
-            targetCategoryId={curatedForm.targetCategoryId}
-            slug={curatedForm.slug}
-            onChange={(patch) => setCuratedForm((p) => ({ ...p, ...patch }))}
-            label="Redirect to..."
-          />
+
           <div className="flex gap-3 pt-4">
             <button
               onClick={saveCurated}
@@ -1601,8 +1640,11 @@ const HomePage = ({ catalog, setCatalog }) => {
                   const file = e.target.files?.[0];
                   if (file) {
                     setUploading(true);
+                    setUploadProgress(0);
                     try {
-                      const response = await serviceService.uploadImage(file);
+                      const response = await serviceService.uploadImage(file, 'noteworthy', (progress) => {
+                        setUploadProgress(progress);
+                      });
                       if (response.success) {
                         setNoteworthyForm((p) => ({ ...p, imageUrl: response.imageUrl }));
                         toast.success("Image uploaded!");
@@ -1613,15 +1655,27 @@ const HomePage = ({ catalog, setCatalog }) => {
                       toast.error(msg);
                     } finally {
                       setUploading(false);
+                      setUploadProgress(0);
                     }
                   }
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {uploading && (
-                <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  Uploading...
+                <div className="space-y-2 mt-2">
+                  <div className="flex items-center justify-between text-blue-600 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      Uploading...
+                    </div>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
                 </div>
               )}
               {noteworthyForm.imageUrl && !uploading && (
@@ -1698,8 +1752,11 @@ const HomePage = ({ catalog, setCatalog }) => {
                   const file = e.target.files?.[0];
                   if (file) {
                     setUploading(true);
+                    setUploadProgress(0);
                     try {
-                      const response = await serviceService.uploadImage(file);
+                      const response = await serviceService.uploadImage(file, 'booked', (progress) => {
+                        setUploadProgress(progress);
+                      });
                       if (response.success) {
                         setBookedForm((p) => ({ ...p, imageUrl: response.imageUrl }));
                         toast.success("Image uploaded!");
@@ -1710,15 +1767,27 @@ const HomePage = ({ catalog, setCatalog }) => {
                       toast.error(msg);
                     } finally {
                       setUploading(false);
+                      setUploadProgress(0);
                     }
                   }
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {uploading && (
-                <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  Uploading...
+                <div className="space-y-2 mt-2">
+                  <div className="flex items-center justify-between text-blue-600 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      Uploading...
+                    </div>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
                 </div>
               )}
               {bookedForm.imageUrl && !uploading && (
@@ -2019,32 +2088,47 @@ const HomePage = ({ catalog, setCatalog }) => {
             <div className="space-y-3">
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 disabled={uploading}
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (file) {
                     setUploading(true);
+                    setUploadProgress(0);
                     try {
-                      const response = await serviceService.uploadImage(file);
+                      const response = await serviceService.uploadImage(file, 'cards', (progress) => {
+                        setUploadProgress(progress);
+                      });
                       if (response.success) {
                         setCardForm((p) => ({ ...p, imageUrl: response.imageUrl }));
-                        toast.success("Image uploaded!");
+                        toast.success("Media uploaded!");
                       }
                     } catch (error) {
                       console.error('Card upload error:', error);
-                      toast.error("Failed to upload image");
+                      toast.error("Failed to upload media");
                     } finally {
                       setUploading(false);
+                      setUploadProgress(0);
                     }
                   }
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {uploading && (
-                <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  Uploading...
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-blue-600 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      Uploading...
+                    </div>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
                 </div>
               )}
               {cardForm.imageUrl && !uploading && (

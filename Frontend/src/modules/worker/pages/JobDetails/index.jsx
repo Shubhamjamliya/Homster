@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiMapPin, FiPhone, FiClock, FiUser, FiCheck, FiX, FiArrowRight, FiNavigation, FiTool, FiCheckCircle, FiDollarSign, FiCamera, FiPlus, FiTrash, FiXCircle, FiAward } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
-import { CashCollectionModal, VisitVerificationModal, WorkCompletionModal } from '../../components/common'; // Updated import
+import { SkeletonCard } from '../../../../components/common/SkeletonLoaders';
+
+const CashCollectionModal = lazy(() => import('../../components/common/CashCollectionModal'));
+const VisitVerificationModal = lazy(() => import('../../components/common/VisitVerificationModal'));
+const WorkCompletionModal = lazy(() => import('../../components/common/WorkCompletionModal'));
 import workerService from '../../../../services/workerService';
 import api from '../../../../services/api';
 import { toast } from 'react-hot-toast';
@@ -204,8 +208,14 @@ const JobDetails = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: themeColors.backgroundGradient }}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: themeColors.button }}></div>
+      <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
+        <Header title="Job Details" />
+        <main className="px-4 py-6 space-y-4">
+          <div className="h-16 bg-white/50 rounded-2xl animate-pulse mb-6"></div>
+          <SkeletonCard className="h-32 mb-6" />
+          <SkeletonCard className="h-48 mb-6" />
+          <SkeletonCard className="h-40" />
+        </main>
       </div>
     );
   }
@@ -387,6 +397,7 @@ const JobDetails = () => {
                         style={{ border: 0, pointerEvents: 'none' }}
                         src={`https://maps.google.com/maps?q=${mapQuery}&z=15&output=embed`}
                         allowFullScreen
+                        loading="lazy"
                         tabIndex="-1"
                       ></iframe>
                       {/* Overlay to intercept clicks */}
@@ -576,61 +587,59 @@ const JobDetails = () => {
       </main>
 
       {/* Unified Worker Completion Modal - REUSABLE COMPONENT */}
-      <WorkCompletionModal
-        isOpen={isCompletionModalOpen}
-        onClose={() => setIsCompletionModalOpen(false)}
-        job={job}
-        onComplete={(photos) => {
-          // Pass photos to the handler
-          // Since handler expects local 'workPhotos' state which we removed, we need to adapt handleStatusUpdate or pass generic data
-          // Better: Update handleStatusUpdate to accept data payload
-          // For now, let's update local state just for compatibility or adapt the call
-          setWorkPhotos(photos);
-          // Trigger the update call immediately with these photos
-          // We need to slightly modify handleStatusUpdate logic to accept photos directly or set state then call
-          // Here we can call workerService directly or adaptation:
-          (async () => {
-            // We can't easily call handleStatusUpdate with payload without modifying it first
-            // So let's call service directly here or use a specific adapter function
-            try {
-              setActionLoading(true);
-              const response = await workerService.completeJob(id, { workPhotos: photos });
-              if (response && response.success) {
-                toast.success(response.message || 'Updated successfully');
-                setIsCompletionModalOpen(false);
-                fetchJobDetails();
+      <Suspense fallback={null}>
+        <WorkCompletionModal
+          isOpen={isCompletionModalOpen}
+          onClose={() => setIsCompletionModalOpen(false)}
+          job={job}
+          onComplete={(photos) => {
+            // Pass photos to the handler
+            setWorkPhotos(photos);
+            (async () => {
+              try {
+                setActionLoading(true);
+                const response = await workerService.completeJob(id, { workPhotos: photos });
+                if (response && response.success) {
+                  toast.success(response.message || 'Updated successfully');
+                  setIsCompletionModalOpen(false);
+                  fetchJobDetails();
+                }
+                setActionLoading(false);
+              } catch (error) {
+                console.error('Action error:', error);
+                toast.error(error.response?.data?.message || 'Action failed');
+                setActionLoading(false);
               }
-              setActionLoading(false);
-            } catch (error) {
-              console.error('Action error:', error);
-              toast.error(error.response?.data?.message || 'Action failed');
-              setActionLoading(false);
-            }
-          })();
-        }}
-        loading={actionLoading}
-      />
+            })();
+          }}
+          loading={actionLoading}
+        />
+      </Suspense>
 
       {/* Visit OTP Modal - REUSABLE COMPONENT */}
-      <VisitVerificationModal
-        isOpen={isVisitModalOpen}
-        onClose={() => setIsVisitModalOpen(false)}
-        bookingId={id}
-        onSuccess={() => {
-          setIsVisitModalOpen(false);
-          fetchJobDetails();
-        }}
-      />
+      <Suspense fallback={null}>
+        <VisitVerificationModal
+          isOpen={isVisitModalOpen}
+          onClose={() => setIsVisitModalOpen(false)}
+          bookingId={id}
+          onSuccess={() => {
+            setIsVisitModalOpen(false);
+            fetchJobDetails();
+          }}
+        />
+      </Suspense>
 
       {/* Unified Cash Collection Modal - REUSABLE COMPONENT */}
-      <CashCollectionModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        booking={job}
-        onInitiateOTP={handleInitiateCashOTP}
-        onConfirm={handleConfirmCash}
-        loading={actionLoading}
-      />
+      <Suspense fallback={null}>
+        <CashCollectionModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          booking={job}
+          onInitiateOTP={handleInitiateCashOTP}
+          onConfirm={handleConfirmCash}
+          loading={actionLoading}
+        />
+      </Suspense>
     </div>
   );
 };

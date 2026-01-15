@@ -2,6 +2,7 @@ import React, { memo, useRef, useEffect } from 'react';
 import { gsap } from 'gsap';
 import { AiFillStar } from 'react-icons/ai';
 import { themeColors } from '../../../../theme';
+import { optimizeCloudinaryUrl } from '../../../../utils/cloudinaryOptimize';
 
 const DetailedServiceCard = memo(({ image, title, rating, reviews, price, originalPrice, discount, onClick, onAddClick }) => {
   const cardRef = useRef(null);
@@ -83,7 +84,7 @@ const DetailedServiceCard = memo(({ image, title, rating, reviews, price, origin
         )}
         {image ? (
           <img
-            src={image}
+            src={optimizeCloudinaryUrl(image, { width: 400, quality: 'auto' })}
             alt={title}
             className="w-full h-36 object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"

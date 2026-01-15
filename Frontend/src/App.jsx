@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import AppRoutes from './routes';
 import { SocketProvider } from './context/SocketContext';
+import { CartProvider } from './context/CartContext';
 import { initializePushNotifications, setupForegroundNotificationHandler } from './services/pushNotificationService';
 
 function App() {
@@ -39,38 +40,39 @@ function App() {
   return (
     <BrowserRouter>
       <SocketProvider>
-        <div className="App">
-          <AppRoutes />
-          <Toaster
-            position="top-center"
-            reverseOrder={false}
-            toastOptions={{
-              duration: 2000, // Global default (reduced from 3000)
-              style: {
-                background: '#333',
-                color: '#fff',
-                borderRadius: '10px',
-                padding: '12px 20px',
-              },
-              success: {
-                duration: 1000, // 1 second as requested
+        <CartProvider>
+          <div className="App">
+            <AppRoutes />
+            <Toaster
+              position="top-center"
+              reverseOrder={false}
+              toastOptions={{
+                duration: 2000, // Global default (reduced from 3000)
                 style: {
-                  background: '#10B981',
+                  background: '#333',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  padding: '12px 20px',
                 },
-              },
-              error: {
-                duration: 2000, // Reduced from 4000
-                style: {
-                  background: '#EF4444',
+                success: {
+                  duration: 1000, // 1 second as requested
+                  style: {
+                    background: '#10B981',
+                  },
                 },
-              },
-            }}
-          />
-        </div>
+                error: {
+                  duration: 2000, // Reduced from 4000
+                  style: {
+                    background: '#EF4444',
+                  },
+                },
+              }}
+            />
+          </div>
+        </CartProvider>
       </SocketProvider>
     </BrowserRouter>
   );
 }
 
 export default App;
-

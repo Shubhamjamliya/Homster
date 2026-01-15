@@ -1,7 +1,11 @@
 import React from 'react';
 import homepageBanner from '../../../../../assets/images/pages/Home/Banner/homepage-banner.png';
+import { optimizeCloudinaryUrl } from '../../../../../utils/cloudinaryOptimize';
 
-const Banner = ({ imageUrl, onClick }) => {
+const Banner = React.memo(({ imageUrl, onClick }) => {
+  // Optimize Cloudinary URLs for faster loading
+  const optimizedUrl = imageUrl ? optimizeCloudinaryUrl(imageUrl, { quality: 'auto' }) : homepageBanner;
+
   return (
     <div className="mb-8 px-4 cursor-pointer group" onClick={onClick}>
       <div
@@ -12,16 +16,18 @@ const Banner = ({ imageUrl, onClick }) => {
         }}
       >
         <img
-          src={imageUrl || homepageBanner}
+          src={optimizedUrl}
           alt="Banner"
           className="w-full h-full object-fill min-h-[150px]"
           loading="lazy"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
       </div>
     </div>
   );
-};
+});
+
+Banner.displayName = 'Banner';
 
 export default Banner;
-

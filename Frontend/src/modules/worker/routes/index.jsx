@@ -36,18 +36,18 @@ const lazyLoad = (importFunc) => {
 };
 
 // Lazy load worker pages for code splitting
-const Login = lazy(() => import('../pages/login'));
-const Signup = lazy(() => import('../pages/signup'));
-const Dashboard = lazy(() => import('../pages/Dashboard'));
-const AssignedJobs = lazy(() => import('../pages/AssignedJobs'));
-const JobDetails = lazy(() => import('../pages/JobDetails'));
-const Profile = lazy(() => import('../pages/Profile'));
-const EditProfile = lazy(() => import('../pages/Profile/EditProfile'));
-const Settings = lazy(() => import('../pages/Settings'));
-const Notifications = lazy(() => import('../pages/Notifications'));
-const JobMap = lazy(() => import('../pages/JobMap'));
-const JobTimeline = lazy(() => import('../pages/JobTimeline'));
-const Wallet = lazy(() => import('../pages/Wallet'));
+const Login = lazyLoad(() => import('../pages/login'));
+const Signup = lazyLoad(() => import('../pages/signup'));
+const Dashboard = lazyLoad(() => import('../pages/Dashboard'));
+const AssignedJobs = lazyLoad(() => import('../pages/AssignedJobs'));
+const JobDetails = lazyLoad(() => import('../pages/JobDetails'));
+const Profile = lazyLoad(() => import('../pages/Profile'));
+const EditProfile = lazyLoad(() => import('../pages/Profile/EditProfile'));
+const Settings = lazyLoad(() => import('../pages/Settings'));
+const Notifications = lazyLoad(() => import('../pages/Notifications'));
+const JobMap = lazyLoad(() => import('../pages/JobMap'));
+const JobTimeline = lazyLoad(() => import('../pages/JobTimeline'));
+const Wallet = lazyLoad(() => import('../pages/Wallet'));
 
 // Loading fallback component
 const LoadingFallback = () => (

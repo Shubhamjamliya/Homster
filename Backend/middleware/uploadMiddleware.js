@@ -3,12 +3,16 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('../config/cloudinary');
 
-// Configure Cloudinary Storage
+// Configure Cloudinary Storage with optimization
 const cloudinaryStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'appzeto',
     allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'gif'],
+    // Apply quality-preserving optimization on upload
+    transformation: [
+      { quality: 'auto:good', fetch_format: 'auto' }
+    ],
     public_id: (req, file) => {
       const name = file.originalname.split('.')[0];
       return `${name}-${Date.now()}`;
