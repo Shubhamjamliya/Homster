@@ -71,32 +71,36 @@ const Login = () => {
     }
     setIsLoading(true);
     try {
-      const response = await userAuthService.login({
+      // Use verifyLogin for unified flow
+      const response = await userAuthService.verifyLogin({
         phone: phoneNumber,
-        otp: otpValue,
-        token: otpToken
+        otp: otpValue
       });
+
       if (response.success) {
         setIsLoading(false);
-        // Register FCM Token for push notifications immediately after login
-        try {
-          // Import dynamic to avoid top-level await issues if any
-          const { registerFCMToken } = await import('../../../services/pushNotificationService');
-          await registerFCMToken('user', true);
-          // console.log('FCM Token registered on login');
-        } catch (fcmError) {
-          console.error('FCM Registration failed on login:', fcmError);
-        }
 
-        toast.success('Login successful!');
-        navigate('/user');
+        if (response.isNewUser) {
+          // Redirect to Signup with proof
+          toast.success('Phone verified! Please complete your registration.');
+          navigate('/user/signup', {
+            state: {
+              phone: phoneNumber,
+              verificationToken: response.verificationToken
+            }
+          });
+        } else {
+          // Login Successful
+          toast.success('Login successful!');
+          navigate('/user');
+        }
       } else {
         setIsLoading(false);
-        toast.error(response.message || 'Login failed');
+        toast.error(response.message || 'Verification failed');
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Login failed. Please try again.');
+      toast.error(error.response?.data?.message || 'Verification failed. Please try again.');
     }
   };
 

@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { FiUser, FiMail, FiPhone } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
-import { themeColors } from '../../../theme';
-import { userAuthService } from '../../../services/authService';
-
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+// ...
 const Signup = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState('details'); // 'details' or 'otp'
   const [formData, setFormData] = useState({
     name: '',
@@ -15,7 +12,16 @@ const Signup = () => {
   });
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
+  const [verificationToken, setVerificationToken] = useState(''); // New State
   const [isLoading, setIsLoading] = useState(false);
+
+  // Pre-fill from navigation state (Unified Flow)
+  React.useEffect(() => {
+    if (location.state?.phone && location.state?.verificationToken) {
+      setFormData(prev => ({ ...prev, phoneNumber: location.state.phone }));
+      setVerificationToken(location.state.verificationToken);
+    }
+  }, [location.state]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -35,7 +41,37 @@ const Signup = () => {
       toast.error('Please enter a valid phone number');
       return;
     }
+
     setIsLoading(true);
+
+    // If we have verification token, register directly (SKIP OTP)
+    if (verificationToken) {
+      try {
+        const response = await userAuthService.register({
+          name: formData.name,
+          email: formData.email || null,
+          verificationToken // Use token instead of OTP
+        });
+        if (response.success) {
+          // Register FCM
+          try {
+            const { registerFCMToken } = await import('../../../services/pushNotificationService');
+            await registerFCMToken('user', true);
+          } catch (e) { console.error(e); }
+          toast.success('Account created successfully!');
+          navigate('/user');
+        } else {
+          toast.error(response.message || 'Registration failed');
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Registration failed');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Standard Flow (Send OTP)
     try {
       const response = await userAuthService.sendOTP(formData.phoneNumber, formData.email || null);
       if (response.success) {
@@ -53,6 +89,7 @@ const Signup = () => {
     }
   };
 
+  // ... handleOtpChange ... handleOtpKeyDown ... handleOtpSubmit (unchanged for fallback)
   const handleOtpChange = (index, value) => {
     if (value.length > 1) return;
     const newOtp = [...otp];
@@ -95,7 +132,6 @@ const Signup = () => {
       });
       if (response.success) {
         setIsLoading(false);
-        // Register FCM Token for push notifications immediately after signup
         try {
           const { registerFCMToken } = await import('../../../services/pushNotificationService');
           await registerFCMToken('user', true);

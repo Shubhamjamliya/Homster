@@ -38,6 +38,7 @@ const Dashboard = () => {
     name: 'Vendor Name',
     businessName: 'Business Name',
     photo: null,
+    service: []
   });
   const [recentJobs, setRecentJobs] = useState([]);
   const [pendingBookings, setPendingBookings] = useState([]);
@@ -136,6 +137,7 @@ const Dashboard = () => {
       name: profile.name || 'Vendor Name',
       businessName: profile.businessName || 'Business Name',
       photo: profile.profilePhoto || null,
+      service: profile.service || []
     });
   }, []);
 
@@ -352,6 +354,31 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Incomplete Profile Prompt */}
+        {(!vendorProfile.service || vendorProfile.service.length === 0) && (
+          <div className="px-4 pt-2 -mb-2">
+            <div
+              onClick={() => navigate('/vendor/profile')}
+              className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-orange-100 transition-colors"
+            >
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <FiClock className="h-5 w-5 text-orange-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-bold text-orange-700">Profile Incomplete</p>
+                  <p className="text-sm text-orange-600">
+                    Add services to your profile to start receiving bookings.
+                  </p>
+                </div>
+                <div className="ml-auto">
+                  <FiArrowRight className="h-4 w-4 text-orange-500" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards - Outside Gradient */}
         <div className="px-4 pt-4">

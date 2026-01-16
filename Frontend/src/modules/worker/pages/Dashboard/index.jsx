@@ -46,7 +46,7 @@ const Dashboard = () => {
     name: 'Worker Name',
     phone: '+91 9876543210',
     photo: null,
-    category: '',
+    categories: [],
   });
   const [recentJobs, setRecentJobs] = useState([]);
 
@@ -89,7 +89,7 @@ const Dashboard = () => {
             name: profile.name || 'Worker Name',
             phone: profile.phone || '',
             photo: profile.profilePhoto || null,
-            category: profile.serviceCategory || '',
+            categories: profile.serviceCategories || [],
           });
         }
 
@@ -219,9 +219,9 @@ const Dashboard = () => {
                   WELCOME !
                 </p>
                 <h2 className="text-base font-bold text-white truncate mb-0.5">{workerProfile.name}</h2>
-                {workerProfile.category && (
+                {workerProfile.categories && workerProfile.categories.length > 0 && (
                   <p className="text-xs text-white truncate font-medium opacity-90">
-                    {workerProfile.category}
+                    {workerProfile.categories.join(', ')}
                   </p>
                 )}
               </div>
@@ -241,6 +241,31 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Incomplete Profile Prompt */}
+        {(!workerProfile.categories || workerProfile.categories.length === 0) && (
+          <div className="px-4 pt-2 -mb-2">
+            <div
+              onClick={() => navigate('/worker/profile')}
+              className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-orange-100 transition-colors"
+            >
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <FiClock className="h-5 w-5 text-orange-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-bold text-orange-700">Profile Incomplete</p>
+                  <p className="text-sm text-orange-600">
+                    Add skills/category to your profile to start receiving jobs.
+                  </p>
+                </div>
+                <div className="ml-auto">
+                  <FiArrowRight className="h-4 w-4 text-orange-500" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards - Outside Gradient */}
         <div className="px-4 pt-4">

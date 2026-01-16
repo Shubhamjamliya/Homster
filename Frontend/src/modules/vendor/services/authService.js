@@ -1,4 +1,7 @@
 import api from '../../../services/api';
+// Import FCM helper if available or handle in UI. 
+// I'll stick to basic data handling since I don't want to break imports if file doesn't exist relative to this.
+// Actually, `../../../services/pushNotificationService` should exist.
 
 /**
  * Send OTP for vendor authentication
@@ -11,6 +14,24 @@ export const sendOTP = async (phone) => {
     return response.data;
   } catch (error) {
     console.error('Error sending OTP:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verify Login (Unified Flow)
+ */
+export const verifyLogin = async (data) => {
+  try {
+    const response = await api.post('/vendors/auth/verify-login', data);
+    if (response.data.success && !response.data.isNewUser && response.data.accessToken) {
+      localStorage.setItem('vendorAccessToken', response.data.accessToken);
+      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
+      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+    }
+    return response.data;
+  } catch (error) {
+    console.error('Error verifying login:', error);
     throw error;
   }
 };

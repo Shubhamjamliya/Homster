@@ -55,6 +55,7 @@ const authenticate = async (req, res, next) => {
         user = await Worker.findById(decoded.userId).select('-password');
         break;
       case USER_ROLES.ADMIN:
+      case 'super_admin':
         user = await Admin.findById(decoded.userId).select('-password');
         break;
       default:

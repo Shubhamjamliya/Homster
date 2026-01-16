@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../theme';
@@ -7,6 +7,7 @@ import { sendOTP as sendVendorOTP, register } from '../services/authService';
 
 const VendorSignup = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState('details'); // 'details' or 'otp'
   const [formData, setFormData] = useState({
     name: '',
@@ -19,8 +20,17 @@ const VendorSignup = () => {
   });
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
+  const [verificationToken, setVerificationToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [documentPreview, setDocumentPreview] = useState({});
+
+  // Unified Flow: Pre-fill
+  useEffect(() => {
+    if (location.state?.phone && location.state?.verificationToken) {
+      setFormData(prev => ({ ...prev, phoneNumber: location.state.phone }));
+      setVerificationToken(location.state.verificationToken);
+    }
+  }, [location.state]);
 
   // Clear any existing vendor tokens on page load
   useEffect(() => {
@@ -55,9 +65,9 @@ const VendorSignup = () => {
     if (!file) return;
 
     // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Please upload a valid image (JPEG, PNG) or PDF file');
+      toast.error('Please upload a valid image (JPEG, PNG, WEBP, GIF) or PDF file');
       return;
     }
 
@@ -109,6 +119,7 @@ const VendorSignup = () => {
       toast.error('Please enter a valid phone number');
       return;
     }
+    // Aadhar and PAN validations remain
     if (!formData.aadhar || formData.aadhar.length !== 12) {
       toast.error('Please enter a valid 12-digit Aadhar number');
       return;
@@ -117,16 +128,52 @@ const VendorSignup = () => {
       toast.error('Please enter a valid 10-character PAN number');
       return;
     }
-    if (!formData.service) {
-      toast.error('Please select a service');
-      return;
-    }
+    // Service validation removed
+
     if (formData.documents.length < 2) {
       toast.error('Please upload both Aadhar and PAN documents');
       return;
     }
 
     setIsLoading(true);
+
+    // Unified Flow: Direct Registration
+    if (verificationToken) {
+      try {
+        const aadharDoc = formData.documents.find(d => d.type === 'aadhar')?.url || null;
+        const panDoc = formData.documents.find(d => d.type === 'pan')?.url || null;
+        const otherDocs = formData.documents.filter(d => d.type === 'other').map(d => d.url);
+
+        const registerData = {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phoneNumber,
+          aadhar: formData.aadhar,
+          pan: formData.pan,
+          service: [], // Default empty
+          aadharDocument: aadharDoc,
+          panDocument: panDoc,
+          otherDocuments: otherDocs,
+          verificationToken // Use token
+        };
+
+        const response = await register(registerData);
+
+        if (response.success) {
+          toast.success('Registration successful! Your account is pending admin approval.');
+          navigate('/vendor/login');
+        } else {
+          toast.error(response.message || 'Registration failed');
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Registration failed');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Standard Flow
     try {
       const response = await sendVendorOTP(formData.phoneNumber);
       if (response.success) {
@@ -386,28 +433,7 @@ const VendorSignup = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Service *
-                </label>
-                <select
-                  name="service"
-                  value={formData.service}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-4 border-b-2 border-gray-300 focus:outline-none text-gray-900 bg-white rounded-lg"
-                  style={{ borderBottomColor: 'transparent' }}
-                  onFocus={(e) => e.target.style.borderBottomColor = themeColors.button}
-                  onBlur={(e) => e.target.style.borderBottomColor = 'transparent'}
-                  required
-                >
-                  <option value="">Select a service</option>
-                  {services.map((service) => (
-                    <option key={service} value={service}>
-                      {service}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Service Selection Removed */}
 
               {/* Document Upload Section */}
               <div className="space-y-4">
@@ -520,7 +546,7 @@ const VendorSignup = () => {
 
               <button
                 type="submit"
-                disabled={isLoading || !formData.name.trim() || !formData.email.trim() || !formData.phoneNumber || formData.phoneNumber.length < 10 || !formData.aadhar || formData.aadhar.length !== 12 || !formData.pan || formData.pan.length !== 10 || !formData.service || formData.documents.length < 2}
+                disabled={isLoading || !formData.name.trim() || !formData.email.trim() || !formData.phoneNumber || formData.phoneNumber.length < 10 || !formData.aadhar || formData.aadhar.length !== 12 || !formData.pan || formData.pan.length !== 10 || formData.documents.length < 2}
                 className="w-full py-4 rounded-xl text-white font-semibold text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   backgroundColor: themeColors.button,
@@ -539,7 +565,7 @@ const VendorSignup = () => {
                   e.currentTarget.style.backgroundColor = themeColors.button;
                 }}
               >
-                {isLoading ? 'Sending OTP...' : 'Continue'}
+                {isLoading ? (verificationToken ? 'Registering...' : 'Sending OTP...') : (verificationToken ? 'Register' : 'Send OTP')}
               </button>
             </form>
 

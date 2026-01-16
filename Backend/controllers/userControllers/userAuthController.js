@@ -1,5 +1,5 @@
 const User = require('../../models/User');
-const { generateTokenPair, verifyRefreshToken } = require('../../utils/tokenService');
+const { generateTokenPair, verifyRefreshToken, generateVerificationToken, verifyVerificationToken } = require('../../utils/tokenService');
 const { generateOTP, hashOTP, storeOTP, verifyOTP, checkRateLimit } = require('../../utils/redisOtp.util');
 const { sendOTP: sendSMSOTP } = require('../../services/smsService');
 const { sendOTPEmail } = require('../../services/emailService');
@@ -71,7 +71,76 @@ const sendOTP = async (req, res) => {
 };
 
 /**
- * Register user with OTP
+ * Verify OTP and Check User Status (Unified Login/Signup Entry)
+ */
+const verifyLogin = async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+
+    // 1. Verify OTP
+    const verification = await verifyOTP(phone, otp);
+    if (!verification.success) {
+      return res.status(400).json({
+        success: false,
+        message: verification.message
+      });
+    }
+
+    // 2. Check if user exists
+    const user = await User.findOne({ phone });
+
+    if (user) {
+      // EXISTING USER -> LOGIN
+      if (!user.isActive) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been deactivated.'
+        });
+      }
+
+      const tokens = generateTokenPair({
+        userId: user._id,
+        role: USER_ROLES.USER
+      });
+
+      return res.status(200).json({
+        success: true,
+        isNewUser: false,
+        message: 'Login successful',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          isPhoneVerified: user.isPhoneVerified,
+          isEmailVerified: user.isEmailVerified
+        },
+        ...tokens
+      });
+
+    } else {
+      // NEW USER -> RETURN VERIFICATION TOKEN
+      const verificationToken = generateVerificationToken(phone);
+
+      return res.status(200).json({
+        success: true,
+        isNewUser: true,
+        message: 'OTP verified. Please complete registration.',
+        verificationToken
+      });
+    }
+
+  } catch (error) {
+    console.error('Verify Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Verification failed. Please try again.'
+    });
+  }
+};
+
+/**
+ * Register user with Verification Token (No OTP required again)
  */
 const register = async (req, res) => {
   try {
@@ -84,15 +153,28 @@ const register = async (req, res) => {
       });
     }
 
-    const { name, email, phone, otp } = req.body;
+    const { name, email, verificationToken } = req.body;
+    let phone = req.body.phone;
 
-    // Verify OTP (checks Redis first, falls back to MongoDB)
-    const verification = await verifyOTP(phone, otp);
-    if (!verification.success) {
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
+    // Verify token if provided (New Flow)
+    if (verificationToken) {
+      const verifiedPhone = verifyVerificationToken(verificationToken);
+      if (!verifiedPhone) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or expired verification session. Please verify phone again.'
+        });
+      }
+      phone = verifiedPhone; // Trust the token's phone number
+    } else {
+      // Fallback to legacy OTP flow (if needed, but discouraged)
+      if (!req.body.otp) {
+        return res.status(400).json({ success: false, message: 'Verification token or OTP required.' });
+      }
+      const verification = await verifyOTP(phone, req.body.otp);
+      if (!verification.success) {
+        return res.status(400).json({ success: false, message: verification.message });
+      }
     }
 
     // Check if user already exists
@@ -290,6 +372,7 @@ const refreshToken = async (req, res) => {
 
 module.exports = {
   sendOTP,
+  verifyLogin,
   register,
   login,
   logout,

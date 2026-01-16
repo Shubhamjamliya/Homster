@@ -1,6 +1,6 @@
 const Vendor = require('../../models/Vendor');
 const { generateOTP, hashOTP, storeOTP, verifyOTP, checkRateLimit } = require('../../utils/redisOtp.util');
-const { generateTokenPair, verifyRefreshToken } = require('../../utils/tokenService');
+const { generateTokenPair, verifyRefreshToken, generateVerificationToken, verifyVerificationToken } = require('../../utils/tokenService');
 const { sendOTP: sendSMSOTP } = require('../../services/smsService');
 const cloudinaryService = require('../../services/cloudinaryService');
 const { USER_ROLES, VENDOR_STATUS } = require('../../utils/constants');
@@ -41,7 +41,7 @@ const sendOTP = async (req, res) => {
     // 4. Send OTP via SMS
     const smsResult = await sendSMSOTP(phone, otp);
 
-    // Log OTP in development mode only
+    // Log OTP in development mode
     if (process.env.NODE_ENV === 'development' || process.env.USE_DEFAULT_OTP === 'true') {
       console.log(`[DEV] Vendor OTP for ${phone}: ${otp}`);
     }
@@ -65,25 +65,13 @@ const sendOTP = async (req, res) => {
 };
 
 /**
- * Register vendor with OTP and documents
+ * Verify OTP and Check Vendor Status (Unified Login/Signup Entry)
  */
-const register = async (req, res) => {
+const verifyLogin = async (req, res) => {
   try {
-    console.log('Vendor register called with data:', req.body);
+    const { phone, otp } = req.body;
 
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
-    const { name, email, phone, aadhar, pan, service, otp } = req.body;
-
-    // Verify OTP (checks Redis first, falls back to MongoDB)
+    // 1. Verify OTP
     const verification = await verifyOTP(phone, otp);
     if (!verification.success) {
       return res.status(400).json({
@@ -92,16 +80,106 @@ const register = async (req, res) => {
       });
     }
 
-    // Check if vendor already exists
-    const existingVendor = await Vendor.findOne({ $or: [{ phone }, { email }] });
-    if (existingVendor) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vendor already exists. Please login.'
+    // 2. Check if vendor exists
+    const vendor = await Vendor.findOne({ phone });
+
+    if (vendor) {
+      // EXISTING VENDOR
+
+      // Check status checks (Login Logic)
+      if (vendor.approvalStatus === VENDOR_STATUS.REJECTED) {
+        return res.status(403).json({ success: false, message: 'Account rejected.' });
+      }
+      if (vendor.approvalStatus === VENDOR_STATUS.SUSPENDED) {
+        return res.status(403).json({ success: false, message: 'Account suspended.' });
+      }
+      if (!vendor.isActive) {
+        return res.status(403).json({ success: false, message: 'Account deactivated.' });
+      }
+
+      // Note: If PENDING, we let them login but restricted (frontend handles this by showing "Pending" screen)
+
+      const tokens = generateTokenPair({
+        userId: vendor._id,
+        role: USER_ROLES.VENDOR
+      });
+
+      return res.status(200).json({
+        success: true,
+        isNewUser: false,
+        message: 'Login successful',
+        vendor: {
+          id: vendor._id,
+          name: vendor.name,
+          email: vendor.email,
+          phone: vendor.phone,
+          businessName: vendor.businessName,
+          service: vendor.service,
+          approvalStatus: vendor.approvalStatus
+        },
+        ...tokens
+      });
+
+    } else {
+      // NEW VENDOR -> RETURN VERIFICATION TOKEN
+      const verificationToken = generateVerificationToken(phone);
+
+      return res.status(200).json({
+        success: true,
+        isNewUser: true,
+        message: 'OTP verified. Please complete registration.',
+        verificationToken
       });
     }
 
-    // Upload documents to Cloudinary if they are base64 strings
+  } catch (error) {
+    console.error('Verify Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Verification failed. Please try again.'
+    });
+  }
+};
+
+/**
+ * Register vendor with Verification Token (Service/Category Removed)
+ */
+const register = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    // Ignore service validation error if present (since removed)
+    const validErrors = errors.array().filter(e => e.path !== 'service');
+
+    if (validErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: validErrors
+      });
+    }
+
+    // verificationToken handling
+    const { name, email, verificationToken, aadhar, pan } = req.body;
+    let phone = req.body.phone;
+
+    if (verificationToken) {
+      const verifiedPhone = verifyVerificationToken(verificationToken);
+      if (!verifiedPhone) return res.status(400).json({ success: false, message: 'Invalid verification session.' });
+      phone = verifiedPhone;
+    } else {
+      // Fallback OTP
+      if (!req.body.otp) return res.status(400).json({ success: false, message: 'Verification required.' });
+      const ver = await verifyOTP(phone, req.body.otp);
+      if (!ver.success) return res.status(400).json({ success: false, message: ver.message });
+    }
+
+    // Check existing
+    const existing = await Vendor.findOne({ $or: [{ phone }, { email }] });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Vendor already exists. Login.' });
+    }
+
+    // Upload documents
     let aadharUrl = req.body.aadharDocument || null;
     let panUrl = req.body.panDocument || null;
     let otherUrls = req.body.otherDocuments || [];
@@ -110,79 +188,55 @@ const register = async (req, res) => {
       const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'vendors/documents' });
       if (uploadRes.success) aadharUrl = uploadRes.url;
     }
-
     if (panUrl && panUrl.startsWith('data:')) {
       const uploadRes = await cloudinaryService.uploadFile(panUrl, { folder: 'vendors/documents' });
       if (uploadRes.success) panUrl = uploadRes.url;
     }
-
+    // ... (otherDocs logic simplified for brevity, assume frontend sends valid array or backend helper used?
+    // I'll keep the simplified logic here assuming loop is standard)
     if (otherUrls && otherUrls.length > 0) {
       const uploadedOthers = [];
       for (const doc of otherUrls) {
         if (doc && doc.startsWith('data:')) {
-          const uploadRes = await cloudinaryService.uploadFile(doc, { folder: 'vendors/documents/others' });
-          if (uploadRes.success) uploadedOthers.push(uploadRes.url);
-        } else {
-          uploadedOthers.push(doc);
-        }
+          const up = await cloudinaryService.uploadFile(doc, { folder: 'vendors/documents/others' });
+          if (up.success) uploadedOthers.push(up.url);
+        } else uploadedOthers.push(doc);
       }
       otherUrls = uploadedOthers;
     }
 
-    // Create vendor (pending approval)
     const vendor = await Vendor.create({
-      name,
-      email,
-      phone,
-      service,
-      aadhar: {
-        number: aadhar,
-        document: aadharUrl
-      },
-      pan: {
-        number: pan,
-        document: panUrl
-      },
+      name, email, phone,
+      service: [], // Default empty as requested
+      aadhar: { number: aadhar, document: aadharUrl },
+      pan: { number: pan, document: panUrl },
       otherDocuments: otherUrls,
       approvalStatus: VENDOR_STATUS.PENDING,
       isPhoneVerified: true
     });
 
-    // 🔔 NOTIFY ALL ADMINS about new vendor registration
+    // Notify Admins
     try {
       const { createNotification } = require('../notificationControllers/notificationController');
       const Admin = require('../../models/Admin');
-
       const admins = await Admin.find({ isActive: true }).select('_id');
-
       for (const admin of admins) {
         await createNotification({
           adminId: admin._id,
           type: 'vendor_approval_request',
           title: '👤 New Vendor Registration',
-          message: `${vendor.name} (${vendor.phone}) has registered and is pending approval`,
+          message: `${vendor.name} (${vendor.phone}) has registered`,
           relatedId: vendor._id,
           relatedType: 'vendor',
-          data: {
-            vendorId: vendor._id,
-            vendorName: vendor.name,
-            phone: vendor.phone,
-            service: vendor.service
-          },
-          pushData: {
-            type: 'admin_alert',
-            link: '/admin/vendors/all'
-          }
+          data: { vendorId: vendor._id, vendorName: vendor.name, phone: vendor.phone },
+          pushData: { type: 'admin_alert', link: '/admin/vendors/all' }
         });
       }
-      console.log(`[VendorRegister] Notified ${admins.length} admins about new vendor: ${vendor.name}`);
-    } catch (notifyErr) {
-      console.error('[VendorRegister] Failed to notify admins:', notifyErr);
-    }
+    } catch (e) { console.error('Notify error', e); }
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful! Your account is pending admin approval.',
+      message: 'Registration successful! Pending approval.',
       vendor: {
         id: vendor._id,
         name: vendor.name,
@@ -191,11 +245,12 @@ const register = async (req, res) => {
         approvalStatus: vendor.approvalStatus
       }
     });
+
   } catch (error) {
     console.error('Vendor registration error:', error);
     res.status(500).json({
       success: false,
-      message: 'Registration failed. Please try again.'
+      message: 'Registration failed.'
     });
   }
 };
@@ -371,6 +426,7 @@ const refreshToken = async (req, res) => {
 
 module.exports = {
   sendOTP,
+  verifyLogin,
   register,
   login,
   logout,

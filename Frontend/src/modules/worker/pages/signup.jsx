@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../theme';
@@ -7,6 +7,7 @@ import { workerAuthService } from '../../../services/authService';
 
 const WorkerSignup = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState('details'); // 'details', 'skills', or 'otp'
   const [formData, setFormData] = useState({
     name: '',
@@ -19,8 +20,17 @@ const WorkerSignup = () => {
   });
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
+  const [verificationToken, setVerificationToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [documentPreview, setDocumentPreview] = useState(null);
+
+  // Unified Flow: Pre-fill
+  useEffect(() => {
+    if (location.state?.phone && location.state?.verificationToken) {
+      setFormData(prev => ({ ...prev, phoneNumber: location.state.phone }));
+      setVerificationToken(location.state.verificationToken);
+    }
+  }, [location.state]);
 
   // Service categories and skills options
   const serviceCategories = [
@@ -73,9 +83,9 @@ const WorkerSignup = () => {
     if (!file) return;
 
     // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Please upload a valid image (JPEG, PNG) or PDF file');
+      toast.error('Please upload a valid image (JPEG, PNG, WEBP, GIF) or PDF file');
       return;
     }
 
@@ -130,6 +140,36 @@ const WorkerSignup = () => {
     }
 
     setIsLoading(true);
+
+    // Unified Flow: Direct Registration
+    if (verificationToken) {
+      try {
+        const aadharDoc = documentPreview || null;
+        const registerData = {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phoneNumber,
+          aadhar: formData.aadhar,
+          aadharDocument: aadharDoc,
+          verificationToken
+        };
+
+        const response = await workerAuthService.register(registerData);
+        if (response.success) {
+          toast.success('Registration successful!');
+          navigate('/worker');
+        } else {
+          toast.error(response.message || 'Registration failed');
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Registration failed');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Standard Flow
     try {
       const response = await workerAuthService.sendOTP(formData.phoneNumber, formData.email);
       if (response.success) {
@@ -408,7 +448,7 @@ const WorkerSignup = () => {
                   e.currentTarget.style.backgroundColor = themeColors.button;
                 }}
               >
-                {isLoading ? 'Sending OTP...' : 'Continue'}
+                {isLoading ? (verificationToken ? 'Registering...' : 'Sending OTP...') : (verificationToken ? 'Register' : 'Send OTP')}
               </button>
             </form>
 

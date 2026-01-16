@@ -57,6 +57,32 @@ module.exports = {
   generateRefreshToken,
   generateTokenPair,
   verifyAccessToken,
-  verifyRefreshToken
+  verifyRefreshToken,
+
+  /**
+   * Generate temporary verification token for signup flow
+   * @param {string} phone - Verified phone number
+   * @returns {string} - JWT verification token
+   */
+  generateVerificationToken: (phone) => {
+    return jwt.sign({ phone, type: 'verification' }, process.env.JWT_SECRET, {
+      expiresIn: '15m'
+    });
+  },
+
+  /**
+   * Verify verification token
+   * @param {string} token - JWT verification token
+   * @returns {string|null} - Phone number if valid, null otherwise
+   */
+  verifyVerificationToken: (token) => {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.type !== 'verification') return null;
+      return decoded.phone;
+    } catch (error) {
+      return null;
+    }
+  }
 };
 

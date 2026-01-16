@@ -1,6 +1,6 @@
 const Worker = require('../../models/Worker');
 const { generateOTP, hashOTP, storeOTP, verifyOTP, checkRateLimit } = require('../../utils/redisOtp.util');
-const { generateTokenPair, verifyRefreshToken } = require('../../utils/tokenService');
+const { generateTokenPair, verifyRefreshToken, generateVerificationToken, verifyVerificationToken } = require('../../utils/tokenService');
 const { sendOTP: sendSMSOTP } = require('../../services/smsService');
 const cloudinaryService = require('../../services/cloudinaryService');
 const { USER_ROLES, WORKER_STATUS } = require('../../utils/constants');
@@ -41,7 +41,7 @@ const sendOTP = async (req, res) => {
     // 4. Send OTP via SMS
     const smsResult = await sendSMSOTP(phone, otp);
 
-    // Log OTP in development mode only
+    // Log OTP
     if (process.env.NODE_ENV === 'development' || process.env.USE_DEFAULT_OTP === 'true') {
       console.log(`[DEV] Worker OTP for ${phone}: ${otp}`);
     }
@@ -65,22 +65,13 @@ const sendOTP = async (req, res) => {
 };
 
 /**
- * Login worker with OTP
+ * Verify OTP and Check Worker Status (Unified Login/Signup Entry)
  */
-const login = async (req, res) => {
+const verifyLogin = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
     const { phone, otp } = req.body;
 
-    // Verify OTP (checks Redis first, falls back to MongoDB)
+    // 1. Verify OTP
     const verification = await verifyOTP(phone, otp);
     if (!verification.success) {
       return res.status(400).json({
@@ -89,52 +80,59 @@ const login = async (req, res) => {
       });
     }
 
-    // Find worker
+    // 2. Check if worker exists
     const worker = await Worker.findOne({ phone });
-    if (!worker) {
-      return res.status(404).json({
-        success: false,
-        message: 'Worker not found. Please contact your vendor or register first.'
+
+    if (worker) {
+      // EXISTING WORKER
+      if (!worker.isActive) {
+        return res.status(403).json({ success: false, message: 'Account deactivated.' });
+      }
+
+      const tokens = generateTokenPair({
+        userId: worker._id,
+        role: USER_ROLES.WORKER
+      });
+
+      return res.status(200).json({
+        success: true,
+        isNewUser: false,
+        message: 'Login successful',
+        worker: {
+          id: worker._id,
+          name: worker.name,
+          email: worker.email,
+          phone: worker.phone,
+          status: worker.status,
+          status: worker.status,
+          serviceCategories: worker.serviceCategories || []
+        },
+        ...tokens
+      });
+
+    } else {
+      // NEW WORKER
+      const verificationToken = generateVerificationToken(phone);
+
+      return res.status(200).json({
+        success: true,
+        isNewUser: true,
+        message: 'OTP verified. Please complete registration.',
+        verificationToken
       });
     }
 
-    if (!worker.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has been deactivated. Please contact support.'
-      });
-    }
-
-    // Generate JWT tokens
-    const tokens = generateTokenPair({
-      userId: worker._id,
-      role: USER_ROLES.WORKER
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      worker: {
-        id: worker._id,
-        name: worker.name,
-        email: worker.email,
-        phone: worker.phone,
-        status: worker.status,
-        serviceCategory: worker.serviceCategory
-      },
-      ...tokens
-    });
   } catch (error) {
-    console.error('Worker login error:', error);
+    console.error('Verify Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Login failed. Please try again.'
+      message: 'Verification failed. Please try again.'
     });
   }
 };
 
 /**
- * Register worker (if allowed directly)
+ * Register worker with Verification Token
  */
 const register = async (req, res) => {
   try {
@@ -147,18 +145,22 @@ const register = async (req, res) => {
       });
     }
 
-    const { name, email, phone, otp, aadharNumber, aadharDocument } = req.body;
+    // verificationToken handling
+    const { name, email, verificationToken, aadharNumber, aadharDocument } = req.body;
+    let phone = req.body.phone;
 
-    // Verify OTP (checks Redis first, falls back to MongoDB)
-    const verification = await verifyOTP(phone, otp);
-    if (!verification.success) {
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
+    if (verificationToken) {
+      const verifiedPhone = verifyVerificationToken(verificationToken);
+      if (!verifiedPhone) return res.status(400).json({ success: false, message: 'Invalid verification session.' });
+      phone = verifiedPhone;
+    } else {
+      // Fallback OTP
+      if (!req.body.otp) return res.status(400).json({ success: false, message: 'Verification required.' });
+      const ver = await verifyOTP(phone, req.body.otp);
+      if (!ver.success) return res.status(400).json({ success: false, message: ver.message });
     }
 
-    // Check if worker already exists
+    // Check existing
     const existingWorker = await Worker.findOne({ $or: [{ phone }, { email }] });
     if (existingWorker) {
       return res.status(400).json({
@@ -167,7 +169,7 @@ const register = async (req, res) => {
       });
     }
 
-    // Upload Aadhar document to Cloudinary if it's a base64 string
+    // Upload Aadhar
     let aadharUrl = aadharDocument || null;
     if (aadharUrl && aadharUrl.startsWith('data:')) {
       const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'workers/documents' });
@@ -176,18 +178,15 @@ const register = async (req, res) => {
 
     // Create worker
     const worker = await Worker.create({
-      name,
-      email,
-      phone,
+      name, email, phone,
       isPhoneVerified: true,
       aadhar: {
-        number: aadharNumber,
+        number: req.body.aadhar || aadharNumber,
         document: aadharUrl
       },
       status: WORKER_STATUS.OFFLINE
     });
 
-    // Generate JWT tokens
     const tokens = generateTokenPair({
       userId: worker._id,
       role: USER_ROLES.WORKER
@@ -210,6 +209,71 @@ const register = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Registration failed. Please try again.'
+    });
+  }
+};
+
+/**
+ * Login worker with OTP
+ */
+const login = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { phone, otp } = req.body;
+
+    // Verify OTP
+    const verification = await verifyOTP(phone, otp);
+    if (!verification.success) {
+      return res.status(400).json({
+        success: false,
+        message: verification.message
+      });
+    }
+
+    // Find worker
+    const worker = await Worker.findOne({ phone });
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message: 'Worker not found. Please register first.'
+      });
+    }
+
+    if (!worker.isActive) {
+      return res.status(403).json({ success: false, message: 'Account deactivated.' });
+    }
+
+    const tokens = generateTokenPair({
+      userId: worker._id,
+      role: USER_ROLES.WORKER
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      worker: {
+        id: worker._id,
+        name: worker.name,
+        email: worker.email,
+        phone: worker.phone,
+        status: worker.status,
+        serviceCategories: worker.serviceCategories || []
+      },
+      ...tokens
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Login failed'
     });
   }
 };
@@ -306,6 +370,7 @@ const refreshToken = async (req, res) => {
 
 module.exports = {
   sendOTP,
+  verifyLogin,
   register,
   login,
   logout,

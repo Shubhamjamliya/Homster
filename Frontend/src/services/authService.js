@@ -14,6 +14,18 @@ export const userAuthService = {
     return response.data;
   },
 
+  // Verify Login (Unified Flow)
+  verifyLogin: async (data) => {
+    const response = await api.post('/users/auth/verify-login', data);
+    if (response.data.success && !response.data.isNewUser && response.data.accessToken) {
+      localStorage.setItem('accessToken', response.data.accessToken);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+      localStorage.setItem('userData', JSON.stringify(response.data.user));
+      registerFCMToken('user', true).catch(console.error);
+    }
+    return response.data;
+  },
+
   // Register
   register: async (data) => {
     const response = await api.post('/users/auth/register', data);
@@ -80,6 +92,18 @@ export const vendorAuthService = {
   // Send OTP
   sendOTP: async (phone, email = null) => {
     const response = await api.post('/vendors/auth/send-otp', { phone, email });
+    return response.data;
+  },
+
+  // Verify Login (Unified Flow)
+  verifyLogin: async (data) => {
+    const response = await api.post('/vendors/auth/verify-login', data);
+    if (response.data.success && !response.data.isNewUser && response.data.accessToken) {
+      localStorage.setItem('vendorAccessToken', response.data.accessToken);
+      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
+      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      registerFCMToken('vendor', true).catch(console.error);
+    }
     return response.data;
   },
 
@@ -154,6 +178,18 @@ export const workerAuthService = {
   // Send OTP
   sendOTP: async (phone, email = null) => {
     const response = await api.post('/workers/auth/send-otp', { phone, email });
+    return response.data;
+  },
+
+  // Verify Login (Unified Flow)
+  verifyLogin: async (data) => {
+    const response = await api.post('/workers/auth/verify-login', data);
+    if (response.data.success && !response.data.isNewUser && response.data.accessToken) {
+      localStorage.setItem('workerAccessToken', response.data.accessToken);
+      localStorage.setItem('workerRefreshToken', response.data.refreshToken);
+      localStorage.setItem('workerData', JSON.stringify(response.data.worker));
+      registerFCMToken('worker', true).catch(console.error);
+    }
     return response.data;
   },
 

@@ -34,7 +34,7 @@ const isWorker = (req, res, next) => {
 };
 
 const isAdmin = (req, res, next) => {
-  if (req.userRole !== USER_ROLES.ADMIN) {
+  if (req.userRole !== USER_ROLES.ADMIN && req.userRole !== 'super_admin') {
     return res.status(403).json({
       success: false,
       message: 'Access denied. Admin role required.'
@@ -44,7 +44,7 @@ const isAdmin = (req, res, next) => {
 };
 
 const isAdminOrVendor = (req, res, next) => {
-  if (req.userRole !== USER_ROLES.ADMIN && req.userRole !== USER_ROLES.VENDOR) {
+  if (req.userRole !== USER_ROLES.ADMIN && req.userRole !== 'super_admin' && req.userRole !== USER_ROLES.VENDOR) {
     return res.status(403).json({
       success: false,
       message: 'Access denied. Admin or Vendor role required.'

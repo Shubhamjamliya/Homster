@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { FiPhone } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../theme';
-import { sendOTP, login } from '../services/authService';
+import { sendOTP, login, verifyLogin } from '../services/authService';
 
 const VendorLogin = () => {
   const navigate = useNavigate();
@@ -14,10 +14,7 @@ const VendorLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Clear any existing vendor tokens on page load
-  // Clear any existing vendor tokens on page load
   useEffect(() => {
-    // Force clear vendor tokens when accessing login page to prevent auto-redirect
-    // do NOT clear user/worker tokens to allow multi-role sessions
     localStorage.removeItem('vendorAccessToken');
     localStorage.removeItem('vendorRefreshToken');
     localStorage.removeItem('vendorData');
@@ -80,22 +77,33 @@ const VendorLogin = () => {
     }
     setIsLoading(true);
     try {
-      const response = await login({
+      // Unified Flow: verifyLogin
+      const response = await verifyLogin({
         phone: phoneNumber,
-        otp: otpValue,
-        token: otpToken
+        otp: otpValue
       });
+
       if (response.success) {
         setIsLoading(false);
-        toast.success('Login successful!');
-        navigate('/vendor');
+
+        if (response.isNewUser) {
+          // New Vendor -> Signup
+          toast.success('Phone verified! Please complete registration.');
+          navigate('/vendor/signup', {
+            state: { phone: phoneNumber, verificationToken: response.verificationToken }
+          });
+        } else {
+          // Existing Vendor -> Dashboard
+          toast.success('Login successful!');
+          navigate('/vendor');
+        }
       } else {
         setIsLoading(false);
         toast.error(response.message || 'Login failed');
       }
     } catch (error) {
       setIsLoading(false);
-      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
+      const errorMessage = error.response?.data?.message || 'Verification failed. Please try again.';
       toast.error(errorMessage);
     }
   };
@@ -285,4 +293,3 @@ const VendorLogin = () => {
 };
 
 export default VendorLogin;
-

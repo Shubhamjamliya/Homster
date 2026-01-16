@@ -13,6 +13,8 @@ const WorkerLogin = () => {
   const [otpToken, setOtpToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  console.log('WorkerLogin Unified Component Loaded v2'); // Debug: Ensure latest code is running
+
   // Clear any existing worker tokens on page load
   useEffect(() => {
     localStorage.removeItem('workerAccessToken');
@@ -77,22 +79,33 @@ const WorkerLogin = () => {
     }
     setIsLoading(true);
     try {
-      const response = await workerAuthService.login({
+      // Unified Flow: verifyLogin
+      const response = await workerAuthService.verifyLogin({
         phone: phoneNumber,
-        otp: otpValue,
-        token: otpToken
+        otp: otpValue
       });
+
       if (response.success) {
         setIsLoading(false);
-        toast.success('Login successful!');
-        navigate('/worker');
+
+        if (response.isNewUser) {
+          // New Worker -> Signup
+          toast.success('Phone verified! Please complete registration.');
+          navigate('/worker/signup', {
+            state: { phone: phoneNumber, verificationToken: response.verificationToken }
+          });
+        } else {
+          // Existing Worker -> Dashboard
+          toast.success('Login successful!');
+          navigate('/worker');
+        }
       } else {
         setIsLoading(false);
         toast.error(response.message || 'Login failed');
       }
     } catch (error) {
       setIsLoading(false);
-      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
+      const errorMessage = error.response?.data?.message || 'Verification failed. Please try again.';
       toast.error(errorMessage);
     }
   };
