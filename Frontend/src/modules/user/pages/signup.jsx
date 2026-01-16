@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-// ...
+import { FiUser, FiMail, FiPhone } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
+import { themeColors } from '../../../theme';
+import { userAuthService } from '../../../services/authService';
+
 const Signup = () => {
   const navigate = useNavigate();
   const location = useLocation();
