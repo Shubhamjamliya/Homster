@@ -139,7 +139,9 @@ exports.confirmCashCollection = async (req, res) => {
         total: (Number(item.qty) || 1) * (Number(item.price) || 0)
       }));
 
-      booking.extraChargesTotal = collectionAmount;
+      // Calculate total from items
+      const calculatedExtraTotal = booking.extraCharges.reduce((sum, item) => sum + item.total, 0);
+      booking.extraChargesTotal = calculatedExtraTotal;
     }
 
     // Recalculate earnings and commission
@@ -232,6 +234,7 @@ exports.confirmCashCollection = async (req, res) => {
       // Record Transaction
       await Transaction.create({
         vendorId,
+        userId: booking.userId,
         bookingId: booking._id,
         amount: collectionAmount,
         type: 'cash_collected',

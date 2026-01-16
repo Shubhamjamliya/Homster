@@ -121,8 +121,8 @@ const Settings = () => {
         navigate('/worker/login');
       } catch (error) {
         // Even if API call fails, clear local storage
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('workerAccessToken');
+        localStorage.removeItem('workerRefreshToken');
         localStorage.removeItem('workerData');
         toast.success('Logged out successfully');
         navigate('/worker/login');

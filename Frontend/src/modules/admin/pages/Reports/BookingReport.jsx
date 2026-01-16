@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiShoppingBag, FiPieChart, FiBarChart2 } from 'react-icons/fi';
+import { FiShoppingBag, FiPieChart, FiBarChart2, FiDownload } from 'react-icons/fi';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -8,6 +8,7 @@ import {
 import { toast } from 'react-hot-toast';
 import adminReportService from '../../../../services/adminReportService';
 import CardShell from '../UserCategories/components/CardShell';
+import { exportToCSV } from '../../../../utils/csvExport';
 
 const BookingReport = () => {
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,44 @@ const BookingReport = () => {
     fetchData();
   }, []);
 
+  // Export monthly trends
+  const handleExportMonthly = () => {
+    if (!data?.monthlyTrends || data.monthlyTrends.length === 0) {
+      toast.error('No monthly data to export');
+      return;
+    }
+    exportToCSV(data.monthlyTrends, 'booking_monthly_trends', [
+      { key: '_id', label: 'Month' },
+      { key: 'total', label: 'Total Bookings', type: 'number' },
+      { key: 'completed', label: 'Completed', type: 'number' },
+      { key: 'cancelled', label: 'Cancelled', type: 'number' }
+    ]);
+  };
+
+  // Export status distribution
+  const handleExportStatus = () => {
+    if (!data?.statusDistribution || data.statusDistribution.length === 0) {
+      toast.error('No status data to export');
+      return;
+    }
+    exportToCSV(data.statusDistribution, 'booking_status_distribution', [
+      { key: '_id', label: 'Status' },
+      { key: 'count', label: 'Count', type: 'number' }
+    ]);
+  };
+
+  // Export service distribution
+  const handleExportService = () => {
+    if (!data?.serviceDistribution || data.serviceDistribution.length === 0) {
+      toast.error('No service data to export');
+      return;
+    }
+    exportToCSV(data.serviceDistribution, 'booking_by_service', [
+      { key: '_id', label: 'Service' },
+      { key: 'count', label: 'Bookings', type: 'number' }
+    ]);
+  };
+
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -44,13 +83,29 @@ const BookingReport = () => {
 
   return (
     <div className="space-y-4">
+      {/* Export All Button */}
+      <div className="flex justify-start">
+        <button
+          onClick={handleExportMonthly}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center gap-2 transition-colors"
+        >
+          <FiDownload className="w-4 h-4" />
+          Export Monthly Trends
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Status Distribution */}
         <CardShell className="bg-white p-4">
-          <h3 className="text-base font-bold mb-4 flex items-center gap-2">
-            <FiPieChart className="text-primary-600" />
-            Booking Status Distribution
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-bold flex items-center gap-2">
+              <FiPieChart className="text-primary-600" />
+              Booking Status Distribution
+            </h3>
+            <button onClick={handleExportStatus} className="text-xs text-gray-500 hover:text-green-600 flex items-center gap-1">
+              <FiDownload className="w-3 h-3" /> Export
+            </button>
+          </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -64,7 +119,7 @@ const BookingReport = () => {
                   dataKey="count"
                   nameKey="_id"
                 >
-                  {data?.statusDistribution.map((entry, index) => (
+                  {data?.statusDistribution?.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -77,10 +132,15 @@ const BookingReport = () => {
 
         {/* Service Distribution */}
         <CardShell className="bg-white p-4">
-          <h3 className="text-base font-bold mb-4 flex items-center gap-2">
-            <FiBarChart2 className="text-amber-600" />
-            Bookings by Service
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-bold flex items-center gap-2">
+              <FiBarChart2 className="text-amber-600" />
+              Bookings by Service
+            </h3>
+            <button onClick={handleExportService} className="text-xs text-gray-500 hover:text-green-600 flex items-center gap-1">
+              <FiDownload className="w-3 h-3" /> Export
+            </button>
+          </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data?.serviceDistribution}>
@@ -89,7 +149,7 @@ const BookingReport = () => {
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 11 }} />
                 <Tooltip cursor={{ fill: 'transparent' }} />
                 <Bar dataKey="count" fill="#2874F0" radius={[4, 4, 0, 0]}>
-                  {data?.serviceDistribution.map((entry, index) => (
+                  {data?.serviceDistribution?.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>
@@ -100,10 +160,12 @@ const BookingReport = () => {
 
         {/* Monthly Trends */}
         <CardShell className="bg-white lg:col-span-2 p-4">
-          <h3 className="text-base font-bold mb-4 flex items-center gap-2">
-            <FiShoppingBag className="text-indigo-600" />
-            Monthly Booking Trends
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-bold flex items-center gap-2">
+              <FiShoppingBag className="text-indigo-600" />
+              Monthly Booking Trends
+            </h3>
+          </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data?.monthlyTrends}>
@@ -125,3 +187,4 @@ const BookingReport = () => {
 };
 
 export default BookingReport;
+

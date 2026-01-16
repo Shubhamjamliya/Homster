@@ -4,10 +4,10 @@ import { motion } from 'framer-motion';
 import { FiUsers, FiClock, FiActivity, FiDollarSign } from 'react-icons/fi';
 
 // Import sub-components
+// Import sub-components
 import AllWorkers from './AllWorkers';
 import WorkerJobs from './WorkerJobs';
 import WorkerAnalytics from './WorkerAnalytics';
-import WorkerPayments from './WorkerPayments';
 
 const Workers = () => {
   const location = useLocation();
@@ -16,7 +16,6 @@ const Workers = () => {
     { name: 'All Workers', path: '/admin/workers/all', icon: FiUsers },
     { name: 'Worker Jobs', path: '/admin/workers/jobs', icon: FiClock },
     { name: 'Worker Analytics', path: '/admin/workers/analytics', icon: FiActivity },
-    { name: 'Worker Payments', path: '/admin/workers/payments', icon: FiDollarSign },
   ];
 
   const getPageTitle = () => {
@@ -38,7 +37,6 @@ const Workers = () => {
           <Route path="all" element={<AllWorkers />} />
           <Route path="jobs" element={<WorkerJobs />} />
           <Route path="analytics" element={<WorkerAnalytics />} />
-          <Route path="payments" element={<WorkerPayments />} />
         </Routes>
       </motion.div>
     </div>

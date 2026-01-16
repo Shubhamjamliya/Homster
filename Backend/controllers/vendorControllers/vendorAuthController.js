@@ -1,6 +1,7 @@
 const Vendor = require('../../models/Vendor');
 const { createOTPToken, verifyOTPToken, markTokenAsUsed } = require('../../services/otpService');
 const { generateTokenPair, verifyRefreshToken } = require('../../utils/tokenService');
+const cloudinaryService = require('../../services/cloudinaryService');
 const { TOKEN_TYPES, USER_ROLES, VENDOR_STATUS } = require('../../utils/constants');
 const { validationResult } = require('express-validator');
 
@@ -94,10 +95,33 @@ const register = async (req, res) => {
       });
     }
 
-    // Upload documents (assuming they're sent as base64 or URLs)
-    const aadharDoc = req.body.aadharDocument || null;
-    const panDoc = req.body.panDocument || null;
-    const otherDocs = req.body.otherDocuments || [];
+    // Upload documents to Cloudinary if they are base64 strings
+    let aadharUrl = req.body.aadharDocument || null;
+    let panUrl = req.body.panDocument || null;
+    let otherUrls = req.body.otherDocuments || [];
+
+    if (aadharUrl && aadharUrl.startsWith('data:')) {
+      const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'vendors/documents' });
+      if (uploadRes.success) aadharUrl = uploadRes.url;
+    }
+
+    if (panUrl && panUrl.startsWith('data:')) {
+      const uploadRes = await cloudinaryService.uploadFile(panUrl, { folder: 'vendors/documents' });
+      if (uploadRes.success) panUrl = uploadRes.url;
+    }
+
+    if (otherUrls && otherUrls.length > 0) {
+      const uploadedOthers = [];
+      for (const doc of otherUrls) {
+        if (doc && doc.startsWith('data:')) {
+          const uploadRes = await cloudinaryService.uploadFile(doc, { folder: 'vendors/documents/others' });
+          if (uploadRes.success) uploadedOthers.push(uploadRes.url);
+        } else {
+          uploadedOthers.push(doc);
+        }
+      }
+      otherUrls = uploadedOthers;
+    }
 
     // Create vendor (pending approval)
     const vendor = await Vendor.create({
@@ -107,19 +131,51 @@ const register = async (req, res) => {
       service,
       aadhar: {
         number: aadhar,
-        document: aadharDoc // In production, use uploaded URL
+        document: aadharUrl
       },
       pan: {
         number: pan,
-        document: panDoc // In production, use uploaded URL
+        document: panUrl
       },
-      otherDocuments: otherDocs,
+      otherDocuments: otherUrls,
       approvalStatus: VENDOR_STATUS.PENDING,
       isPhoneVerified: true
     });
 
     // Mark token as used
     await markTokenAsUsed(verification.tokenDoc._id);
+
+    // 🔔 NOTIFY ALL ADMINS about new vendor registration
+    try {
+      const { createNotification } = require('../notificationControllers/notificationController');
+      const Admin = require('../../models/Admin');
+
+      const admins = await Admin.find({ isActive: true }).select('_id');
+
+      for (const admin of admins) {
+        await createNotification({
+          adminId: admin._id,
+          type: 'vendor_approval_request',
+          title: '👤 New Vendor Registration',
+          message: `${vendor.name} (${vendor.phone}) has registered and is pending approval`,
+          relatedId: vendor._id,
+          relatedType: 'vendor',
+          data: {
+            vendorId: vendor._id,
+            vendorName: vendor.name,
+            phone: vendor.phone,
+            service: vendor.service
+          },
+          pushData: {
+            type: 'admin_alert',
+            link: '/admin/vendors/all'
+          }
+        });
+      }
+      console.log(`[VendorRegister] Notified ${admins.length} admins about new vendor: ${vendor.name}`);
+    } catch (notifyErr) {
+      console.error('[VendorRegister] Failed to notify admins:', notifyErr);
+    }
 
     res.status(201).json({
       success: true,

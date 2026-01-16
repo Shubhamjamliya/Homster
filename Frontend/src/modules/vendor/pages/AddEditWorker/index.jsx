@@ -29,7 +29,7 @@ const AddEditWorker = () => {
       document: '' // Base64 string ideally
     },
     skills: [],
-    serviceCategory: '',
+    serviceCategories: [],
     address: {
       addressLine1: '',
       city: '',
@@ -90,7 +90,7 @@ const AddEditWorker = () => {
                 document: w.aadhar?.document || ''
               },
               skills: w.skills || [],
-              serviceCategory: w.serviceCategory || '',
+              serviceCategories: w.serviceCategories || (w.serviceCategory ? [w.serviceCategory] : []),
               address: {
                 addressLine1: w.address?.addressLine1 || '',
                 city: w.address?.city || '',
@@ -167,12 +167,27 @@ const AddEditWorker = () => {
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
 
-  const handleCategoryChange = (val) => {
-    setFormData(prev => ({
-      ...prev,
-      serviceCategory: val,
-      skills: []
-    }));
+  const toggleCategory = (val) => {
+    setFormData(prev => {
+      const serviceCategories = prev.serviceCategories.includes(val)
+        ? prev.serviceCategories.filter(c => c !== val)
+        : [...prev.serviceCategories, val];
+
+      // Keep only skills that belong to the remaining categories
+      // We'll need the categories data for this
+      const remainingSkills = prev.skills.filter(skill => {
+        return categories.some(cat =>
+          serviceCategories.includes(cat.title) &&
+          cat.subServices.some(s => (typeof s === 'string' ? s : (s.name || s.title)) === skill)
+        );
+      });
+
+      return {
+        ...prev,
+        serviceCategories,
+        skills: remainingSkills
+      };
+    });
   };
 
   const handleAddressSave = (houseNumber, location) => {
@@ -225,7 +240,7 @@ const AddEditWorker = () => {
       if (!formData.aadhar.number) errs['aadhar.number'] = 'Required';
       if (!formData.aadhar.document) errs['aadhar.document'] = 'Required';
     }
-    if (!formData.serviceCategory) errs.serviceCategory = 'Required';
+    if (formData.serviceCategories.length === 0) errs.serviceCategories = 'Required';
     if (formData.skills.length === 0) errs.skills = 'Select at least one';
 
     setErrors(errs);
@@ -324,8 +339,21 @@ const AddEditWorker = () => {
     }
   };
 
-  // Get selected category object for skills
-  const selectedCategoryObj = Array.isArray(categories) ? categories.find(c => c?.title === formData.serviceCategory) : null;
+  // Get selected category objects for skills
+  const selectedCategoriesData = Array.isArray(categories)
+    ? categories.filter(c => formData.serviceCategories.includes(c?.title))
+    : [];
+
+  // Aggregate all sub-services from selected categories
+  const allAvailableSkills = selectedCategoriesData.reduce((acc, cat) => {
+    if (cat.subServices) {
+      cat.subServices.forEach(s => {
+        const sName = typeof s === 'string' ? s : (s.name || s.title);
+        if (!acc.includes(sName)) acc.push(sName);
+      });
+    }
+    return acc;
+  }, []);
 
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
@@ -509,8 +537,10 @@ const AddEditWorker = () => {
                     onClick={() => setIsCategoryOpen(!isCategoryOpen)}
                     className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-100"
                   >
-                    <span className={`font-medium truncate ${formData.serviceCategory ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {formData.serviceCategory || 'Select a Category'}
+                    <span className={`font-medium truncate ${formData.serviceCategories.length > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {formData.serviceCategories.length > 0
+                        ? `${formData.serviceCategories.length} Selected`
+                        : 'Select Categories'}
                     </span>
                     <FiChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -527,13 +557,12 @@ const AddEditWorker = () => {
                             <button
                               key={cat._id}
                               onClick={() => {
-                                handleCategoryChange(cat.title);
-                                setIsCategoryOpen(false);
+                                toggleCategory(cat.title);
                               }}
                               className="w-full text-left px-4 py-3 hover:bg-gray-50 font-medium text-gray-700 border-b border-gray-50 last:border-0 flex items-center justify-between"
                             >
                               {cat.title}
-                              {formData.serviceCategory === cat.title && (
+                              {formData.serviceCategories.includes(cat.title) && (
                                 <div className="w-2 h-2 rounded-full bg-green-500" />
                               )}
                             </button>
@@ -545,11 +574,31 @@ const AddEditWorker = () => {
                     </>
                   )}
                 </div>
-                {errors.serviceCategory && <p className="text-red-500 text-[10px] mt-1">Required</p>}
+
+                {/* Selected Categories Tags */}
+                {formData.serviceCategories.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {formData.serviceCategories.map((cat, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-100"
+                      >
+                        {cat}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleCategory(cat); }}
+                          className="ml-2 text-blue-500 hover:text-red-500 focus:outline-none"
+                        >
+                          <FiX className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {errors.serviceCategories && <p className="text-red-500 text-[10px] mt-1">Required</p>}
               </div>
 
               {/* Services (Skills) Dropdown */}
-              {formData.serviceCategory && (
+              {formData.serviceCategories.length > 0 && (
                 <div>
                   <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">Services (Skills)</label>
                   <div className="relative">
@@ -570,9 +619,8 @@ const AddEditWorker = () => {
                           onClick={() => setIsServicesOpen(false)}
                         />
                         <div className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto">
-                          {selectedCategoryObj?.subServices && selectedCategoryObj.subServices.length > 0 ? (
-                            selectedCategoryObj.subServices.map((skill, idx) => {
-                              const sName = typeof skill === 'string' ? skill : (skill.name || skill.title);
+                          {allAvailableSkills.length > 0 ? (
+                            allAvailableSkills.map((sName, idx) => {
                               const isSelected = formData.skills.includes(sName);
                               return (
                                 <button

@@ -195,7 +195,7 @@ const Dashboard = () => {
                   border: `2.5px solid #FFFFFF`,
                 }}
               >
-              >
+
                 {workerProfile.photo ? (
                   <OptimizedImage
                     src={workerProfile.photo}

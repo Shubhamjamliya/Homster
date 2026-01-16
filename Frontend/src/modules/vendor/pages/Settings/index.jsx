@@ -90,8 +90,8 @@ const Settings = () => {
       navigate('/vendor/login');
     } catch (error) {
       // Even if API call fails, clear local storage
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('vendorAccessToken');
+      localStorage.removeItem('vendorRefreshToken');
       localStorage.removeItem('vendorData');
       toast.success('Logged out successfully');
       navigate('/vendor/login');

@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fi';
 import { adminTransactionService } from '../../../../services/adminTransactionService';
 import toast from 'react-hot-toast';
+import { exportToCSV } from '../../../../utils/csvExport';
 
 const PaymentOverview = () => {
   const [stats, setStats] = useState({
@@ -134,10 +135,33 @@ const PaymentOverview = () => {
   const getTypeColor = (type) => {
     switch (type) {
       case 'credit': return 'text-green-600 bg-green-50 border-green-100';
+      case 'payment': return 'text-blue-600 bg-blue-50 border-blue-100'; // Online Payment
+      case 'cash_collected': return 'text-amber-600 bg-amber-50 border-amber-100'; // Cash
       case 'debit': return 'text-orange-600 bg-orange-50 border-orange-100';
       case 'refund': return 'text-purple-600 bg-purple-50 border-purple-100';
       default: return 'text-gray-600 bg-gray-50 border-gray-100';
     }
+  };
+
+  // Export transactions to CSV
+  const handleExport = () => {
+    if (!transactions || transactions.length === 0) {
+      toast.error('No transactions to export');
+      return;
+    }
+    exportToCSV(transactions, 'payment_transactions', [
+      { key: '_id', label: 'Transaction ID' },
+      { key: 'userId.name', label: 'User Name' },
+      { key: 'userId.phone', label: 'Phone' },
+      { key: 'userId.email', label: 'Email' },
+      { key: 'type', label: 'Type' },
+      { key: 'amount', label: 'Amount', type: 'currency' },
+      { key: 'status', label: 'Status' },
+      { key: 'createdAt', label: 'Date', type: 'datetime' },
+      { key: 'razorpayOrderId', label: 'Razorpay Order ID' },
+      { key: 'referenceId', label: 'Reference ID' },
+      { key: 'description', label: 'Description' }
+    ]);
   };
 
   return (
@@ -211,13 +235,19 @@ const PaymentOverview = () => {
             className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:border-blue-500"
           >
             <option value="all">All Types</option>
-            <option value="credit">Credit</option>
-            <option value="debit">Debit</option>
+            <option value="credit">Credit (Platform)</option>
+            <option value="debit">Debit (Wallet)</option>
+            <option value="payment">Online Payment</option>
+            <option value="cash_collected">Cash Collected</option>
             <option value="refund">Refund</option>
           </select>
 
-          <button className="p-2 text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
-            <FiDownload className="w-5 h-5" />
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center gap-2 transition-colors"
+          >
+            <FiDownload className="w-4 h-4" />
+            Export CSV
           </button>
         </div>
       </div>
@@ -229,7 +259,7 @@ const PaymentOverview = () => {
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Transaction ID</th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User / Entity</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
@@ -261,8 +291,17 @@ const PaymentOverview = () => {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-800">{tx.userId?.name || 'Unknown'}</span>
-                        <span className="text-xs text-gray-400">{tx.userId?.phone || tx.userId?.email}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-800">
+                            {tx.userId?.name || tx.vendorId?.businessName || tx.vendorId?.name || tx.workerId?.name || 'Unknown'}
+                          </span>
+                          {tx.userId && <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-medium">User</span>}
+                          {tx.vendorId && <span className="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-medium">Vendor</span>}
+                          {tx.workerId && <span className="text-[10px] bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded font-medium">Worker</span>}
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {tx.userId?.email || tx.vendorId?.email || tx.workerId?.email || ''}
+                        </span>
                       </div>
                     </td>
                     <td className="py-3 px-4">
@@ -271,8 +310,8 @@ const PaymentOverview = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`text-sm font-semibold ${tx.type === 'credit' ? 'text-green-600' : 'text-gray-800'}`}>
-                        {tx.type === 'credit' ? '+' : '-'}{formatCurrency(tx.amount)}
+                      <span className={`text-sm font-semibold ${['credit', 'payment', 'cash_collected'].includes(tx.type) ? 'text-green-600' : 'text-gray-800'}`}>
+                        {['credit', 'payment', 'cash_collected'].includes(tx.type) ? '+' : '-'}{formatCurrency(tx.amount)}
                       </span>
                     </td>
                     <td className="py-3 px-4">

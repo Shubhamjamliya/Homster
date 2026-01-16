@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Vendor = require('../../models/Vendor');
 const { validationResult } = require('express-validator');
+const cloudinaryService = require('../../services/cloudinaryService');
 
 /**
  * Get vendor profile
@@ -71,7 +72,7 @@ const updateProfile = async (req, res) => {
     }
 
     const vendorId = req.user.id;
-    const { name, businessName, address, profilePhoto, serviceCategory, skills, aadharDocument } = req.body;
+    const { name, businessName, address, profilePhoto, serviceCategory, skills, aadharNumber, aadharDocument, panNumber, panDocument } = req.body;
 
     console.log('Update Vendor Profile Body:', JSON.stringify(req.body, null, 2));
 
@@ -110,7 +111,17 @@ const updateProfile = async (req, res) => {
       }
     }
 
-    if (profilePhoto !== undefined) vendor.profilePhoto = profilePhoto;
+    // Update profile photo - upload to Cloudinary if it's a base64 string
+    if (profilePhoto !== undefined) {
+      if (profilePhoto && profilePhoto.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(profilePhoto, { folder: 'vendors/profiles' });
+        if (uploadRes.success) {
+          vendor.profilePhoto = uploadRes.url;
+        }
+      } else {
+        vendor.profilePhoto = profilePhoto;
+      }
+    }
 
     // Handle multiple service categories
     if (serviceCategory !== undefined) {
@@ -129,11 +140,40 @@ const updateProfile = async (req, res) => {
       vendor.skills = Array.isArray(skills) ? skills : [];
     }
     // If aadharDocument exists and is not empty, update it
-    if (aadharDocument) {
+    if (aadharDocument || aadharNumber) {
+      let aadharUrl = aadharDocument || vendor.aadhar?.document;
+      if (aadharUrl && aadharUrl.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'vendors/documents' });
+        if (uploadRes.success) aadharUrl = uploadRes.url;
+      }
+
       if (vendor.aadhar) {
-        vendor.aadhar.document = aadharDocument;
+        if (aadharNumber) vendor.aadhar.number = aadharNumber;
+        if (aadharDocument) vendor.aadhar.document = aadharUrl;
       } else {
-        vendor.aadhar = { document: aadharDocument };
+        vendor.aadhar = {
+          number: aadharNumber || '',
+          document: aadharUrl || ''
+        };
+      }
+    }
+
+    // If panDocument exists and is not empty, update it
+    if (panDocument || panNumber) {
+      let panUrl = panDocument || vendor.pan?.document;
+      if (panUrl && panUrl.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(panUrl, { folder: 'vendors/documents' });
+        if (uploadRes.success) panUrl = uploadRes.url;
+      }
+
+      if (vendor.pan) {
+        if (panNumber) vendor.pan.number = panNumber;
+        if (panDocument) vendor.pan.document = panUrl;
+      } else {
+        vendor.pan = {
+          number: panNumber || '',
+          document: panUrl || ''
+        };
       }
     }
 

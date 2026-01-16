@@ -1,5 +1,6 @@
 const Worker = require('../../models/Worker');
 const { validationResult } = require('express-validator');
+const cloudinaryService = require('../../services/cloudinaryService');
 
 /**
  * Get worker profile
@@ -89,7 +90,17 @@ const updateProfile = async (req, res) => {
       };
     }
     if (status) worker.status = status;
-    if (profilePhoto !== undefined) worker.profilePhoto = profilePhoto;
+    // Update profile photo - upload to Cloudinary if it's a base64 string
+    if (profilePhoto !== undefined) {
+      if (profilePhoto && profilePhoto.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(profilePhoto, { folder: 'workers/profiles' });
+        if (uploadRes.success) {
+          worker.profilePhoto = uploadRes.url;
+        }
+      } else {
+        worker.profilePhoto = profilePhoto;
+      }
+    }
 
     if (req.body.settings) {
       worker.settings = {

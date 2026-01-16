@@ -81,6 +81,7 @@ const getWallet = async (req, res) => {
         totalCashCollected,
         totalSettled,
         pendingSettlements,
+        cashLimit: vendor.wallet?.cashLimit || 10000,
         vendor: {
           name: vendor.name,
           businessName: vendor.businessName
@@ -196,6 +197,38 @@ const recordCashCollection = async (req, res) => {
       vendor.wallet.isBlocked = true;
       vendor.wallet.blockedAt = new Date();
       vendor.wallet.blockReason = `Cash limit exceeded. Owed: ₹${currentDues}, Limit: ₹${cashLimit}`;
+
+      // 🔔 NOTIFY ALL ADMINS about vendor cash limit exceeded
+      try {
+        const { createNotification } = require('../notificationControllers/notificationController');
+        const Admin = require('../../models/Admin');
+
+        const admins = await Admin.find({ isActive: true }).select('_id');
+
+        for (const admin of admins) {
+          await createNotification({
+            adminId: admin._id,
+            type: 'vendor_cash_limit_exceeded',
+            title: '⚠️ Cash Limit Exceeded',
+            message: `${vendor.businessName || vendor.name} exceeded cash limit! Dues: ₹${currentDues}, Limit: ₹${cashLimit}`,
+            relatedId: vendor._id,
+            relatedType: 'vendor',
+            data: {
+              vendorId: vendor._id,
+              vendorName: vendor.businessName || vendor.name,
+              currentDues,
+              cashLimit
+            },
+            pushData: {
+              type: 'admin_alert',
+              link: '/admin/settlements'
+            }
+          });
+        }
+        console.log(`[CashLimit] Notified ${admins.length} admins: ${vendor.name} exceeded limit`);
+      } catch (notifyErr) {
+        console.error('[CashLimit] Failed to notify admins:', notifyErr);
+      }
     }
 
     await vendor.save();
@@ -360,6 +393,38 @@ const requestWithdrawal = async (req, res) => {
       adminNotes: notes,
       status: 'pending'
     });
+
+    // 🔔 NOTIFY ALL ADMINS about withdrawal request
+    try {
+      const { createNotification } = require('../notificationControllers/notificationController');
+      const Admin = require('../../models/Admin');
+
+      const admins = await Admin.find({ isActive: true }).select('_id');
+
+      for (const admin of admins) {
+        await createNotification({
+          adminId: admin._id,
+          type: 'vendor_withdrawal_request',
+          title: '💸 Withdrawal Request',
+          message: `${vendor.businessName || vendor.name} requested withdrawal of ₹${amount}`,
+          relatedId: withdrawal._id,
+          relatedType: 'withdrawal',
+          data: {
+            vendorId: vendor._id,
+            vendorName: vendor.businessName || vendor.name,
+            amount,
+            withdrawalId: withdrawal._id
+          },
+          pushData: {
+            type: 'admin_alert',
+            link: '/admin/settlements'
+          }
+        });
+      }
+      console.log(`[Withdrawal] Notified ${admins.length} admins about withdrawal request from ${vendor.name}`);
+    } catch (notifyErr) {
+      console.error('[Withdrawal] Failed to notify admins:', notifyErr);
+    }
 
     res.status(200).json({
       success: true,

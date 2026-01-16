@@ -22,14 +22,11 @@ const VendorSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [documentPreview, setDocumentPreview] = useState({});
 
-  // Clear any existing tokens on page load
+  // Clear any existing vendor tokens on page load
   useEffect(() => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('vendorAccessToken');
+    localStorage.removeItem('vendorRefreshToken');
     localStorage.removeItem('vendorData');
-    localStorage.removeItem('userData');
-    localStorage.removeItem('workerData');
-    localStorage.removeItem('adminData');
   }, []);
 
   // Sample services - this should come from API
@@ -98,7 +95,7 @@ const VendorSignup = () => {
 
   const handleDetailsSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.name.trim()) {
       toast.error('Please enter your name');

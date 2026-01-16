@@ -51,9 +51,9 @@ const workerSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'rejected', 'suspended'],
     default: 'pending'
   },
-  serviceCategory: {
+  serviceCategories: [{
     type: String
-  },
+  }],
   skills: [{
     type: String
   }],
@@ -151,7 +151,7 @@ const workerSchema = new mongoose.Schema({
 
 // Indexes for faster queries
 workerSchema.index({ status: 1 });
-workerSchema.index({ serviceCategory: 1 });
+workerSchema.index({ serviceCategories: 1 });
 workerSchema.index({ vendorId: 1 });
 
 // Hash password before saving

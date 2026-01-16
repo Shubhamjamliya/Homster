@@ -11,9 +11,9 @@ export const adminTransactionService = {
     }
   },
 
-  getTransactionStats: async () => {
+  getTransactionStats: async (params) => {
     try {
-      const response = await api.get('/admin/transactions/stats');
+      const response = await api.get('/admin/transactions/stats', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching transaction stats:', error);

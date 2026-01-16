@@ -37,7 +37,7 @@ const uploadFile = async (file, options = {}) => {
 
     const uploadOptions = {
       folder,
-      resource_type: resource_type === 'auto' ? 'image' : resource_type,
+      resource_type,
       transformation,
       ...restOptions
     };

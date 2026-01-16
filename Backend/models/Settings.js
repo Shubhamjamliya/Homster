@@ -23,6 +23,11 @@ const settingsSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  vendorCashLimit: {
+    type: Number,
+    default: 10000,
+    min: 0
+  },
   // Razorpay Settings
   razorpayKeyId: {
     type: String,
@@ -53,6 +58,58 @@ const settingsSchema = new mongoose.Schema({
   currency: {
     type: String,
     default: 'INR'
+  },
+
+  // Billing & Invoice Configuration
+  companyName: {
+    type: String,
+    default: 'TodayMyDream'
+  },
+  companyGSTIN: {
+    type: String,
+    default: ''
+  },
+  companyPAN: {
+    type: String,
+    default: ''
+  },
+  companyAddress: {
+    type: String,
+    default: ''
+  },
+  companyCity: {
+    type: String,
+    default: ''
+  },
+  companyState: {
+    type: String,
+    default: ''
+  },
+  companyPincode: {
+    type: String,
+    default: ''
+  },
+  companyPhone: {
+    type: String,
+    default: ''
+  },
+  companyEmail: {
+    type: String,
+    default: ''
+  },
+
+  // Invoice Settings
+  invoicePrefix: {
+    type: String,
+    default: 'INV'
+  },
+  sacCode: {
+    type: String,
+    default: '998599'  // Event services SAC code
+  },
+  currentInvoiceNumber: {
+    type: Number,
+    default: 0
   }
 }, { timestamps: true });
 

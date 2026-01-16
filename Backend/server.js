@@ -36,8 +36,8 @@ app.use(cors({
 }));
 
 // Body parser middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
 // DEBUG: Log Booking Request Body
@@ -119,7 +119,9 @@ app.use('/api/admin', require('./routes/admin-routes/settings.routes'));
 app.use('/api/admin', require('./routes/admin-routes/reviewManagement.routes'));
 app.use('/api/admin', require('./routes/admin-routes/reportManagement.routes'));
 app.use('/api/admin/settlements', require('./routes/admin-routes/settlementManagement.routes'));
+app.use('/api/admin/admins', require('./routes/admin-routes/adminManagement.routes'));
 app.use('/api/image', require('./routes/admin-routes/image.routes'));
+app.use('/api', require('./routes/admin-routes/upload.routes')); // Generic upload access
 
 // Vendor Wallet/Ledger routes
 // Vendor Wallet/Ledger routes

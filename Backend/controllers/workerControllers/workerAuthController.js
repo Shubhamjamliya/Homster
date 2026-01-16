@@ -1,6 +1,7 @@
 const Worker = require('../../models/Worker');
 const { createOTPToken, verifyOTPToken, markTokenAsUsed } = require('../../services/otpService');
 const { generateTokenPair, verifyRefreshToken } = require('../../utils/tokenService');
+const cloudinaryService = require('../../services/cloudinaryService');
 const { TOKEN_TYPES, USER_ROLES, WORKER_STATUS } = require('../../utils/constants');
 const { validationResult } = require('express-validator');
 
@@ -172,6 +173,13 @@ const register = async (req, res) => {
       });
     }
 
+    // Upload Aadhar document to Cloudinary if it's a base64 string
+    let aadharUrl = aadharDocument || null;
+    if (aadharUrl && aadharUrl.startsWith('data:')) {
+      const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'workers/documents' });
+      if (uploadRes.success) aadharUrl = uploadRes.url;
+    }
+
     // Create worker
     const worker = await Worker.create({
       name,
@@ -180,7 +188,7 @@ const register = async (req, res) => {
       isPhoneVerified: true,
       aadhar: {
         number: aadharNumber,
-        document: aadharDocument
+        document: aadharUrl
       },
       status: WORKER_STATUS.OFFLINE
     });

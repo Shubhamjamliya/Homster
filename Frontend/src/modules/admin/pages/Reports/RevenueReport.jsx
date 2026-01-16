@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiDollarSign, FiTrendingUp, FiPieChart } from 'react-icons/fi';
+import { FiDollarSign, FiTrendingUp, FiPieChart, FiDownload } from 'react-icons/fi';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, Cell, PieChart, Pie
@@ -8,6 +8,7 @@ import {
 import { toast } from 'react-hot-toast';
 import adminReportService from '../../../../services/adminReportService';
 import CardShell from '../UserCategories/components/CardShell';
+import { exportToCSV } from '../../../../utils/csvExport';
 
 const RevenueReport = () => {
   const [loading, setLoading] = useState(true);
@@ -33,6 +34,33 @@ const RevenueReport = () => {
     fetchData();
   }, [period]);
 
+  // Export revenue trends as CSV
+  const handleExportTrends = () => {
+    if (!data?.revenueTrends || data.revenueTrends.length === 0) {
+      toast.error('No revenue data to export');
+      return;
+    }
+    exportToCSV(data.revenueTrends, `revenue_trends_${period}`, [
+      { key: '_id', label: 'Period' },
+      { key: 'revenue', label: 'Total Revenue (₹)', type: 'currency' },
+      { key: 'commission', label: 'Commission (₹)', type: 'currency' },
+      { key: 'bookings', label: 'Total Bookings', type: 'number' }
+    ]);
+  };
+
+  // Export revenue by service as CSV
+  const handleExportByService = () => {
+    if (!data?.revenueByService || data.revenueByService.length === 0) {
+      toast.error('No service data to export');
+      return;
+    }
+    exportToCSV(data.revenueByService, `revenue_by_service_${period}`, [
+      { key: '_id', label: 'Service' },
+      { key: 'revenue', label: 'Revenue (₹)', type: 'currency' },
+      { key: 'count', label: 'Bookings', type: 'number' }
+    ]);
+  };
+
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -45,7 +73,14 @@ const RevenueReport = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end items-center">
+      <div className="flex justify-between items-center">
+        <button
+          onClick={handleExportTrends}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center gap-2 transition-colors"
+        >
+          <FiDownload className="w-4 h-4" />
+          Export CSV
+        </button>
         <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 flex">
           {['daily', 'weekly', 'monthly'].map((p) => (
             <button
@@ -65,10 +100,12 @@ const RevenueReport = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Trends */}
         <CardShell className="bg-white p-4">
-          <h3 className="text-base font-bold mb-4 flex items-center gap-2">
-            <FiTrendingUp className="text-primary-600" />
-            Revenue & Commission Trends
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-bold flex items-center gap-2">
+              <FiTrendingUp className="text-primary-600" />
+              Revenue & Commission Trends
+            </h3>
+          </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data?.revenueTrends}>
@@ -86,10 +123,15 @@ const RevenueReport = () => {
 
         {/* Revenue by Service */}
         <CardShell className="bg-white p-4">
-          <h3 className="text-base font-bold mb-4 flex items-center gap-2">
-            <FiPieChart className="text-amber-600" />
-            Revenue by Service
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-bold flex items-center gap-2">
+              <FiPieChart className="text-amber-600" />
+              Revenue by Service
+            </h3>
+            <button onClick={handleExportByService} className="text-xs text-gray-500 hover:text-green-600 flex items-center gap-1">
+              <FiDownload className="w-3 h-3" /> Export
+            </button>
+          </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data?.revenueByService} layout="vertical">
@@ -112,3 +154,4 @@ const RevenueReport = () => {
 };
 
 export default RevenueReport;
+

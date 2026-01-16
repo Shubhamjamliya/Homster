@@ -33,12 +33,13 @@ const Transactions = () => {
         page,
         limit: 10,
         search: debouncedSearch,
-        status: statusFilter !== 'all' ? statusFilter : undefined
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        entity: 'user'
       };
 
       const [transactionsRes, statsRes] = await Promise.all([
         adminTransactionService.getAllTransactions(params),
-        adminTransactionService.getTransactionStats()
+        adminTransactionService.getTransactionStats({ entity: 'user' })
       ]);
 
       if (transactionsRes.success) {
@@ -195,7 +196,7 @@ const Transactions = () => {
                 <tr className="bg-gray-50/50 border-b border-gray-100">
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Transaction ID</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Booking ID</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">User / Entity</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment Method</th>
@@ -219,8 +220,17 @@ const Transactions = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-900">{tx.userId?.name || 'Guest'}</span>
-                        <span className="text-xs text-gray-500">{tx.userId?.email || ''}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {tx.userId?.name || tx.bookingId?.userId?.name || tx.vendorId?.businessName || tx.vendorId?.name || tx.workerId?.name || 'Guest'}
+                          </span>
+                          {(tx.userId || tx.bookingId?.userId) && <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-medium">User</span>}
+                          {tx.vendorId && <span className="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-medium">Vendor</span>}
+                          {tx.workerId && <span className="text-[10px] bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded font-medium">Worker</span>}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {tx.userId?.email || tx.vendorId?.email || tx.workerId?.email || ''}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">

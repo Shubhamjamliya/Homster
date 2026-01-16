@@ -53,11 +53,42 @@ const isAdminOrVendor = (req, res, next) => {
   next();
 };
 
+/**
+ * Super Admin only middleware
+ * Checks if admin user has super_admin role in database
+ */
+const isSuperAdmin = async (req, res, next) => {
+  try {
+    if (req.userRole !== USER_ROLES.ADMIN) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.'
+      });
+    }
+
+    const Admin = require('../models/Admin');
+    const admin = await Admin.findById(req.user.id);
+
+    if (!admin || admin.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Super Admin role required.'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Super admin check error:', error);
+    res.status(500).json({ success: false, message: 'Authorization check failed' });
+  }
+};
+
 module.exports = {
   isUser,
   isVendor,
   isWorker,
   isAdmin,
-  isAdminOrVendor
+  isAdminOrVendor,
+  isSuperAdmin
 };
 

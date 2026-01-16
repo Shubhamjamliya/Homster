@@ -18,7 +18,8 @@ const Wallet = () => {
     totalCashCollected: 0,
     totalSettled: 0,
     totalWithdrawn: 0,
-    pendingSettlements: 0
+    pendingSettlements: 0,
+    cashLimit: 10000
   });
   const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -335,8 +336,8 @@ const Wallet = () => {
                           {getTransactionLabel(txn.type)}
                         </p>
                         <p className={`text-lg font-bold ${txn.type === 'cash_collected' || txn.type === 'tds_deduction' || txn.type === 'withdrawal'
-                            ? 'text-red-600'
-                            : 'text-green-600'
+                          ? 'text-red-600'
+                          : 'text-green-600'
                           }`}>
                           {['cash_collected', 'tds_deduction', 'withdrawal'].includes(txn.type) ? '-' : '+'}₹{Math.abs(txn.amount).toLocaleString()}
                         </p>

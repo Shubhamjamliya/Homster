@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -73,8 +73,10 @@ const getChildRoute = (parentRoute, childName) => {
     },
     "/admin/payments": {
       "Payment Overview": "/admin/payments/overview",
+      "User Payments": "/admin/payments/users",
       "Worker Payments": "/admin/payments/workers",
       "Vendor Payments": "/admin/payments/vendors",
+      "Admin Revenue": "/admin/payments/revenue",
       "Payment Reports": "/admin/payments/reports",
     },
     "/admin/reports": {
@@ -94,6 +96,12 @@ const getChildRoute = (parentRoute, childName) => {
       "Service Configuration": "/admin/settings/service-config",
       "System Settings": "/admin/settings/system",
     },
+    "/admin/settlements": {
+      "Pending": "/admin/settlements/pending",
+      "Withdrawals": "/admin/settlements/withdrawals",
+      "Vendors with Due": "/admin/settlements/vendors",
+      "History": "/admin/settlements/history",
+    },
   };
 
   return routeMap[parentRoute]?.[childName] || parentRoute;
@@ -104,11 +112,35 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
+  const [adminUser, setAdminUser] = useState({ name: 'Admin', email: '', role: 'admin' });
   const [counts, setCounts] = useState({
     bookings: 0,
     vendors: 0,
-    settlements: 0
+    withdrawals: 0,
+    pendingSettlements: 0
   });
+
+  // Load admin user from localStorage
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('adminData') || '{}');
+      if (stored.name || stored.email) {
+        setAdminUser({
+          name: stored.name || 'Admin',
+          email: stored.email || '',
+          role: stored.role || 'admin'
+        });
+      }
+    } catch (e) {
+      console.error('Failed to parse admin data:', e);
+    }
+  }, []);
+
+  // Filter menu items by role
+  const filteredMenu = useMemo(() => adminMenu.filter(item => {
+    if (!item.allowedRoles) return true;
+    return item.allowedRoles.includes(adminUser.role);
+  }), [adminUser.role]);
 
   // Fetch pending counts for badges
   useEffect(() => {
@@ -120,7 +152,8 @@ const AdminSidebar = ({ isOpen, onClose }) => {
           setCounts({
             bookings: stats.pendingBookings || 0,
             vendors: stats.pendingVendors || 0,
-            settlements: stats.pendingWithdrawals || 0
+            withdrawals: stats.pendingWithdrawals || 0,
+            pendingSettlements: stats.pendingSettlements || 0
           });
         }
       } catch (error) {
@@ -153,7 +186,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
   // Auto-expand menu items when their route is active
   useEffect(() => {
-    const activeItem = adminMenu.find((item) => {
+    const activeItem = filteredMenu.find((item) => {
       if (item.route === "/admin/dashboard") {
         return location.pathname === "/admin/dashboard";
       }
@@ -172,7 +205,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
         };
       });
     }
-  }, [location.pathname]);
+  }, [location.pathname, filteredMenu]);
 
   // Check if a menu item is active
   const isActive = (route) => {
@@ -255,9 +288,9 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               {counts.vendors > 99 ? '99+' : counts.vendors}
             </span>
           )}
-          {item.title === "Settlements" && counts.settlements > 0 && (
+          {item.title === "Settlements" && (counts.withdrawals + counts.pendingSettlements) > 0 && (
             <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse mr-2">
-              {counts.settlements > 99 ? '99+' : counts.settlements}
+              {(counts.withdrawals + counts.pendingSettlements) > 99 ? '99+' : (counts.withdrawals + counts.pendingSettlements)}
             </span>
           )}
 
@@ -294,13 +327,23 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                         handleMenuItemClick(childRoute, item.title)
                       }
                       className={`
-                        px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer
+                        px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer flex justify-between items-center
                         ${isChildActive
                           ? "bg-primary-50 text-white font-medium"
                           : "text-gray-400 hover:bg-slate-700"
                         }
                       `}>
-                      {child}
+                      <span>{child}</span>
+                      {item.title === "Settlements" && child === "Pending" && counts.pendingSettlements > 0 && (
+                        <span className="bg-red-500 text-white text-[10px] h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full">
+                          {counts.pendingSettlements}
+                        </span>
+                      )}
+                      {item.title === "Settlements" && child === "Withdrawals" && counts.withdrawals > 0 && (
+                        <span className="bg-orange-500 text-white text-[10px] h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full">
+                          {counts.withdrawals}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -329,10 +372,10 @@ const AdminSidebar = ({ isOpen, onClose }) => {
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="font-semibold text-white text-base truncate">
-                Admin User
+                {adminUser.name}
               </h2>
               <p className="text-xs text-gray-400 truncate">
-                admin@appzeto.com
+                {adminUser.role === 'super_admin' ? '⭐ Super Admin' : 'Admin'}
               </p>
             </div>
           </div>
@@ -349,7 +392,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
       {/* Navigation Menu */}
       <nav className="flex-1 overflow-y-auto p-3 scrollbar-admin lg:pb-3">
-        {adminMenu.map((item) => renderMenuItem(item))}
+        {filteredMenu.map((item) => renderMenuItem(item))}
       </nav>
     </div>
   );

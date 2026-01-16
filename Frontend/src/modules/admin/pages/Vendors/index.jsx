@@ -10,10 +10,10 @@ import {
 } from 'react-icons/fi';
 
 // Import sub-components
+// Import sub-components
 import AllVendors from './AllVendors';
 import VendorBookings from './VendorBookings';
 import VendorAnalytics from './VendorAnalytics';
-import VendorPayments from './VendorPayments';
 
 const Vendors = () => {
   const location = useLocation();
@@ -22,7 +22,6 @@ const Vendors = () => {
     { name: 'All Vendors', path: '/admin/vendors/all', icon: FiUsers },
     { name: 'Vendor Bookings', path: '/admin/vendors/bookings', icon: FiBriefcase },
     { name: 'Vendor Analytics', path: '/admin/vendors/analytics', icon: FiActivity },
-    { name: 'Vendor Payments', path: '/admin/vendors/payments', icon: FiDollarSign },
   ];
 
   const getPageTitle = () => {
@@ -44,7 +43,6 @@ const Vendors = () => {
           <Route path="all" element={<AllVendors />} />
           <Route path="bookings" element={<VendorBookings />} />
           <Route path="analytics" element={<VendorAnalytics />} />
-          <Route path="payments" element={<VendorPayments />} />
         </Routes>
       </motion.div>
     </div>

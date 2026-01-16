@@ -1,5 +1,6 @@
 const User = require('../../models/User');
 const { validationResult } = require('express-validator');
+const cloudinaryService = require('../../services/cloudinaryService');
 
 /**
  * Get user profile
@@ -83,8 +84,17 @@ const updateProfile = async (req, res) => {
       user.email = email.toLowerCase();
     }
 
-    // Update profile photo
-    if (profilePhoto) user.profilePhoto = profilePhoto;
+    // Update profile photo - upload to Cloudinary if it's a base64 string
+    if (profilePhoto) {
+      if (profilePhoto.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(profilePhoto, { folder: 'users/profiles' });
+        if (uploadRes.success) {
+          user.profilePhoto = uploadRes.url;
+        }
+      } else {
+        user.profilePhoto = profilePhoto;
+      }
+    }
 
     // Update addresses
     if (addresses && Array.isArray(addresses)) {

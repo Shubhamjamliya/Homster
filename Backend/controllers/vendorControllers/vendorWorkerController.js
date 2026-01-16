@@ -1,6 +1,7 @@
 const Worker = require('../../models/Worker');
 const Booking = require('../../models/Booking');
 const { validationResult } = require('express-validator');
+const cloudinaryService = require('../../services/cloudinaryService');
 const { WORKER_STATUS, BOOKING_STATUS } = require('../../utils/constants');
 
 /**
@@ -69,10 +70,17 @@ const addWorker = async (req, res) => {
       email,
       phone,
       aadhar,
-      serviceCategory,
+      serviceCategories,
       skills,
       address
     } = req.body;
+
+    // Upload Aadhar document to Cloudinary if it's a base64 string
+    let aadharUrl = aadhar && aadhar.document ? aadhar.document : null;
+    if (aadharUrl && aadharUrl.startsWith('data:')) {
+      const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'workers/documents' });
+      if (uploadRes.success) aadharUrl = uploadRes.url;
+    }
 
     // Check if worker already exists
     let worker = await Worker.findOne({ phone });
@@ -86,10 +94,10 @@ const addWorker = async (req, res) => {
         if (aadhar) {
           worker.aadhar = {
             number: aadhar.number,
-            document: aadhar.document
+            document: aadharUrl
           };
         }
-        if (serviceCategory) worker.serviceCategory = serviceCategory;
+        if (serviceCategories) worker.serviceCategories = serviceCategories;
         if (skills) worker.skills = skills;
         if (address) worker.address = address;
         worker.status = WORKER_STATUS.ACTIVE;
@@ -116,10 +124,10 @@ const addWorker = async (req, res) => {
       phone,
       aadhar: {
         number: aadhar.number,
-        document: aadhar.document
+        document: aadharUrl
       },
       vendorId,
-      serviceCategory,
+      serviceCategories: serviceCategories || [],
       skills: skills || [],
       address: address || {},
       status: WORKER_STATUS.ACTIVE
@@ -221,10 +229,33 @@ const updateWorker = async (req, res) => {
     // Update fields
     if (updateData.name) worker.name = updateData.name;
     if (updateData.email) worker.email = updateData.email;
-    if (updateData.serviceCategory) worker.serviceCategory = updateData.serviceCategory;
+    if (updateData.serviceCategories) worker.serviceCategories = updateData.serviceCategories;
     if (updateData.skills) worker.skills = updateData.skills;
     if (updateData.address) worker.address = { ...worker.address, ...updateData.address };
     if (updateData.status) worker.status = updateData.status;
+
+    // Update Aadhar if provided
+    if (updateData.aadhar) {
+      let aadharUrl = updateData.aadhar.document || worker.aadhar?.document;
+      if (aadharUrl && aadharUrl.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'workers/documents' });
+        if (uploadRes.success) aadharUrl = uploadRes.url;
+      }
+      worker.aadhar = {
+        number: updateData.aadhar.number || worker.aadhar?.number,
+        document: aadharUrl
+      };
+    }
+
+    // Update Profile Photo if provided
+    if (updateData.profilePhoto !== undefined) {
+      let photoUrl = updateData.profilePhoto;
+      if (photoUrl && photoUrl.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(photoUrl, { folder: 'workers/profiles' });
+        if (uploadRes.success) photoUrl = uploadRes.url;
+      }
+      worker.profilePhoto = photoUrl;
+    }
 
     await worker.save();
 

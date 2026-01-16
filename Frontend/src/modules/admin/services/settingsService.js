@@ -17,3 +17,49 @@ export const updateSettings = async (settingsData) => {
     throw error;
   }
 };
+
+export const updateAdminProfile = async (profileData) => {
+  try {
+    const response = await api.put('/admin/auth/profile', profileData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getAdminProfile = async () => {
+  try {
+    const response = await api.get('/admin/auth/profile');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Admin Management (Super Admin only)
+export const getAllAdmins = async () => {
+  try {
+    const response = await api.get('/admin/admins');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const createAdmin = async (adminData) => {
+  try {
+    const response = await api.post('/admin/admins', adminData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteAdmin = async (id) => {
+  try {
+    const response = await api.delete(`/admin/admins/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

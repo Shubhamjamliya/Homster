@@ -145,9 +145,20 @@ const verifyPaymentWebhook = async (req, res) => {
 
     await booking.save();
 
-    // Credit Vendor Wallet
-    const Vendor = require('../../models/Vendor');
+    // Create Transaction Record for User (Payment)
     const Transaction = require('../../models/Transaction');
+    const Vendor = require('../../models/Vendor');
+
+    await Transaction.create({
+      userId: booking.userId,
+      bookingId: booking._id,
+      amount: booking.finalAmount,
+      type: 'payment',
+      paymentMethod: 'razorpay',
+      status: 'completed',
+      description: `Online payment for booking ${booking.bookingNumber}`,
+      referenceId: razorpay_payment_id
+    });
 
     const vendor = await Vendor.findById(booking.vendorId);
     if (vendor) {
@@ -282,6 +293,18 @@ const processWalletPayment = async (req, res) => {
     user.wallet.balance -= booking.finalAmount;
     await user.save();
 
+    const Transaction = require('../../models/Transaction');
+    await Transaction.create({
+      userId,
+      bookingId: booking._id,
+      amount: booking.finalAmount,
+      type: 'debit',
+      paymentMethod: 'wallet',
+      status: 'completed',
+      description: `Wallet payment for booking ${booking.bookingNumber}`,
+      balanceAfter: user.wallet.balance
+    });
+
     // Update booking payment status
     booking.paymentStatus = PAYMENT_STATUS.SUCCESS;
     booking.paymentMethod = 'wallet';
@@ -303,7 +326,7 @@ const processWalletPayment = async (req, res) => {
 
     // Credit Vendor Wallet (Same logic as verifyPaymentWebhook)
     const Vendor = require('../../models/Vendor');
-    const Transaction = require('../../models/Transaction'); // Ensure imported if not already globally
+    // Transaction already imported above
 
     const vendor = await Vendor.findById(booking.vendorId);
     if (vendor) {

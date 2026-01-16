@@ -71,21 +71,42 @@ const SettlementRequest = () => {
     reader.onload = () => setProofPreview(reader.result);
     reader.readAsDataURL(file);
 
-    // Upload to Cloudinary
+    // Upload to Cloudinary using Backend Signature (Secure)
     try {
+      // 1. Get Signature from Backend (Generic Endpoint)
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const sigRes = await fetch(`${apiUrl}/api/upload/sign-signature`);
+      const sigData = await sigRes.json();
+
+      if (!sigData.success) {
+        throw new Error(sigData.message || 'Failed to get upload signature');
+      }
+
+      const { signature, timestamp, cloudName, apiKey, folder } = sigData;
+
+      // 2. Upload to Cloudinary
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'ml_default');
+      formData.append('api_key', apiKey);
+      formData.append('timestamp', timestamp);
+      formData.append('signature', signature);
+      if (folder) formData.append('folder', folder);
 
       const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
         { method: 'POST', body: formData }
       );
 
       const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+
       setFormData(prev => ({ ...prev, paymentProof: data.secure_url }));
       toast.success('Proof uploaded');
     } catch (error) {
+      console.error('Upload failed:', error);
       toast.error('Failed to upload proof');
     }
   };
@@ -103,6 +124,11 @@ const SettlementRequest = () => {
 
     if (!formData.paymentReference) {
       toast.error('Please enter UPI/Transaction reference');
+      return;
+    }
+
+    if (!formData.paymentProof) {
+      toast.error('Payment screenshot is required');
       return;
     }
 
@@ -223,7 +249,7 @@ const SettlementRequest = () => {
           {/* Payment Proof */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Payment Screenshot (Optional)
+              Payment Screenshot *
             </label>
             {proofPreview ? (
               <div className="relative">
@@ -274,7 +300,7 @@ const SettlementRequest = () => {
         {/* Submit Button */}
         <button
           onClick={handleSubmit}
-          disabled={submitting || !formData.amount || !formData.paymentReference}
+          disabled={submitting || !formData.amount || !formData.paymentReference || !formData.paymentProof}
           className="w-full mt-6 py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
           style={{
             background: themeColors.button,

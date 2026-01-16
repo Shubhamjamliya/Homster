@@ -53,14 +53,11 @@ const WorkerSignup = () => {
     'Security Services': ['CCTV Installation', 'Alarm System', 'Security Guard', 'Access Control', 'Intercom System']
   };
 
-  // Clear any existing tokens on page load
+  // Clear any existing worker tokens on page load (optional, but keep it scoped if kept)
   useEffect(() => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('workerAccessToken');
+    localStorage.removeItem('workerRefreshToken');
     localStorage.removeItem('workerData');
-    localStorage.removeItem('userData');
-    localStorage.removeItem('vendorData');
-    localStorage.removeItem('adminData');
   }, []);
 
   const handleInputChange = (e) => {
@@ -109,7 +106,7 @@ const WorkerSignup = () => {
 
   const handleDetailsSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.name.trim()) {
       toast.error('Please enter your name');
@@ -214,7 +211,7 @@ const WorkerSignup = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Top Section with Teal Gradient */}
-      <div 
+      <div
         className="relative h-64 overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, #00a6a6 0%, #008a8a 50%, #006b6b 100%)'

@@ -1,4 +1,5 @@
 const Settings = require('../../models/Settings');
+const Vendor = require('../../models/Vendor');
 
 // Get Global Settings
 exports.getSettings = async (req, res, next) => {
@@ -26,10 +27,11 @@ exports.getSettings = async (req, res, next) => {
 // Update Global Settings
 exports.updateSettings = async (req, res, next) => {
   try {
-    const { 
-      visitedCharges, 
-      gstPercentage, 
+    const {
+      visitedCharges,
+      gstPercentage,
       commissionPercentage,
+      vendorCashLimit, // Add this
       razorpayKeyId,
       razorpayKeySecret,
       razorpayWebhookSecret,
@@ -41,11 +43,12 @@ exports.updateSettings = async (req, res, next) => {
     let settings = await Settings.findOne({ type: 'global' });
 
     if (!settings) {
-      settings = await Settings.create({ 
-        type: 'global', 
-        visitedCharges, 
+      settings = await Settings.create({
+        type: 'global',
+        visitedCharges,
         gstPercentage,
         commissionPercentage,
+        vendorCashLimit, // Add this
         razorpayKeyId,
         razorpayKeySecret,
         razorpayWebhookSecret,
@@ -58,6 +61,7 @@ exports.updateSettings = async (req, res, next) => {
       if (visitedCharges !== undefined) settings.visitedCharges = visitedCharges;
       if (gstPercentage !== undefined) settings.gstPercentage = gstPercentage;
       if (commissionPercentage !== undefined) settings.commissionPercentage = commissionPercentage;
+      if (vendorCashLimit !== undefined) settings.vendorCashLimit = vendorCashLimit; // Add this
       if (razorpayKeyId !== undefined) settings.razorpayKeyId = razorpayKeyId;
       if (razorpayKeySecret !== undefined) settings.razorpayKeySecret = razorpayKeySecret;
       if (razorpayWebhookSecret !== undefined) settings.razorpayWebhookSecret = razorpayWebhookSecret;
@@ -66,6 +70,15 @@ exports.updateSettings = async (req, res, next) => {
       if (cloudinaryApiSecret !== undefined) settings.cloudinaryApiSecret = cloudinaryApiSecret;
 
       await settings.save();
+    }
+
+    // Propagate vendorCashLimit to all existing vendors if it was changed
+    if (vendorCashLimit !== undefined) {
+      console.log(`Updating all vendors with new cash limit: ${vendorCashLimit}`);
+      await Vendor.updateMany(
+        {}, // Filter: all vendors
+        { $set: { 'wallet.cashLimit': vendorCashLimit } }
+      );
     }
 
     res.status(200).json({

@@ -3,6 +3,7 @@ const Vendor = require('../../models/Vendor');
 const Worker = require('../../models/Worker');
 const Booking = require('../../models/Booking');
 const Withdrawal = require('../../models/Withdrawal');
+const Settlement = require('../../models/Settlement');
 const { BOOKING_STATUS, PAYMENT_STATUS, VENDOR_STATUS } = require('../../utils/constants');
 
 /**
@@ -45,8 +46,9 @@ const getDashboardStats = async (req, res) => {
     const pendingVendors = await Vendor.countDocuments({ approvalStatus: VENDOR_STATUS.PENDING });
     const approvedVendors = await Vendor.countDocuments({ approvalStatus: VENDOR_STATUS.APPROVED });
 
-    // Withdrawal stats
+    // Withdrawal & Settlement stats
     const pendingWithdrawals = await Withdrawal.countDocuments({ status: 'pending' });
+    const pendingSettlementsCount = await Settlement.countDocuments({ status: 'pending' });
 
     // Recent activities (last 10 bookings)
     const recentBookings = await Booking.find()
@@ -71,7 +73,8 @@ const getDashboardStats = async (req, res) => {
           platformCommission,
           pendingVendors,
           approvedVendors,
-          pendingWithdrawals
+          pendingWithdrawals,
+          pendingSettlements: pendingSettlementsCount
         },
         recentBookings
       }

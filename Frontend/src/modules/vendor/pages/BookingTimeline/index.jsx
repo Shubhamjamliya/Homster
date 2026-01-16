@@ -6,6 +6,7 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import { getBookingById, updateBookingStatus, startSelfJob, verifySelfVisit, completeSelfJob, collectSelfCash, payWorker } from '../../services/bookingService';
 import { CashCollectionModal, ConfirmDialog } from '../../components/common';
+import { WorkCompletionModal } from '../../../worker/components/common';
 import vendorWalletService from '../../../../services/vendorWalletService';
 import { toast } from 'react-hot-toast';
 
@@ -173,19 +174,25 @@ const BookingTimeline = () => {
   };
 
   const handleFinalSettlement = async () => {
-    if (window.confirm("Confirm final settlement for this booking?")) {
-      try {
-        setActionLoading(true);
-        // Using existing updateBookingStatus to mark settlement
-        await updateBookingStatus(id, booking.status, { finalSettlementStatus: 'DONE' });
-        toast.success('Final settlement completed!');
-        window.location.reload();
-      } catch (e) {
-        toast.error(e.response?.data?.message || 'Final settlement failed');
-      } finally {
-        setActionLoading(false);
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Final Settlement',
+      message: 'Mark final settlement as done? This will allow you to complete the booking.',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          setActionLoading(true);
+          // Using existing updateBookingStatus to mark settlement
+          await updateBookingStatus(id, booking.status, { finalSettlementStatus: 'DONE' });
+          toast.success('Final settlement completed!');
+          window.location.reload();
+        } catch (e) {
+          toast.error(e.response?.data?.message || 'Final settlement failed');
+        } finally {
+          setActionLoading(false);
+        }
       }
-    }
+    });
   };
 
 
@@ -227,11 +234,10 @@ const BookingTimeline = () => {
     });
   };
 
-  const handleCompleteWork = async () => {
+  const handleCompleteWork = async (photos = []) => {
     try {
       setActionLoading(true);
-      // pass mockup photos or real if implemented
-      await completeSelfJob(id, { workPhotos: ['https://placehold.co/600x400'] });
+      await completeSelfJob(id, { workPhotos: photos });
       toast.success('Work marked done');
       setIsWorkDoneModalOpen(false);
       window.location.reload();
@@ -546,16 +552,13 @@ const BookingTimeline = () => {
       )}
 
       {/* Work Done Modal */}
-      {isWorkDoneModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-6">
-            <h3 className="font-bold mb-4">Complete Work</h3>
-            <p className="text-sm text-gray-500 mb-4">Upload photos and details (Mocked for now). Click to finish.</p>
-            <button onClick={handleCompleteWork} disabled={actionLoading} className="w-full bg-green-600 text-white py-2 rounded-lg">{actionLoading ? 'Updating...' : 'Mark Done'}</button>
-            <button onClick={() => setIsWorkDoneModalOpen(false)} className="w-full mt-2 text-gray-500">Cancel</button>
-          </div>
-        </div>
-      )}
+      <WorkCompletionModal
+        isOpen={isWorkDoneModalOpen}
+        onClose={() => setIsWorkDoneModalOpen(false)}
+        job={booking}
+        onComplete={handleCompleteWork}
+        loading={actionLoading}
+      />
 
       {/* Unified Cash Collection Modal */}
       <CashCollectionModal

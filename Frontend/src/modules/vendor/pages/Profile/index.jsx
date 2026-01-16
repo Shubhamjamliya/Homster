@@ -440,8 +440,8 @@ const Profile = () => {
                 toast.success('Logged out successfully');
                 navigate('/vendor/login');
               } catch (error) {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('vendorAccessToken');
+                localStorage.removeItem('vendorRefreshToken');
                 localStorage.removeItem('vendorData');
                 toast.success('Logged out successfully');
                 navigate('/vendor/login');

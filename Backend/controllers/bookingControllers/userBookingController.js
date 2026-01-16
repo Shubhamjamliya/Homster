@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Booking = require('../../models/Booking');
 const Service = require('../../models/Service');
 const Category = require('../../models/Category');
+const Cart = require('../../models/Cart');
 const User = require('../../models/User');
 const Vendor = require('../../models/Vendor');
 const Worker = require('../../models/Worker');
@@ -245,8 +246,10 @@ const createBooking = async (req, res) => {
 
     } else {
       // Regular booking - calculate commission
-      adminCommission = Math.round(totalServiceValue * commissionRate);
-      vendorEarnings = totalServiceValue - adminCommission;
+      // Use finalAmount (Total Paid) as base for commission as per requirement
+      // Vendor Earnings = 90% of Total Amount
+      adminCommission = parseFloat((finalAmount * commissionRate).toFixed(2));
+      vendorEarnings = parseFloat((finalAmount - adminCommission).toFixed(2));
     }
 
     // Ensure minimum amount for Razorpay (₹1) for paid bookings
@@ -450,6 +453,52 @@ const createBooking = async (req, res) => {
         relatedId: booking._id,
         relatedType: 'booking'
       });
+    }
+
+    // Clear booked items from user's cart
+    try {
+      if (bookedItems && bookedItems.length > 0) {
+        const userCart = await Cart.findOne({ userId });
+        if (userCart && userCart.items.length > 0) {
+          console.log(`[CreateBooking] Clearing ${bookedItems.length} booked items from cart...`);
+
+          // Identify items to remove by title
+          const bookedTitles = new Set(bookedItems.map(item => item.card?.title || item.title));
+
+          const originalCount = userCart.items.length;
+          userCart.items = userCart.items.filter(item => {
+            const itemTitle = item.title;
+            const itemCardTitle = item.card?.title;
+            // Remove if title matches
+            const shouldRemove = bookedTitles.has(itemTitle) || (itemCardTitle && bookedTitles.has(itemCardTitle));
+            return !shouldRemove;
+          });
+
+          if (userCart.items.length < originalCount) {
+            await userCart.save();
+            console.log(`[CreateBooking] Removed ${originalCount - userCart.items.length} items from cart. Remaining: ${userCart.items.length}`);
+          }
+        }
+      } else if (serviceId) {
+        // Fallback: if no bookedItems passed, check if this service is in cart and remove it.
+        const userCart = await Cart.findOne({ userId });
+        if (userCart) {
+          const originalCount = userCart.items.length;
+          userCart.items = userCart.items.filter(item => {
+            // Check if item.serviceId matches the booked serviceId
+            if (item.serviceId && item.serviceId.toString() === serviceId.toString()) return false;
+            return true;
+          });
+
+          if (userCart.items.length < originalCount) {
+            await userCart.save();
+            console.log(`[CreateBooking] Removed service ${serviceId} from cart.`);
+          }
+        }
+      }
+    } catch (cartError) {
+      console.error('[CreateBooking] Failed to clear cart items:', cartError);
+      // specific error shouldn't fail the booking response
     }
 
     res.status(201).json({
