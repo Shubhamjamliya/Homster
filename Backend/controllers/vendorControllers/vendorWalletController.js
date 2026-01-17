@@ -234,7 +234,7 @@ const recordCashCollection = async (req, res) => {
     await vendor.save();
 
     // Create transaction record for Cash Collection (DUES increase)
-    await Transaction.create({
+    const transaction = await Transaction.create({
       vendorId,
       bookingId,
       type: 'cash_collected',
@@ -264,13 +264,17 @@ const recordCashCollection = async (req, res) => {
     booking.paymentMethod = 'cash';
     await booking.save();
 
+    const newDues = vendor.wallet.dues;
+    const newEarnings = vendor.wallet.earnings;
+    const newBalance = newEarnings - newDues;
+
     res.status(200).json({
       success: true,
       message: 'Cash collection recorded successfully',
       data: {
         transaction,
         newBalance,
-        amountDue: newBalance < 0 ? Math.abs(newBalance) : 0
+        amountDue: newDues
       }
     });
   } catch (error) {
@@ -567,7 +571,7 @@ const getWalletSummary = async (req, res) => {
 const payWorker = async (req, res) => {
   try {
     const vendorId = req.user.id;
-    const { bookingId, amount, notes } = req.body;
+    const { bookingId, amount, notes, transactionId, screenshot, paymentMethod = 'cash' } = req.body;
 
     if (!bookingId || !amount || isNaN(amount) || amount <= 0) {
       return res.status(400).json({
@@ -615,10 +619,14 @@ const payWorker = async (req, res) => {
       type: 'worker_payment',
       amount: parseFloat(amount),
       status: 'completed',
-      paymentMethod: 'cash',
+      paymentMethod: paymentMethod || 'cash',
       description: `Payment for booking #${booking.bookingNumber}. ${notes || ''}`,
+      referenceId: transactionId || null,
       metadata: {
-        notes
+        notes,
+        transactionId,
+        screenshot,
+        paymentMethod
       }
     });
 

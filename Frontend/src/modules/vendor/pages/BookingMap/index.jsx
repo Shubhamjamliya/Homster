@@ -3,13 +3,16 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView, PolylineF } from '@react-google-maps/api';
-import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiClock, FiCheckCircle, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiClock, FiCheckCircle, FiX, FiMaximize, FiMinimize } from 'react-icons/fi';
 import { FaMotorcycle } from 'react-icons/fa';
 import { getBookingById, verifySelfVisit } from '../../services/bookingService';
 import VisitVerificationModal from '../../components/common/VisitVerificationModal';
 import vendorService from '../../../../services/vendorService';
 import { toast } from 'react-hot-toast';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
+
+// Simple toggle for the simulation button (Set to false to hide)
+const SHOW_SIMULATION_BUTTON = false;
 
 // Zomato-like Premium Map Style (Silver/Clean)
 const mapStyles = [
@@ -49,10 +52,15 @@ const BookingMap = () => {
   const [routePath, setRoutePath] = useState([]);
   const [isAutoCenter, setIsAutoCenter] = useState(true);
   const [isNavigationMode, setIsNavigationMode] = useState(false);
-  const [heading, setHeading] = useState(0); // Lifted state up
+  const [heading, setHeading] = useState(0);
+  const [isFullScreen, setIsFullScreen] = useState(false); // Lifted state up
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
   const [otpInput, setOtpInput] = useState(['', '', '', '']);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // DEBUG: Location Simulator for testing
+  const [isSimulating, setIsSimulating] = useState(false);
+  const simulationRef = useRef(null);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID;
@@ -128,6 +136,56 @@ const BookingMap = () => {
 
   // ... 
 
+  // Animated location for smooth marker movement
+  const [animatedLocation, setAnimatedLocation] = useState(null);
+  const targetLocationRef = useRef(null);
+  const animatedLocationRef = useRef(null);
+  const animationFrameRef = useRef(null);
+
+  useEffect(() => {
+    if (!currentLocation) return;
+
+    targetLocationRef.current = currentLocation;
+
+    if (!animatedLocationRef.current) {
+      animatedLocationRef.current = currentLocation;
+      setAnimatedLocation(currentLocation);
+      return;
+    }
+
+    const animateToTarget = () => {
+      const target = targetLocationRef.current;
+      const current = animatedLocationRef.current;
+      if (!target || !current) return;
+
+      const latDiff = target.lat - current.lat;
+      const lngDiff = target.lng - current.lng;
+      const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+      if (distance < 0.00001) {
+        animatedLocationRef.current = target;
+        setAnimatedLocation(target);
+        return;
+      }
+
+      const lerpFactor = 0.1;
+      const newLat = current.lat + latDiff * lerpFactor;
+      const newLng = current.lng + lngDiff * lerpFactor;
+      const newLocation = { lat: newLat, lng: newLng };
+
+      animatedLocationRef.current = newLocation;
+      setAnimatedLocation(newLocation);
+      animationFrameRef.current = requestAnimationFrame(animateToTarget);
+    };
+
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = requestAnimationFrame(animateToTarget);
+
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [currentLocation]);
+
   // Sync Location to Backend (Periodic)
   useEffect(() => {
     if (socket && id) {
@@ -142,57 +200,174 @@ const BookingMap = () => {
           socket.emit('update_location', {
             bookingId: id,
             lat: currentLocation.lat,
-            lng: currentLocation.lng
+            lng: currentLocation.lng,
+            heading: heading
           });
         }
       }, 5000);
 
       return () => clearInterval(syncInterval);
     }
-  }, [currentLocation, socket, id]);
+  }, [currentLocation, socket, id, heading]);
+
+  // DEBUG: Location Simulator Functions
+  const startSimulation = () => {
+    if (!currentLocation || !coords || !socket) {
+      toast.error('Wait for map to load first');
+      return;
+    }
+
+    if (!routePath || routePath.length === 0) {
+      toast.error('No road path found. Wait for route to load.');
+      return;
+    }
+
+    setIsSimulating(true);
+    toast.success('🚀 Simulation started! Following the road.');
+
+    // Generate detailed points along the specific road path
+    const pathPoints = [];
+    const stepMeters = 20; // Distance between points (smaller = smoother)
+
+    for (let i = 0; i < routePath.length - 1; i++) {
+      const p1 = routePath[i];
+      const p2 = routePath[i + 1];
+      const dist = window.google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
+      const steps = Math.max(1, Math.floor(dist / stepMeters));
+
+      for (let j = 0; j < steps; j++) {
+        const fraction = j / steps;
+        const lat = p1.lat() + (p2.lat() - p1.lat()) * fraction;
+        const lng = p1.lng() + (p2.lng() - p1.lng()) * fraction;
+        pathPoints.push({ lat, lng });
+      }
+    }
+    // Add destination
+    const last = routePath[routePath.length - 1];
+    pathPoints.push({ lat: last.lat(), lng: last.lng() });
+
+    let pathIndex = 0;
+
+    simulationRef.current = setInterval(() => {
+      if (pathIndex >= pathPoints.length) {
+        stopSimulation();
+        toast.success('✅ Arrived at destination!');
+        return;
+      }
+
+      const point = pathPoints[pathIndex];
+      let simHeading = heading;
+
+      // Calculate heading for correct icon rotation
+      if (pathIndex < pathPoints.length - 1) {
+        const nextPoint = pathPoints[pathIndex + 1];
+        simHeading = window.google.maps.geometry.spherical.computeHeading(
+          new window.google.maps.LatLng(point),
+          new window.google.maps.LatLng(nextPoint)
+        );
+      }
+
+      // Emit to socket
+      socket.emit('update_location', {
+        bookingId: id,
+        lat: point.lat,
+        lng: point.lng,
+        heading: simHeading
+      });
+
+      // Update local display
+      setCurrentLocation(point);
+      setHeading(simHeading);
+
+      pathIndex++;
+    }, 1000); // Update every 1 second
+  };
+
+  const stopSimulation = () => {
+    if (simulationRef.current) {
+      clearInterval(simulationRef.current);
+      simulationRef.current = null;
+    }
+    setIsSimulating(false);
+  };
+
+  // Cleanup simulation on unmount
+  useEffect(() => {
+    return () => {
+      if (simulationRef.current) {
+        clearInterval(simulationRef.current);
+      }
+    };
+  }, []);
 
   // ... existing code ...
 
   const prevLocationRef = useRef(null);
+  const directionsCalculatedRef = useRef(false);
 
-  // Calculate Route - Run ONCE
-  // Calculate Route & Adjust Bounds
+  // Calculate Route ONCE on initial load only
   useEffect(() => {
-    if (isLoaded && currentLocation && coords && map) {
-      if (!directions) {
-        const directionsService = new window.google.maps.DirectionsService();
-        directionsService.route(
-          {
-            origin: currentLocation,
-            destination: coords,
-            travelMode: window.google.maps.TravelMode.DRIVING,
-          },
-          (result, status) => {
-            if (status === window.google.maps.DirectionsStatus.OK) {
-              setDirections(result);
-              const leg = result.routes[0].legs[0];
-              setDistance(leg.distance.text);
-              setDuration(leg.duration.text);
-              setRoutePath(result.routes[0].overview_path); // Set path for animation
-              map.fitBounds(result.routes[0].bounds);
-            }
+    if (isLoaded && currentLocation && coords && map && !directionsCalculatedRef.current) {
+      directionsCalculatedRef.current = true; // Prevent recalculation
+
+      const directionsService = new window.google.maps.DirectionsService();
+      directionsService.route(
+        {
+          origin: currentLocation,
+          destination: coords,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === window.google.maps.DirectionsStatus.OK) {
+            setDirections(result);
+            const leg = result.routes[0].legs[0];
+            setDistance(leg.distance.text);
+            setDuration(leg.duration.text);
+            setRoutePath(result.routes[0].overview_path);
+
+            // Center on current location
+            map.setCenter(currentLocation);
+            map.setZoom(15);
           }
-        );
-      } else if (isAutoCenter) {
-        if (isNavigationMode) {
-          map.panTo(currentLocation);
-          map.setZoom(18);
-          map.setTilt(45);
-          map.setHeading(heading);
-        } else {
-          const bounds = new window.google.maps.LatLngBounds();
-          bounds.extend(currentLocation);
-          bounds.extend(coords);
-          map.fitBounds(bounds, { top: 100, bottom: 250, left: 50, right: 50 });
         }
+      );
+    }
+  }, [isLoaded, coords, map, currentLocation]);
+
+  // Update distance and ETA as vendor moves (without recalculating route)
+  useEffect(() => {
+    if (isLoaded && currentLocation && coords && window.google && directionsCalculatedRef.current) {
+      // Calculate straight-line distance
+      const riderPoint = new window.google.maps.LatLng(currentLocation);
+      const destPoint = new window.google.maps.LatLng(coords);
+      const distanceMeters = window.google.maps.geometry.spherical.computeDistanceBetween(riderPoint, destPoint);
+
+      // Convert to km
+      const distanceKm = distanceMeters / 1000;
+
+      // Format distance
+      if (distanceKm < 1) {
+        setDistance(`${Math.round(distanceMeters)} m`);
+      } else {
+        setDistance(`${distanceKm.toFixed(1)} km`);
+      }
+
+      // Estimate time (assuming average speed of 30 km/h in city)
+      const avgSpeedKmh = 30;
+      const timeHours = distanceKm / avgSpeedKmh;
+      const timeMinutes = Math.round(timeHours * 60);
+
+      if (timeMinutes < 1) {
+        setDuration('< 1 min');
+      } else if (timeMinutes < 60) {
+        setDuration(`${timeMinutes} min`);
+      } else {
+        const hours = Math.floor(timeMinutes / 60);
+        const mins = timeMinutes % 60;
+        setDuration(`${hours} hr ${mins} min`);
       }
     }
-  }, [isLoaded, coords, map, directions, currentLocation, isAutoCenter, isNavigationMode, heading]);
+  }, [currentLocation, coords, isLoaded]);
 
   // Calculate Heading based on movement (Direction Sense)
   useEffect(() => {
@@ -238,39 +413,37 @@ const BookingMap = () => {
     </OverlayView>
   ), [coords]);
 
-  const riderMarker = useMemo(() => currentLocation && (
+  const riderMarker = useMemo(() => animatedLocation && (
     <OverlayView
-      position={currentLocation}
+      position={animatedLocation}
       mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
     >
-      {/* Container - centered on the coordinate */}
       <div
         style={{
           position: 'absolute',
           transform: 'translate(-50%, -50%)',
           cursor: 'pointer'
         }}
+        className="pointer-events-none"
       >
-        {/* Icon Container - No background/border */}
         <div
-          className="relative z-20 w-16 h-16 transition-transform duration-500 ease-in-out"
-          style={{ transform: `rotate(${heading - 180}deg)` }}
+          className="relative z-20 w-16 h-16"
+          style={{
+            transform: `rotate(${heading}deg)`,
+            transition: 'transform 0.3s ease-out'
+          }}
         >
           <img
-            src="/rider-3D.png"
+            src="/MapRider.png"
             alt="Rider"
-            className="w-full h-full object-contain drop-shadow-xl"
+            className="w-full h-full object-contain drop-shadow-xl rounded-full"
           />
         </div>
-
-        {/* Pulse Animation */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-teal-500/30 rounded-full animate-ping z-10 pointer-events-none"></div>
-
-        {/* Shadow */}
         <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-12 h-3 bg-black/20 blur-sm rounded-full z-0"></div>
       </div>
     </OverlayView>
-  ), [currentLocation, heading]);
+  ), [animatedLocation, heading]);
 
   const mapOptions = useMemo(() => ({
     disableDefaultUI: true,
@@ -288,14 +461,52 @@ const BookingMap = () => {
   return (
     <div className="h-screen flex flex-col relative bg-white overflow-hidden">
       {/* Top Floating Header */}
-      <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start pointer-events-none">
-        <button
-          onClick={() => navigate(-1)}
-          className="pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-700 hover:bg-white transition-all active:scale-95"
-        >
-          <FiArrowLeft className="w-6 h-6" />
-        </button>
-      </div>
+      {!isFullScreen && (
+        <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start pointer-events-none">
+          <button
+            onClick={() => navigate(-1)}
+            className="pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-700 hover:bg-white transition-all active:scale-95"
+          >
+            <FiArrowLeft className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+
+      {/* Full Screen Mode Info Card */}
+      <AnimatePresence>
+        {isFullScreen && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="absolute top-6 left-0 right-0 z-10 flex justify-center pointer-events-none"
+          >
+            <div className="pointer-events-auto bg-white/95 backdrop-blur-xl px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-6 border border-white/20 ring-1 ring-black/5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center">
+                  <FiMapPin className="w-4 h-4 text-teal-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Remaining</p>
+                  <p className="text-sm font-black text-gray-800">{distance}</p>
+                </div>
+              </div>
+
+              <div className="w-px h-8 bg-gray-100"></div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center">
+                  <FiClock className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ETA</p>
+                  <p className="text-sm font-black text-gray-800">{duration}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 w-full h-full relative">
         <GoogleMap
@@ -331,6 +542,15 @@ const BookingMap = () => {
         {/* Recenter Button */}
 
 
+        {/* Full Screen Toggle Button */}
+        <button
+          onClick={() => setIsFullScreen(!isFullScreen)}
+          className="absolute top-24 right-4 p-4 rounded-full shadow-2xl transition-all active:scale-90 z-50 bg-white text-gray-700 hover:bg-gray-50"
+          style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}
+        >
+          {isFullScreen ? <FiMinimize className="w-6 h-6" /> : <FiMaximize className="w-6 h-6" />}
+        </button>
+
         {/* Recenter Button */}
         <button
           onClick={() => {
@@ -350,10 +570,21 @@ const BookingMap = () => {
         >
           <FiCrosshair className="w-6 h-6" />
         </button>
+
+        {/* DEBUG: Simulation Button */}
+        {SHOW_SIMULATION_BUTTON && (
+          <button
+            onClick={isSimulating ? stopSimulation : startSimulation}
+            className={`absolute top-56 right-4 px-4 py-3 rounded-full shadow-2xl transition-all active:scale-90 z-50 text-xs font-bold ${isSimulating ? 'bg-red-500 text-white' : 'bg-purple-600 text-white'}`}
+            style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}
+          >
+            {isSimulating ? '⏹ Stop' : '🚀 Simulate'}
+          </button>
+        )}
       </div>
 
       {/* Modern Bottom Card */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-20 p-6 pb-8 transition-transform duration-300">
+      <div className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-20 p-6 pb-8 transition-transform duration-300 ${isFullScreen ? 'translate-y-full' : ''}`}>
         <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
 
         {/* Time & Distance Header */}

@@ -243,7 +243,16 @@ const homeContentSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+
+  // Section Visibility
+  isBannersVisible: { type: Boolean, default: true },
+  isPromosVisible: { type: Boolean, default: true },
+  isCuratedVisible: { type: Boolean, default: true },
+  isNoteworthyVisible: { type: Boolean, default: true },
+  isBookedVisible: { type: Boolean, default: true },
+  isCategorySectionsVisible: { type: Boolean, default: true },
+  isCategoriesVisible: { type: Boolean, default: true }
 }, {
   timestamps: true
 });

@@ -36,8 +36,8 @@ const workerService = {
     return response.data;
   },
 
-  updateJobStatus: async (id, status) => {
-    const response = await api.put(`/workers/jobs/${id}/status`, { status });
+  updateJobStatus: async (id, status, data = {}) => {
+    const response = await api.put(`/workers/jobs/${id}/status`, { status, ...data });
     return response.data;
   },
 

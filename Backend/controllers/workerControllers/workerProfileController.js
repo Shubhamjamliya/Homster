@@ -25,7 +25,7 @@ const getProfile = async (req, res) => {
         name: worker.name,
         email: worker.email,
         phone: worker.phone,
-        serviceCategory: worker.serviceCategory || '',
+        serviceCategory: worker.serviceCategories?.[0] || '',
         skills: worker.skills || [],
         address: worker.address || null,
         rating: worker.rating || 0,
@@ -77,7 +77,7 @@ const updateProfile = async (req, res) => {
 
     // Update fields
     if (name) worker.name = name.trim();
-    if (serviceCategory) worker.serviceCategory = serviceCategory.trim();
+    if (serviceCategory) worker.serviceCategories = [serviceCategory.trim()];
     if (skills && Array.isArray(skills)) worker.skills = skills;
     if (address) {
       worker.address = {
@@ -120,7 +120,7 @@ const updateProfile = async (req, res) => {
         name: worker.name,
         email: worker.email,
         phone: worker.phone,
-        serviceCategory: worker.serviceCategory,
+        serviceCategory: worker.serviceCategories?.[0] || '',
         skills: worker.skills,
         address: worker.address,
         rating: worker.rating,

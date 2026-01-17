@@ -24,7 +24,15 @@ const getHomeContent = async (req, res) => {
         noteworthy: homeContent.noteworthy || [],
         booked: homeContent.booked || [],
         categorySections: homeContent.categorySections || [],
+        categorySections: homeContent.categorySections || [],
         isActive: homeContent.isActive,
+        isBannersVisible: homeContent.isBannersVisible ?? true,
+        isPromosVisible: homeContent.isPromosVisible ?? true,
+        isCuratedVisible: homeContent.isCuratedVisible ?? true,
+        isNoteworthyVisible: homeContent.isNoteworthyVisible ?? true,
+        isBookedVisible: homeContent.isBookedVisible ?? true,
+        isCategorySectionsVisible: homeContent.isCategorySectionsVisible ?? true,
+        isCategoriesVisible: homeContent.isCategoriesVisible ?? true,
         createdAt: homeContent.createdAt,
         updatedAt: homeContent.updatedAt
       }
@@ -114,6 +122,13 @@ const updateHomeContent = async (req, res) => {
       homeContent.markModified('categorySections');
     }
     if (req.body.isActive !== undefined) homeContent.isActive = req.body.isActive;
+    if (req.body.isBannersVisible !== undefined) homeContent.isBannersVisible = req.body.isBannersVisible;
+    if (req.body.isPromosVisible !== undefined) homeContent.isPromosVisible = req.body.isPromosVisible;
+    if (req.body.isCuratedVisible !== undefined) homeContent.isCuratedVisible = req.body.isCuratedVisible;
+    if (req.body.isNoteworthyVisible !== undefined) homeContent.isNoteworthyVisible = req.body.isNoteworthyVisible;
+    if (req.body.isBookedVisible !== undefined) homeContent.isBookedVisible = req.body.isBookedVisible;
+    if (req.body.isCategorySectionsVisible !== undefined) homeContent.isCategorySectionsVisible = req.body.isCategorySectionsVisible;
+    if (req.body.isCategoriesVisible !== undefined) homeContent.isCategoriesVisible = req.body.isCategoriesVisible;
 
     await homeContent.save();
 
@@ -128,7 +143,15 @@ const updateHomeContent = async (req, res) => {
         noteworthy: homeContent.noteworthy,
         booked: homeContent.booked,
         categorySections: homeContent.categorySections,
-        isActive: homeContent.isActive
+        categorySections: homeContent.categorySections,
+        isActive: homeContent.isActive,
+        isBannersVisible: homeContent.isBannersVisible,
+        isPromosVisible: homeContent.isPromosVisible,
+        isCuratedVisible: homeContent.isCuratedVisible,
+        isNoteworthyVisible: homeContent.isNoteworthyVisible,
+        isBookedVisible: homeContent.isBookedVisible,
+        isCategorySectionsVisible: homeContent.isCategorySectionsVisible,
+        isCategoriesVisible: homeContent.isCategoriesVisible
       }
     });
   } catch (error) {

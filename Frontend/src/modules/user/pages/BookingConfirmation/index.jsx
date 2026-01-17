@@ -13,7 +13,8 @@ import {
   FiArrowRight,
   FiLoader,
   FiArrowLeft,
-  FiBell
+  FiBell,
+  FiXCircle
 } from 'react-icons/fi';
 import { bookingService } from '../../../../services/bookingService';
 
@@ -236,8 +237,8 @@ const BookingConfirmation = () => {
           </div>
         )}
 
-        {/* Success Icon - Show when not searching */}
-        {!isSearching && (
+        {/* Success Icon - Show when confirmed */}
+        {!isSearching && ['confirmed', 'assigned', 'journey_started', 'work_in_progress', 'visited', 'work_done', 'completed'].includes(booking?.status?.toLowerCase()) && (
           <div className="flex flex-col items-center justify-center mb-6">
             <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
               <FiCheckCircle className="w-12 h-12 text-green-600" />
@@ -246,6 +247,26 @@ const BookingConfirmation = () => {
             <p className="text-sm text-gray-600 text-center">
               Your booking has been confirmed. We'll send you updates via SMS.
             </p>
+          </div>
+        )}
+
+        {/* Failure Icon - Show when expired/cancelled/rejected */}
+        {!isSearching && ['expired', 'cancelled', 'rejected', 'failed', 'timeout'].includes(booking?.status?.toLowerCase()) && (
+          <div className="flex flex-col items-center justify-center mb-6">
+            <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <FiXCircle className="w-12 h-12 text-red-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">No Expert Found</h1>
+            <p className="text-sm text-gray-500 text-center max-w-[260px] mb-6">
+              We couldn't find a nearby expert for your request at this moment.
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="px-8 py-3 bg-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-600/20 active:scale-95 transition-all flex items-center gap-2"
+            >
+              <FiArrowRight className="w-5 h-5" />
+              Search Again
+            </button>
           </div>
         )}
 

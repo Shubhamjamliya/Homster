@@ -14,13 +14,14 @@ import {
   verifySelfVisit,
   completeSelfJob
 } from '../../services/bookingService';
-import { CashCollectionModal, ConfirmDialog } from '../../components/common';
+import { CashCollectionModal, ConfirmDialog, WorkerPaymentModal } from '../../components/common';
 import VisitVerificationModal from '../../components/common/VisitVerificationModal';
 // Import shared WorkCompletionModal from worker directory or move to shared
 import { WorkCompletionModal } from '../../../worker/components/common';
 import vendorWalletService from '../../../../services/vendorWalletService';
 import { toast } from 'react-hot-toast';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
+import { useLocationTracking } from '../../../../hooks/useLocationTracking';
 
 export default function BookingDetails() {
   const { id } = useParams();
@@ -32,8 +33,6 @@ export default function BookingDetails() {
   const [showOTPInput, setShowOTPInput] = useState(false);
   const [cashSubmitting, setCashSubmitting] = useState(false);
   const [isPayWorkerModalOpen, setIsPayWorkerModalOpen] = useState(false);
-  const [payWorkerAmount, setPayWorkerAmount] = useState('');
-  const [payWorkerNotes, setPayWorkerNotes] = useState('');
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
   const [isWorkDoneModalOpen, setIsWorkDoneModalOpen] = useState(false);
@@ -146,24 +145,13 @@ export default function BookingDetails() {
   // ADDED: Socket for Live Location Tracking in Details Page
   const socket = useAppNotifications('vendor'); // Get socket
 
-  // Track Vendor Location in Details Page too (for continuous user updates)
-  useEffect(() => {
-    if (socket && id && (booking?.status === 'journey_started' || booking?.status === 'visited')) {
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          socket.emit('update_location', {
-            bookingId: id,
-            lat: latitude,
-            lng: longitude
-          });
-        },
-        (err) => console.log('Location watch error:', err),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-      );
-      return () => navigator.geolocation.clearWatch(watchId);
-    }
-  }, [socket, id, booking?.status]);
+  // Optimized Live Location Tracking with distance filter and heading
+  const isTrackingActive = booking?.status === 'journey_started' || booking?.status === 'visited';
+  useLocationTracking(socket, id, isTrackingActive, {
+    distanceFilter: 10, // Only emit when moved 10+ meters
+    interval: 3000,     // Minimum 3s between emissions
+    enableHighAccuracy: true
+  });
 
   // Listen for Real-Time Booking Updates (e.g. Online Payment)
   useEffect(() => {
@@ -341,23 +329,21 @@ export default function BookingDetails() {
   };
 
   const handlePayWorkerClick = () => {
-    setPayWorkerAmount('');
-    setPayWorkerNotes('');
     setIsPayWorkerModalOpen(true);
   };
 
-  const handlePayWorkerSubmit = async () => {
-    if (!payWorkerAmount || isNaN(payWorkerAmount) || parseFloat(payWorkerAmount) <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
+  const handlePayWorkerSubmit = async (payoutData) => {
+    const { amount, notes, transactionId, screenshot, paymentMethod } = payoutData;
 
     try {
       setPaySubmitting(true);
       const res = await vendorWalletService.payWorker(
         booking.id || booking._id,
-        parseFloat(payWorkerAmount),
-        payWorkerNotes
+        amount,
+        notes,
+        transactionId,
+        screenshot,
+        paymentMethod
       );
 
       if (res.success) {
@@ -1470,94 +1456,14 @@ export default function BookingDetails() {
       />
 
       {/* Pay Worker Modal */}
-      <AnimatePresence>
-        {isPayWorkerModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsPayWorkerModalOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl relative z-10"
-            >
-              <div className="p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900">Worker Payout</h3>
-                  <button onClick={() => setIsPayWorkerModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                    <FiX className="w-6 h-6" />
-                  </button>
-                </div>
-
-                <div className="bg-green-50 rounded-2xl p-5 mb-8 border border-green-100">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-green-100">
-                      <FiUser className="w-7 h-7 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-green-600 font-bold uppercase tracking-wider mb-1">Paying to</p>
-                      <p className="text-xl font-bold text-gray-900">{booking.assignedTo?.name || 'Worker'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Payout Amount</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-400">₹</span>
-                      <input
-                        type="number"
-                        value={payWorkerAmount}
-                        onChange={(e) => setPayWorkerAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="w-full pl-10 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-bold text-2xl"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Notes (Optional)</label>
-                    <textarea
-                      value={payWorkerNotes}
-                      onChange={(e) => setPayWorkerNotes(e.target.value)}
-                      placeholder="Add a remark about this payment..."
-                      rows="2"
-                      className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-medium text-gray-700"
-                    />
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      onClick={handlePayWorkerSubmit}
-                      disabled={paySubmitting || !payWorkerAmount}
-                      className="w-full py-5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg"
-                      style={{
-                        background: 'linear-gradient(135deg, #10B981, #059669)',
-                        boxShadow: '0 10px 20px rgba(16, 185, 129, 0.3)',
-                      }}
-                    >
-                      {paySubmitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Processing...</span>
-                        </>
-                      ) : (
-                        <span>Pay ₹{payWorkerAmount || '0'} & Complete</span>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <WorkerPaymentModal
+        isOpen={isPayWorkerModalOpen}
+        onClose={() => setIsPayWorkerModalOpen(false)}
+        workerName={booking.assignedTo?.name}
+        amountDue={booking.vendorEarnings * 0.9} // Estimation or based on your rule (90% to worker)
+        onConfirm={handlePayWorkerSubmit}
+        loading={paySubmitting}
+      />
 
       {/* Visit OTP Modal */}
       <VisitVerificationModal

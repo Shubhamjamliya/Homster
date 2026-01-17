@@ -78,11 +78,14 @@ const vendorWalletService = {
   /**
    * Pay worker for a booking
    */
-  payWorker: async (bookingId, amount, notes = '') => {
+  payWorker: async (bookingId, amount, notes = '', transactionId = '', screenshot = '', paymentMethod = 'cash') => {
     const response = await api.post('/vendors/wallet/pay-worker', {
       bookingId,
       amount,
-      notes
+      notes,
+      transactionId,
+      screenshot,
+      paymentMethod
     });
     return response.data;
   },

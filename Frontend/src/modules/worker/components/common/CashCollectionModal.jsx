@@ -173,7 +173,7 @@ const CashCollectionModal = ({
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 flex-shrink-0">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">{step === 'summary' ? 'Collect Cash' : 'Verify OTP'}</h3>
+            <h3 className="text-xl font-bold text-gray-900">{step === 'summary' ? 'Prepare Bill' : 'Verify OTP'}</h3>
             <p className="text-xs text-gray-500 font-medium tracking-wide uppercase">
               {step === 'summary' ? 'Review Bill & Send OTP' : 'Enter Customer Code'}
             </p>

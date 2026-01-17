@@ -1,8 +1,9 @@
 // JobMap component for tracking worker journey and arrival verification
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView } from '@react-google-maps/api';
-import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiCheckCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiCheckCircle, FiMaximize, FiMinimize, FiClock } from 'react-icons/fi';
 import workerService from '../../../../services/workerService';
 import { VisitVerificationModal } from '../../components/common'; // Import from local worker common
 import { toast } from 'react-hot-toast';
@@ -47,6 +48,7 @@ const JobMap = () => {
   const [isAutoCenter, setIsAutoCenter] = useState(true);
   const [isNavigationMode, setIsNavigationMode] = useState(false);
   const [heading, setHeading] = useState(0);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -122,6 +124,56 @@ const JobMap = () => {
 
   const socket = useAppNotifications('worker'); // Use worker namespace
 
+  // Animated location for smooth marker movement
+  const [animatedLocation, setAnimatedLocation] = useState(null);
+  const targetLocationRef = useRef(null);
+  const animatedLocationRef = useRef(null);
+  const animationFrameRef = useRef(null);
+
+  useEffect(() => {
+    if (!currentLocation) return;
+
+    targetLocationRef.current = currentLocation;
+
+    if (!animatedLocationRef.current) {
+      animatedLocationRef.current = currentLocation;
+      setAnimatedLocation(currentLocation);
+      return;
+    }
+
+    const animateToTarget = () => {
+      const target = targetLocationRef.current;
+      const current = animatedLocationRef.current;
+      if (!target || !current) return;
+
+      const latDiff = target.lat - current.lat;
+      const lngDiff = target.lng - current.lng;
+      const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+      if (distance < 0.00001) {
+        animatedLocationRef.current = target;
+        setAnimatedLocation(target);
+        return;
+      }
+
+      const lerpFactor = 0.1;
+      const newLat = current.lat + latDiff * lerpFactor;
+      const newLng = current.lng + lngDiff * lerpFactor;
+      const newLocation = { lat: newLat, lng: newLng };
+
+      animatedLocationRef.current = newLocation;
+      setAnimatedLocation(newLocation);
+      animationFrameRef.current = requestAnimationFrame(animateToTarget);
+    };
+
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = requestAnimationFrame(animateToTarget);
+
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [currentLocation]);
+
   // Sync Location to Backend (Periodic)
   useEffect(() => {
     if (socket && id) {
@@ -147,43 +199,71 @@ const JobMap = () => {
 
   const prevLocationRef = useRef(null);
 
-  // Calculate Route & Adjust Bounds
+  const directionsCalculatedRef = useRef(false);
+
+  // Calculate Route ONCE on initial load only
   useEffect(() => {
-    if (isLoaded && currentLocation && coords && map) {
-      if (!directions) {
-        const directionsService = new window.google.maps.DirectionsService();
-        directionsService.route(
-          {
-            origin: currentLocation,
-            destination: coords,
-            travelMode: window.google.maps.TravelMode.DRIVING,
-          },
-          (result, status) => {
-            if (status === window.google.maps.DirectionsStatus.OK) {
-              setDirections(result);
-              const leg = result.routes[0].legs[0];
-              setDistance(leg.distance.text);
-              setDuration(leg.duration.text);
-              setRoutePath(result.routes[0].overview_path); // Set path for animation
-              map.fitBounds(result.routes[0].bounds);
-            }
+    if (isLoaded && currentLocation && coords && map && !directionsCalculatedRef.current) {
+      directionsCalculatedRef.current = true; // Prevent recalculation
+
+      const directionsService = new window.google.maps.DirectionsService();
+      directionsService.route(
+        {
+          origin: currentLocation,
+          destination: coords,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === window.google.maps.DirectionsStatus.OK) {
+            setDirections(result);
+            const leg = result.routes[0].legs[0];
+            setDistance(leg.distance.text);
+            setDuration(leg.duration.text);
+            setRoutePath(result.routes[0].overview_path);
+
+            // Center on location
+            map.setCenter(currentLocation);
+            map.setZoom(15);
           }
-        );
-      } else if (isAutoCenter) {
-        if (isNavigationMode) {
-          map.panTo(currentLocation);
-          map.setZoom(18);
-          map.setTilt(45);
-          map.setHeading(heading);
-        } else {
-          const bounds = new window.google.maps.LatLngBounds();
-          bounds.extend(currentLocation);
-          bounds.extend(coords);
-          map.fitBounds(bounds, { top: 100, bottom: 250, left: 50, right: 50 });
         }
+      );
+    }
+  }, [isLoaded, coords, map, currentLocation]);
+
+  // Update distance and ETA as worker moves (without recalculating route)
+  useEffect(() => {
+    if (isLoaded && currentLocation && coords && window.google && directionsCalculatedRef.current) {
+      // Calculate straight-line distance
+      const riderPoint = new window.google.maps.LatLng(currentLocation);
+      const destPoint = new window.google.maps.LatLng(coords);
+      const distanceMeters = window.google.maps.geometry.spherical.computeDistanceBetween(riderPoint, destPoint);
+
+      // Convert to km
+      const distanceKm = distanceMeters / 1000;
+
+      // Format distance
+      if (distanceKm < 1) {
+        setDistance(`${Math.round(distanceMeters)} m`);
+      } else {
+        setDistance(`${distanceKm.toFixed(1)} km`);
+      }
+
+      // Estimate time (assuming average speed of 30 km/h in city)
+      const avgSpeedKmh = 30;
+      const timeHours = distanceKm / avgSpeedKmh;
+      const timeMinutes = Math.round(timeHours * 60);
+
+      if (timeMinutes < 1) {
+        setDuration('< 1 min');
+      } else if (timeMinutes < 60) {
+        setDuration(`${timeMinutes} min`);
+      } else {
+        const hours = Math.floor(timeMinutes / 60);
+        const mins = timeMinutes % 60;
+        setDuration(`${hours} hr ${mins} min`);
       }
     }
-  }, [isLoaded, coords, map, directions, currentLocation, isAutoCenter, isNavigationMode, heading]);
+  }, [currentLocation, coords, isLoaded]);
 
   // Calculate Heading based on movement
   useEffect(() => {
@@ -228,9 +308,9 @@ const JobMap = () => {
 
   // Use standard image for rider or generate a similar one if 'rider-3D.png' is missing. 
   // Assuming 'rider-3D.png' exists in public folder as per Vendor map.
-  const riderMarker = useMemo(() => currentLocation && (
+  const riderMarker = useMemo(() => animatedLocation && (
     <OverlayView
-      position={currentLocation}
+      position={animatedLocation}
       mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
     >
       <div
@@ -239,24 +319,27 @@ const JobMap = () => {
           transform: 'translate(-50%, -50%)',
           cursor: 'pointer'
         }}
+        className="pointer-events-none"
       >
         <div
-          className="relative z-20 w-16 h-16 transition-transform duration-500 ease-in-out"
-          style={{ transform: `rotate(${heading - 180}deg)` }}
+          className="relative z-20 w-16 h-16"
+          style={{
+            transform: `rotate(${heading}deg)`,
+            transition: 'transform 0.3s ease-out'
+          }}
         >
-          {/* Using a fallback image if rider-3D is specific to vendor, but usually shared in public */}
           <img
-            src="/rider-3D.png"
+            src="/MapRider.png"
             alt="Rider"
-            className="w-full h-full object-contain drop-shadow-xl"
-            onError={(e) => { e.target.onerror = null; e.target.src = "https://cdn-icons-png.flaticon.com/512/2972/2972185.png" }} // Fallback
+            className="w-full h-full object-contain drop-shadow-xl rounded-full"
+            onError={(e) => { e.target.onerror = null; e.target.src = "https://cdn-icons-png.flaticon.com/512/2972/2972185.png" }}
           />
         </div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-teal-500/30 rounded-full animate-ping z-10 pointer-events-none"></div>
         <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-12 h-3 bg-black/20 blur-sm rounded-full z-0"></div>
       </div>
     </OverlayView>
-  ), [currentLocation, heading]);
+  ), [animatedLocation, heading]);
 
   const mapOptions = useMemo(() => ({
     disableDefaultUI: true,
@@ -274,14 +357,52 @@ const JobMap = () => {
   return (
     <div className="h-screen flex flex-col relative bg-white overflow-hidden">
       {/* Top Floating Header */}
-      <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start pointer-events-none">
-        <button
-          onClick={() => navigate(-1)}
-          className="pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-700 hover:bg-white transition-all active:scale-95"
-        >
-          <FiArrowLeft className="w-6 h-6" />
-        </button>
-      </div>
+      {!isFullScreen && (
+        <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start pointer-events-none">
+          <button
+            onClick={() => navigate(-1)}
+            className="pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-700 hover:bg-white transition-all active:scale-95"
+          >
+            <FiArrowLeft className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+
+      {/* Full Screen Stats Card */}
+      <AnimatePresence>
+        {isFullScreen && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="absolute top-6 left-0 right-0 z-10 flex justify-center pointer-events-none"
+          >
+            <div className="pointer-events-auto bg-white/95 backdrop-blur-xl px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-6 border border-white/20 ring-1 ring-black/5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center">
+                  <FiMapPin className="w-4 h-4 text-teal-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Remaining</p>
+                  <p className="text-sm font-black text-gray-800">{distance}</p>
+                </div>
+              </div>
+
+              <div className="w-px h-8 bg-gray-100"></div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center">
+                  <FiClock className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ETA</p>
+                  <p className="text-sm font-black text-gray-800">{duration}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 w-full h-full relative">
         <GoogleMap
@@ -314,6 +435,15 @@ const JobMap = () => {
           {riderMarker}
         </GoogleMap>
 
+        {/* Full Screen Toggle */}
+        <button
+          onClick={() => setIsFullScreen(!isFullScreen)}
+          className="absolute top-24 right-4 p-4 rounded-full shadow-2xl transition-all active:scale-90 z-20 bg-white text-gray-700 hover:bg-gray-50"
+          style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}
+        >
+          {isFullScreen ? <FiMinimize className="w-6 h-6" /> : <FiMaximize className="w-6 h-6" />}
+        </button>
+
         {/* Recenter Button */}
         <button
           onClick={() => {
@@ -335,7 +465,7 @@ const JobMap = () => {
       </div>
 
       {/* Modern Bottom Card */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-20 p-6 pb-8 transition-transform duration-300">
+      <div className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-20 p-6 pb-8 transition-transform duration-300 ${isFullScreen ? 'translate-y-full' : ''}`}>
         <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
 
         {/* Time & Distance Header */}

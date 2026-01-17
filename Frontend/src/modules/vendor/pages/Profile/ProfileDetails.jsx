@@ -18,13 +18,13 @@ const ProfileDetails = () => {
   };
 
   const [profile, setProfile] = useState({
-    name: 'Vendor Name',
-    businessName: 'Business Name',
-    phone: '+91 9876543210',
-    email: 'vendor@example.com',
-    address: 'Indore, Madhya Pradesh',
-    serviceCategory: 'Electrician',
-    skills: ['Fan Repair', 'AC', 'Lightings'],
+    name: '',
+    businessName: '',
+    phone: '',
+    email: '',
+    address: '',
+    serviceCategory: '',
+    skills: [],
     profilePhoto: '',
   });
 
@@ -73,8 +73,8 @@ const ProfileDetails = () => {
             phone: storedData.phone || '',
             email: storedData.email || '',
             address: addressString || 'Not set',
-            serviceCategory: storedData.serviceCategory || storedData.service || 'Electrician',
-            skills: storedData.skills || ['Fan Repair', 'AC', 'Lightings'],
+            serviceCategory: storedData.serviceCategory || storedData.service || '',
+            skills: storedData.skills || [],
             profilePhoto: storedData.profilePhoto || ''
           }));
         }

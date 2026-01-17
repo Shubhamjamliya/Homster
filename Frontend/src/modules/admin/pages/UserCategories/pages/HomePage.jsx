@@ -3,6 +3,7 @@ import { FiGrid, FiPlus, FiTrash2, FiSave, FiEdit2 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
+import ToggleSwitch from "../components/ToggleSwitch"; // Import ToggleSwitch
 import { ensureIds, saveCatalog, slugify, toAssetUrl } from "../utils";
 
 import { homeContentService, serviceService } from "../../../../../services/catalogService";
@@ -228,7 +229,14 @@ const HomePage = ({ catalog, setCatalog }) => {
             curatedServices: addIds(hc.curated || []), // API returns 'curated', component expects 'curatedServices'
             newAndNoteworthy: addIds(hc.noteworthy || []), // API returns 'noteworthy', component expects 'newAndNoteworthy'
             mostBooked: addIds(hc.booked || []), // API returns 'booked', component expects 'mostBooked'
-            categorySections: addIds(hc.categorySections || [])
+            categorySections: addIds(hc.categorySections || []),
+            isBannersVisible: hc.isBannersVisible ?? true,
+            isPromosVisible: hc.isPromosVisible ?? true,
+            isCuratedVisible: hc.isCuratedVisible ?? true,
+            isNoteworthyVisible: hc.isNoteworthyVisible ?? true,
+            isBookedVisible: hc.isBookedVisible ?? true,
+            isCategorySectionsVisible: hc.isCategorySectionsVisible ?? true,
+            isCategoriesVisible: hc.isCategoriesVisible ?? true
           };
           setCatalog(next);
           saveCatalog(next);
@@ -301,7 +309,15 @@ const HomePage = ({ catalog, setCatalog }) => {
         curated: homeData.curatedServices,
         noteworthy: homeData.newAndNoteworthy,
         booked: homeData.mostBooked,
+        booked: homeData.mostBooked,
         categorySections: homeData.categorySections,
+        isBannersVisible: homeData.isBannersVisible,
+        isPromosVisible: homeData.isPromosVisible,
+        isCuratedVisible: homeData.isCuratedVisible,
+        isNoteworthyVisible: homeData.isNoteworthyVisible,
+        isBookedVisible: homeData.isBookedVisible,
+        isCategorySectionsVisible: homeData.isCategorySectionsVisible,
+        isCategoriesVisible: homeData.isCategoriesVisible
       };
       await homeContentService.update(payload);
       toast.success('Home page updated successfully!');
@@ -515,101 +531,106 @@ const HomePage = ({ catalog, setCatalog }) => {
               <div className="w-1.5 h-6 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full"></div>
               <span>Home Banners</span>
             </div>
-            <div className="flex items-center justify-end mb-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setBannerForm({ imageUrl: "", text: "", targetCategoryId: "", scrollToSection: "" });
-                  setIsBannerModalOpen(true);
-                }}
-                className="px-4 py-2 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg relative z-10"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
-                <span>Add Banner</span>
-              </button>
-            </div>
-
-            {(home?.banners || []).length === 0 ? (
-              <div className="text-base text-gray-500">No home banners added</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200">
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-12">#</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-24">Image</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Text</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Redirect</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Scroll To</th>
-                      <th className="text-center py-2 px-3 text-sm font-bold text-gray-700 w-32">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(home.banners || []).map((b, idx) => (
-                      <tr key={b.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-2.5 px-3 text-sm font-semibold text-gray-600">{idx + 1}</td>
-                        <td className="py-2.5 px-3">
-                          {b.imageUrl ? (
-                            <img src={b.imageUrl} alt="Banner" className="h-14 w-14 object-cover rounded-lg border border-gray-200" />
-                          ) : (
-                            <div className="h-14 w-14 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                              <span className="text-[10px] text-gray-400">No img</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-900">{b.text || "—"}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-600">
-                            {b.slug
-                              ? `Service: ${allServices.find(s => s.slug === b.slug)?.title || b.slug}`
-                              : (b.targetCategoryId ? getCategoryTitle(b.targetCategoryId) : "—")
-                            }
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-600">{b.scrollToSection || "—"}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingBannerId(b.id);
-                                setBannerForm({ ...b });
-                                setIsBannerModalOpen(true);
-                              }}
-                              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                              title="Edit"
-                            >
-                              <FiEdit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setHomeBanners((home.banners || []).filter((x) => x.id !== b.id))}
-                              className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                              title="Delete"
-                            >
-                              <FiTrash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
+          <div className="flex items-center justify-end mb-3 gap-4">
+            <ToggleSwitch
+              label="Show Banners"
+              checked={home?.isBannersVisible !== false}
+              onChange={() => patchHome({ isBannersVisible: !home?.isBannersVisible })}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setBannerForm({ imageUrl: "", text: "", targetCategoryId: "", scrollToSection: "" });
+                setIsBannerModalOpen(true);
+              }}
+              className="px-4 py-2 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg relative z-10"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
+              <span>Add Banner</span>
+            </button>
+          </div>
+
+          {(home?.banners || []).length === 0 ? (
+            <div className="text-base text-gray-500">No home banners added</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-12">#</th>
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-24">Image</th>
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Text</th>
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Redirect</th>
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Scroll To</th>
+                    <th className="text-center py-2 px-3 text-sm font-bold text-gray-700 w-32">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(home.banners || []).map((b, idx) => (
+                    <tr key={b.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-2.5 px-3 text-sm font-semibold text-gray-600">{idx + 1}</td>
+                      <td className="py-2.5 px-3">
+                        {b.imageUrl ? (
+                          <img src={b.imageUrl} alt="Banner" className="h-14 w-14 object-cover rounded-lg border border-gray-200" />
+                        ) : (
+                          <div className="h-14 w-14 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                            <span className="text-[10px] text-gray-400">No img</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-sm text-gray-900">{b.text || "—"}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-sm text-gray-600">
+                          {b.slug
+                            ? `Service: ${allServices.find(s => s.slug === b.slug)?.title || b.slug}`
+                            : (b.targetCategoryId ? getCategoryTitle(b.targetCategoryId) : "—")
+                          }
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-sm text-gray-600">{b.scrollToSection || "—"}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingBannerId(b.id);
+                              setBannerForm({ ...b });
+                              setIsBannerModalOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                            title="Edit"
+                          >
+                            <FiEdit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHomeBanners((home.banners || []).filter((x) => x.id !== b.id))}
+                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                            title="Delete"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </CardShell>
 
@@ -621,6 +642,13 @@ const HomePage = ({ catalog, setCatalog }) => {
               <div>
                 <div className="text-lg font-bold text-gray-900">Home Promo Carousel</div>
               </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <ToggleSwitch
+                label="Show Promos"
+                checked={home?.isPromosVisible !== false}
+                onChange={() => patchHome({ isPromosVisible: !home?.isPromosVisible })}
+              />
               <button
                 type="button"
                 onClick={() => {
@@ -641,211 +669,227 @@ const HomePage = ({ catalog, setCatalog }) => {
                 <span>Add</span>
               </button>
             </div>
-
-            {(home.promoCarousel || []).length === 0 ? (
-              <div className="text-base text-gray-500">No promo cards</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200">
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-12">#</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-24">Image</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Title</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Subtitle</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Button Text</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Redirect</th>
-                      <th className="text-center py-2 px-3 text-sm font-bold text-gray-700 w-32">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(home.promoCarousel || []).map((p, idx) => (
-                      <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-2.5 px-3 text-sm font-semibold text-gray-600">{idx + 1}</td>
-                        <td className="py-2.5 px-3">
-                          {p.imageUrl ? (
-                            <img src={p.imageUrl} alt="Promo" className="h-14 w-14 object-cover rounded-lg border border-gray-200" />
-                          ) : (
-                            <div className="h-14 w-14 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                              <span className="text-[10px] text-gray-400">No img</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm font-semibold text-gray-900">{p.title || "—"}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-600">{p.subtitle || "—"}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-600">{p.buttonText || "—"}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-600">{p.targetCategoryId ? getCategoryTitle(p.targetCategoryId) : "—"}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingPromoId(p.id);
-                                setPromoForm({ ...p });
-                                setIsPromoModalOpen(true);
-                              }}
-                              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                              title="Edit"
-                            >
-                              <FiEdit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => patchHome({ promoCarousel: (home.promoCarousel || []).filter((x) => x.id !== p.id) })}
-                              className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                              title="Delete"
-                            >
-                              <FiTrash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
 
-          {/* Curated Services */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3 pb-2 mb-3 border-b border-gray-200">
-              <div>
-                <div className="text-lg font-bold text-gray-900">Thoughtful Curations</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  resetCuratedForm();
-                  setIsCuratedModalOpen(true);
-                }}
-                className="px-4 py-2 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
-                <span>Add</span>
-              </button>
-            </div>
-            {(home.curatedServices || []).length === 0 ? (
-              <div className="text-base text-gray-500">No items</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200">
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-12">#</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-24">Media</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Title</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">YouTube URL</th>
-                      <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Redirect</th>
-                      <th className="text-center py-2 px-3 text-sm font-bold text-gray-700 w-32">Actions</th>
+          {(home.promoCarousel || []).length === 0 ? (
+            <div className="text-base text-gray-500">No promo cards</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-12">#</th>
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-24">Image</th>
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Title</th>
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Subtitle</th>
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Button Text</th>
+                    <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Redirect</th>
+                    <th className="text-center py-2 px-3 text-sm font-bold text-gray-700 w-32">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(home.promoCarousel || []).map((p, idx) => (
+                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-2.5 px-3 text-sm font-semibold text-gray-600">{idx + 1}</td>
+                      <td className="py-2.5 px-3">
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt="Promo" className="h-14 w-14 object-cover rounded-lg border border-gray-200" />
+                        ) : (
+                          <div className="h-14 w-14 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                            <span className="text-[10px] text-gray-400">No img</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-sm font-semibold text-gray-900">{p.title || "—"}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-sm text-gray-600">{p.subtitle || "—"}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-sm text-gray-600">{p.buttonText || "—"}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-sm text-gray-600">{p.targetCategoryId ? getCategoryTitle(p.targetCategoryId) : "—"}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingPromoId(p.id);
+                              setPromoForm({ ...p });
+                              setIsPromoModalOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                            title="Edit"
+                          >
+                            <FiEdit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => patchHome({ promoCarousel: (home.promoCarousel || []).filter((x) => x.id !== p.id) })}
+                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                            title="Delete"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {(home.curatedServices || []).map((s, idx) => (
-                      <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-2.5 px-3 text-sm font-semibold text-gray-600">{idx + 1}</td>
-                        <td className="py-2.5 px-3">
-                          {s.gifUrl ? (
-                            s.gifUrl.match(/\.(gif|webp)$/i) ? (
-                              <img src={s.gifUrl} alt="Preview" className="h-14 w-14 object-cover rounded-lg border border-gray-200" />
-                            ) : (
-                              <video src={s.gifUrl} className="h-14 w-14 object-cover rounded-lg border border-gray-200" controls />
-                            )
-                          ) : (
-                            <div className="h-14 w-14 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                              <span className="text-[10px] text-gray-400">No media</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm font-semibold text-gray-900">{s.title || "—"}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-600">{s.youtubeUrl || "—"}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-sm text-gray-600">
-                            {s.slug
-                              ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
-                              : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
-                            }
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingCuratedId(s.id);
-                                setCuratedForm({ ...s });
-                                setIsCuratedModalOpen(true);
-                              }}
-                              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                              title="Edit"
-                            >
-                              <FiEdit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => patchHome({ curatedServices: (home.curatedServices || []).filter((x) => x.id !== s.id) })}
-                              className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                              title="Delete"
-                            >
-                              <FiTrash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* New & Noteworthy */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3 pb-3 mb-4 border-b border-gray-200">
-              <div>
-                <div className="text-xl font-bold text-gray-900">New & Noteworthy</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  resetNoteworthyForm();
-                  setIsNoteworthyModalOpen(true);
-                }}
-                className="px-5 py-3 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
-                <span>Add</span>
-              </button>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {(home.newAndNoteworthy || []).length === 0 ? (
+          )}
+        </div>
+
+        {/* Curated Services */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3 pb-2 mb-3 border-b border-gray-200">
+            <div>
+              <div className="text-lg font-bold text-gray-900">Thoughtful Curations</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <ToggleSwitch
+              label="Show Curated"
+              checked={home?.isCuratedVisible !== false}
+              onChange={() => patchHome({ isCuratedVisible: !home?.isCuratedVisible })}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                resetCuratedForm();
+                setIsCuratedModalOpen(true);
+              }}
+              className="px-4 py-2 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
+        {(home.curatedServices || []).length === 0 ? (
+          <div className="text-base text-gray-500">No items</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-12">#</th>
+                  <th className="text-left py-2 px-3 text-sm font-bold text-gray-700 w-24">Media</th>
+                  <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Title</th>
+                  <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">YouTube URL</th>
+                  <th className="text-left py-2 px-3 text-sm font-bold text-gray-700">Redirect</th>
+                  <th className="text-center py-2 px-3 text-sm font-bold text-gray-700 w-32">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(home.curatedServices || []).map((s, idx) => (
+                  <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-2.5 px-3 text-sm font-semibold text-gray-600">{idx + 1}</td>
+                    <td className="py-2.5 px-3">
+                      {s.gifUrl ? (
+                        s.gifUrl.match(/\.(gif|webp)$/i) ? (
+                          <img src={s.gifUrl} alt="Preview" className="h-14 w-14 object-cover rounded-lg border border-gray-200" />
+                        ) : (
+                          <video src={s.gifUrl} className="h-14 w-14 object-cover rounded-lg border border-gray-200" controls />
+                        )
+                      ) : (
+                        <div className="h-14 w-14 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                          <span className="text-[10px] text-gray-400">No media</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="text-sm font-semibold text-gray-900">{s.title || "—"}</div>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="text-sm text-gray-600">{s.youtubeUrl || "—"}</div>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="text-sm text-gray-600">
+                        {s.slug
+                          ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
+                          : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
+                        }
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCuratedId(s.id);
+                            setCuratedForm({ ...s });
+                            setIsCuratedModalOpen(true);
+                          }}
+                          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                          title="Edit"
+                        >
+                          <FiEdit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => patchHome({ curatedServices: (home.curatedServices || []).filter((x) => x.id !== s.id) })}
+                          className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                          title="Delete"
+                        >
+                          <FiTrash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* New & Noteworthy */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3 pb-3 mb-4 border-b border-gray-200">
+            <div>
+              <div className="text-xl font-bold text-gray-900">New & Noteworthy</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <ToggleSwitch
+              label="Show Noteworthy"
+              checked={home?.isNoteworthyVisible !== false}
+              onChange={() => patchHome({ isNoteworthyVisible: !home?.isNoteworthyVisible })}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                resetNoteworthyForm();
+                setIsNoteworthyModalOpen(true);
+              }}
+              className="px-5 py-3 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
+              <span>Add</span>
+            </button>
+          </div>
+          {
+            (home.newAndNoteworthy || []).length === 0 ? (
               <div className="text-base text-gray-500">No items</div>
             ) : (
               <div className="overflow-x-auto">
@@ -912,15 +956,22 @@ const HomePage = ({ catalog, setCatalog }) => {
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
+            )
+          }
 
           {/* Most Booked */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          < div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm" >
             <div className="flex items-start justify-between gap-3 pb-3 mb-4 border-b border-gray-200">
               <div>
                 <div className="text-xl font-bold text-gray-900">Most Booked Services</div>
               </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <ToggleSwitch
+                label="Show Most Booked"
+                checked={home?.isBookedVisible !== false}
+                onChange={() => patchHome({ isBookedVisible: !home?.isBookedVisible })}
+              />
               <button
                 type="button"
                 onClick={() => {
@@ -941,95 +992,95 @@ const HomePage = ({ catalog, setCatalog }) => {
                 <span>Add</span>
               </button>
             </div>
-            {(home.mostBooked || []).length === 0 ? (
-              <div className="text-base text-gray-500">No items</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-12">#</th>
-                      <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-24">Image</th>
-                      <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Title</th>
-                      <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Rating</th>
-                      <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Reviews</th>
-                      <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Price</th>
-                      <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Original</th>
-                      <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Discount</th>
-                      <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Redirect</th>
-                      <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 w-32">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(home.mostBooked || []).map((s, idx) => (
-                      <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-4 text-sm font-semibold text-gray-600">{idx + 1}</td>
-                        <td className="py-4 px-4">
-                          {s.imageUrl ? (
-                            <img src={s.imageUrl} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
-                          ) : (
-                            <div className="h-16 w-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                              <span className="text-xs text-gray-400">No img</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm font-semibold text-gray-900">{s.title || "—"}</div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-gray-600">{s.rating || "—"}</div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-gray-600">{s.reviews || "—"}</div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm font-semibold text-gray-900">{s.price ? `₹${s.price}` : "—"}</div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-gray-500 line-through">{s.originalPrice ? `₹${s.originalPrice}` : "—"}</div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-gray-600">{s.discount || "—"}</div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-gray-600">
-                            {s.slug
-                              ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
-                              : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
-                            }
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingBookedId(s.id);
-                                setBookedForm({ ...s });
-                                setIsBookedModalOpen(true);
-                              }}
-                              className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                              title="Edit"
-                            >
-                              <FiEdit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => patchHome({ mostBooked: (home.mostBooked || []).filter((x) => x.id !== s.id) })}
-                              className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                              title="Delete"
-                            >
-                              <FiTrash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
+          {(home.mostBooked || []).length === 0 ? (
+            <div className="text-base text-gray-500">No items</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-12">#</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-24">Image</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Title</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Rating</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Reviews</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Price</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Original</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Discount</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Redirect</th>
+                    <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 w-32">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(home.mostBooked || []).map((s, idx) => (
+                    <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-4 px-4 text-sm font-semibold text-gray-600">{idx + 1}</td>
+                      <td className="py-4 px-4">
+                        {s.imageUrl ? (
+                          <img src={s.imageUrl} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                        ) : (
+                          <div className="h-16 w-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                            <span className="text-xs text-gray-400">No img</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm font-semibold text-gray-900">{s.title || "—"}</div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-600">{s.rating || "—"}</div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-600">{s.reviews || "—"}</div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm font-semibold text-gray-900">{s.price ? `₹${s.price}` : "—"}</div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-500 line-through">{s.originalPrice ? `₹${s.originalPrice}` : "—"}</div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-600">{s.discount || "—"}</div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-600">
+                          {s.slug
+                            ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
+                            : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
+                          }
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingBookedId(s.id);
+                              setBookedForm({ ...s });
+                              setIsBookedModalOpen(true);
+                            }}
+                            className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                            title="Edit"
+                          >
+                            <FiEdit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => patchHome({ mostBooked: (home.mostBooked || []).filter((x) => x.id !== s.id) })}
+                            className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                            title="Delete"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Category Sections (Cleaning essentials style) */}
           {/* Category Sections (Modern Card Grid) */}
@@ -1039,6 +1090,13 @@ const HomePage = ({ catalog, setCatalog }) => {
                 <h3 className="text-xl font-bold text-gray-900">Category Sections</h3>
                 <p className="text-sm text-gray-500 mt-1">Horizontal scrollable sections like "Cleaning Essentials"</p>
               </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <ToggleSwitch
+                label="Show Sections"
+                checked={home?.isCategorySectionsVisible !== false}
+                onChange={() => patchHome({ isCategorySectionsVisible: !home?.isCategorySectionsVisible })}
+              />
               <button
                 type="button"
                 onClick={() => {
@@ -1054,8 +1112,10 @@ const HomePage = ({ catalog, setCatalog }) => {
                 <span>Add Section</span>
               </button>
             </div>
+          </div>
 
-            {(home.categorySections || []).length === 0 ? (
+          {
+            (home.categorySections || []).length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                 <FiGrid className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 font-medium">No category sections added yet</p>
@@ -1148,14 +1208,19 @@ const HomePage = ({ catalog, setCatalog }) => {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            )
+          }
         </div>
       </CardShell>
 
       <CardShell icon={FiGrid} title="Home Categories">
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-gray-600">{categories.length} categories</div>
+          <ToggleSwitch
+            label="Show Home Categories"
+            checked={home?.isCategoriesVisible !== false}
+            onChange={() => patchHome({ isCategoriesVisible: !home?.isCategoriesVisible })}
+          />
         </div>
         {categories.length === 0 ? (
           <div className="text-center py-8 text-gray-500">No categories yet</div>

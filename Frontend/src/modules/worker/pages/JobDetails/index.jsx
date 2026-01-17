@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiMapPin, FiPhone, FiClock, FiUser, FiCheck, FiX, FiArrowRight, FiNavigation, FiTool, FiCheckCircle, FiDollarSign, FiCamera, FiPlus, FiTrash, FiXCircle, FiAward } from 'react-icons/fi';
+import { FiMapPin, FiPhone, FiClock, FiUser, FiCheck, FiX, FiArrowRight, FiNavigation, FiTool, FiCheckCircle, FiDollarSign, FiCamera, FiPlus, FiTrash, FiXCircle, FiAward, FiFileText } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import { SkeletonCard } from '../../../../components/common/SkeletonLoaders';
@@ -11,6 +11,8 @@ const WorkCompletionModal = lazy(() => import('../../components/common/WorkCompl
 import workerService from '../../../../services/workerService';
 import api from '../../../../services/api';
 import { toast } from 'react-hot-toast';
+import { useAppNotifications } from '../../../../hooks/useAppNotifications';
+import { useLocationTracking } from '../../../../hooks/useLocationTracking';
 
 const JobDetails = () => {
   const { id } = useParams();
@@ -67,6 +69,17 @@ const JobDetails = () => {
   useEffect(() => {
     fetchJobDetails();
   }, [id]);
+
+  // Socket for live location tracking
+  const socket = useAppNotifications('worker');
+
+  // Optimized Live Location Tracking with distance filter and heading
+  const isTrackingActive = job?.status === 'journey_started' || job?.status === 'visited' || job?.status === 'in_progress';
+  useLocationTracking(socket, id, isTrackingActive, {
+    distanceFilter: 10, // Only emit when moved 10+ meters
+    interval: 3000,     // Minimum 3s between emissions
+    enableHighAccuracy: true
+  });
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -337,7 +350,7 @@ const JobDetails = () => {
               className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
               style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
             >
-              <FiDollarSign className="w-5 h-5" /> COLLECT CASH
+              <FiFileText className="w-5 h-5" /> PREPARE BILL
             </button>
           )}
 

@@ -8,6 +8,8 @@ import workerService from '../../../../services/workerService';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import { SkeletonProfileHeader, SkeletonDashboardStats, SkeletonList } from '../../../../components/common/SkeletonLoaders';
 import OptimizedImage from '../../../../components/common/OptimizedImage';
+import { useSocket } from '../../../../context/SocketContext';
+import WorkerJobAlertModal from '../../components/bookings/WorkerJobAlertModal';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -47,6 +49,8 @@ const Dashboard = () => {
     phone: '+91 9876543210',
     photo: null,
     categories: [],
+    skills: [],
+    address: null,
   });
   const [recentJobs, setRecentJobs] = useState([]);
 
@@ -70,64 +74,69 @@ const Dashboard = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const socket = useSocket();
+  const [alertJobId, setAlertJobId] = useState(null);
+
+  // Fetch Dashboard Data Function
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch Profile, Stats and Recent Jobs in parallel (Stats also includes recent jobs but let's be robust)
+      const [profileRes, statsRes] = await Promise.all([
+        workerService.getProfile(),
+        workerService.getDashboardStats()
+      ]);
+
+      if (profileRes.success) {
+        const profile = profileRes.worker;
+        setWorkerProfile({
+          name: profile.name || 'Worker Name',
+          phone: profile.phone || '',
+          photo: profile.profilePhoto || null,
+          categories: profile.serviceCategory ? [profile.serviceCategory] : (profile.serviceCategories || []),
+          skills: profile.skills || [],
+          address: profile.address,
+        });
+      }
+
+      if (statsRes.success) {
+        const { totalEarnings, activeJobs, completedJobs, rating, recentJobs: apiRecentJobs } = statsRes.data;
+
+        setStats(prev => ({
+          ...prev,
+          totalEarnings: totalEarnings || 0,
+          thisMonthEarnings: totalEarnings || 0, // Assuming total is this month for now or total
+          pendingJobs: activeJobs || 0, // Using active for pending display for now, or map specifically if needed
+          acceptedJobs: activeJobs || 0, // Overlap in meaning, simplify
+          completedJobs: completedJobs || 0,
+          rating: rating || 0
+        }));
+
+        // Use recent jobs from stats API
+        if (apiRecentJobs && apiRecentJobs.length > 0) {
+          setRecentJobs(apiRecentJobs.map(job => ({
+            id: job._id,
+            serviceType: job.serviceId?.title || job.serviceName || 'Service',
+            customerName: job.userId?.name || 'Customer',
+            location: job.address?.city || 'Location N/A',
+            time: job.scheduledTime || 'N/A',
+            status: job.status,
+            price: job.finalAmount,
+          })));
+        }
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+      setError('Failed to load dashboard data');
+      setLoading(false);
+    }
+  };
 
   // Load real data from API
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch Profile, Stats and Recent Jobs in parallel (Stats also includes recent jobs but let's be robust)
-        const [profileRes, statsRes] = await Promise.all([
-          workerService.getProfile(),
-          workerService.getDashboardStats()
-        ]);
-
-        if (profileRes.success) {
-          const profile = profileRes.worker;
-          setWorkerProfile({
-            name: profile.name || 'Worker Name',
-            phone: profile.phone || '',
-            photo: profile.profilePhoto || null,
-            categories: profile.serviceCategories || [],
-          });
-        }
-
-        if (statsRes.success) {
-          const { totalEarnings, activeJobs, completedJobs, rating, recentJobs: apiRecentJobs } = statsRes.data;
-
-          setStats(prev => ({
-            ...prev,
-            totalEarnings: totalEarnings || 0,
-            thisMonthEarnings: totalEarnings || 0, // Assuming total is this month for now or total
-            pendingJobs: activeJobs || 0, // Using active for pending display for now, or map specifically if needed
-            acceptedJobs: activeJobs || 0, // Overlap in meaning, simplify
-            completedJobs: completedJobs || 0,
-            rating: rating || 0
-          }));
-
-          // Use recent jobs from stats API
-          if (apiRecentJobs && apiRecentJobs.length > 0) {
-            setRecentJobs(apiRecentJobs.map(job => ({
-              id: job._id,
-              serviceType: job.serviceId?.title || job.serviceName || 'Service',
-              customerName: job.userId?.name || 'Customer',
-              location: job.address?.city || 'Location N/A',
-              time: job.scheduledTime || 'N/A',
-              status: job.status,
-              price: job.finalAmount,
-            })));
-          }
-        }
-
-        setLoading(false);
-      } catch (err) {
-        console.error('Dashboard fetch error:', err);
-        setError('Failed to load dashboard data');
-        setLoading(false);
-      }
-    };
-
     fetchDashboardData();
 
     // Ask for notification permission and register FCM
@@ -143,6 +152,21 @@ const Dashboard = () => {
       window.removeEventListener('workerJobsUpdated', handleUpdate);
     };
   }, []);
+
+  // Socket Listener for New Jobs
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNotification = (notif) => {
+      // Listen for new job assignments
+      if ((notif.type === 'booking_created' || notif.type === 'job_assigned') && notif.relatedId) {
+        setAlertJobId(notif.relatedId);
+      }
+    };
+
+    socket.on('notification', handleNotification);
+    return () => socket.off('notification', handleNotification);
+  }, [socket]);
 
   if (loading) {
     return (
@@ -243,29 +267,31 @@ const Dashboard = () => {
         </div>
 
         {/* Incomplete Profile Prompt */}
-        {(!workerProfile.categories || workerProfile.categories.length === 0) && (
-          <div className="px-4 pt-2 -mb-2">
-            <div
-              onClick={() => navigate('/worker/profile')}
-              className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-orange-100 transition-colors"
-            >
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <FiClock className="h-5 w-5 text-orange-500" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-bold text-orange-700">Profile Incomplete</p>
-                  <p className="text-sm text-orange-600">
-                    Add skills/category to your profile to start receiving jobs.
-                  </p>
-                </div>
-                <div className="ml-auto">
-                  <FiArrowRight className="h-4 w-4 text-orange-500" />
+        {((!workerProfile.categories || workerProfile.categories.length === 0) ||
+          (!workerProfile.skills || workerProfile.skills.length === 0) ||
+          (!workerProfile.address || Object.keys(workerProfile.address).length === 0)) && (
+            <div className="px-4 pt-2 -mb-2">
+              <div
+                onClick={() => navigate('/worker/profile')}
+                className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-orange-100 transition-colors"
+              >
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <FiClock className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-bold text-orange-700">Profile Incomplete</p>
+                    <p className="text-sm text-orange-600">
+                      Complete your profile (Address, Category, Skills) to start receiving jobs.
+                    </p>
+                  </div>
+                  <div className="ml-auto">
+                    <FiArrowRight className="h-4 w-4 text-orange-500" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Stats Cards - Outside Gradient */}
         <div className="px-4 pt-4">
@@ -609,7 +635,18 @@ const Dashboard = () => {
           )}
         </div>
       </main>
-    </div>
+
+
+      <WorkerJobAlertModal
+        isOpen={!!alertJobId}
+        jobId={alertJobId}
+        onClose={() => setAlertJobId(null)}
+        onJobAccepted={(id) => {
+          fetchDashboardData();
+          navigate(`/worker/job/${id}`);
+        }}
+      />
+    </div >
   );
 };
 

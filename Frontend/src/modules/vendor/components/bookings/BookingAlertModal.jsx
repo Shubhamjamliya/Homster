@@ -176,7 +176,7 @@ const BookingAlertModal = ({ isOpen, booking, onAccept, onReject, onMinimize, ti
 
             <div className="text-center mb-6">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1 block">Expected Earnings</span>
-              <div className="text-4xl font-black text-gray-900 tracking-tighter">₹{(booking.vendorEarnings || (booking.price ? booking.price * 0.9 : 0)).toFixed(0)}</div>
+              <div className="text-4xl font-black text-gray-900 tracking-tighter">₹{(booking.vendorEarnings || ((booking.price || booking.finalAmount || booking.totalAmount || 0) * 0.9)).toFixed(0)}</div>
             </div>
 
             {/* Booking Card Details */}

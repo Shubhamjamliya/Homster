@@ -72,7 +72,7 @@ const JobTimeline = () => {
         else setCurrentStage(5); // Go to Customer Payment
         break;
       case 'completed':
-        if (isSettled) setCurrentStage(10);
+        if (isSettled) setCurrentStage(11);
         else if (isPaid) setCurrentStage(9);
         else setCurrentStage(8);
         break;
@@ -285,7 +285,8 @@ const JobTimeline = () => {
       id: 9,
       title: 'Final Settlement',
       icon: FiCheckCircle,
-      action: null,
+      action: currentStage === 9 ? handleConfirmSettlement : null,
+      actionLabel: 'Confirm Settlement',
       description: job?.finalSettlementStatus === 'DONE' ? 'Final settlement done.' : 'Waiting for vendor confirmation.',
     },
     {

@@ -749,9 +749,18 @@ const EditProfile = () => {
                     <span className="truncate max-w-[200px]">{aadharFile.name}</span>
                   </div>
                 ) : formData.aadharDocument ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <p className="text-green-600 font-medium text-sm mb-2">Document Uploaded</p>
-                    <span className="text-xs text-blue-500 underline">Click to update</span>
+                  <div className="flex flex-col items-center gap-2 w-full">
+                    <div className="w-full h-32 rounded-lg overflow-hidden border border-gray-200 mb-2 relative group-hover:opacity-75 transition-opacity">
+                      <img
+                        src={formData.aadharDocument}
+                        alt="Aadhar Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <p className="text-green-600 font-medium text-sm">Document Uploaded</p>
+                      <span className="text-xs text-blue-500 underline mt-1">Click to replace</span>
+                    </div>
                   </div>
                 ) : (
                   <>

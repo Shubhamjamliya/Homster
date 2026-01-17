@@ -8,4 +8,5 @@ export { default as EmptyState } from './EmptyState';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as CashCollectionModal } from './CashCollectionModal';
+export { default as WorkerPaymentModal } from './WorkerPaymentModal';
 

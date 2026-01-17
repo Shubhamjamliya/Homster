@@ -65,6 +65,7 @@ export const ensureIds = (catalog) => {
   const withIds = {
     ...catalog,
     home: {
+      ...(catalog?.home || {}),
       banners: Array.isArray(catalog?.home?.banners)
         ? catalog.home.banners.map((b) => ({
           id: b.id || `hbnr-${Date.now()}-${Math.random().toString(16).slice(2)}`,

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView, PolylineF } from '@react-google-maps/api';
-import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiUser, FiStar, FiShield, FiKey, FiCheckCircle, FiLoader, FiDollarSign } from 'react-icons/fi';
+import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiUser, FiStar, FiShield, FiKey, FiCheckCircle, FiLoader, FiDollarSign, FiMaximize, FiMinimize, FiClock } from 'react-icons/fi';
 import { bookingService } from '../../../../services/bookingService';
 import { paymentService } from '../../../../services/paymentService';
 import { toast } from 'react-hot-toast';
@@ -56,6 +57,7 @@ const BookingTrack = () => {
   const [isNavigationMode, setIsNavigationMode] = useState(false);
 
   const [paying, setPaying] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -180,6 +182,9 @@ const BookingTrack = () => {
     }
   };
 
+  // Track if initial location was set from socket
+  const locationFromSocketRef = useRef(false);
+
   // Main function to fetch booking data - accessible to all effects
   const refreshBooking = React.useCallback(async (isFirstLoad = false) => {
     try {
@@ -207,13 +212,15 @@ const BookingTrack = () => {
             }
           }
 
-          // 2. Source (Provider Location)
-          const provider = response.data.workerId || response.data.assignedTo || response.data.vendorId || {};
-          if (provider.location && provider.location.lat && provider.location.lng) {
-            setCurrentLocation({ lat: parseFloat(provider.location.lat), lng: parseFloat(provider.location.lng) });
-          } else if (response.data.vendorId && provider.address && provider.address.lat && provider.address.lng) {
-            // Fallback to vendor address
-            setCurrentLocation({ lat: parseFloat(provider.address.lat), lng: parseFloat(provider.address.lng) });
+          // 2. Source (Provider Location) - ONLY on first load if no socket location received yet
+          if (isFirstLoad && !locationFromSocketRef.current) {
+            const provider = response.data.workerId || response.data.assignedTo || response.data.vendorId || {};
+            if (provider.location && provider.location.lat && provider.location.lng) {
+              setCurrentLocation({ lat: parseFloat(provider.location.lat), lng: parseFloat(provider.location.lng) });
+            } else if (response.data.vendorId && provider.address && provider.address.lat && provider.address.lng) {
+              // Fallback to vendor address
+              setCurrentLocation({ lat: parseFloat(provider.address.lat), lng: parseFloat(provider.address.lng) });
+            }
           }
         }
       }
@@ -244,22 +251,30 @@ const BookingTrack = () => {
   // Socket Listener
   useEffect(() => {
     if (socket && id) {
+      console.log('[User Tracking] Joining tracking room for booking:', id);
       socket.emit('join_tracking', id);
 
       const handleLocationUpdate = (data) => {
+        console.log('[User Tracking] 📍 Received location update:', data);
         if (data.lat && data.lng) {
+          // Mark that we've received location from socket - don't let booking refresh override
+          locationFromSocketRef.current = true;
           setCurrentLocation({ lat: parseFloat(data.lat), lng: parseFloat(data.lng) });
+          // Use heading from socket if available (more accurate)
+          if (data.heading !== undefined && data.heading !== null) {
+            setHeading(parseFloat(data.heading));
+          }
         }
       };
 
       const handleBookingUpdate = (data) => {
         if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
-          console.log('Real-time update:', data);
+          console.log('[User Tracking] Booking update:', data);
           setBooking(prev => {
             if (!prev) return prev;
             return { ...prev, ...(data.data || data) };
           });
-          refreshBooking(false); // Now this function exists!
+          refreshBooking(false);
         }
       };
 
@@ -273,9 +288,75 @@ const BookingTrack = () => {
         socket.off('notification', handleBookingUpdate);
       };
     }
-  }, [socket, id]); // Removed refreshBooking to prevent loop
+  }, [socket, id]);
 
+  // Animated location for smooth marker movement
+  const [animatedLocation, setAnimatedLocation] = useState(null);
+  const targetLocationRef = useRef(null);
+  const animatedLocationRef = useRef(null);
+  const animationFrameRef = useRef(null);
 
+  // Smooth interpolation for marker movement
+  useEffect(() => {
+    if (!currentLocation) return;
+
+    // Store target location
+    targetLocationRef.current = currentLocation;
+
+    // If no animated location yet, set it directly
+    if (!animatedLocationRef.current) {
+      animatedLocationRef.current = currentLocation;
+      setAnimatedLocation(currentLocation);
+      return;
+    }
+
+    // Animation function using refs to avoid stale closures
+    const animateToTarget = () => {
+      const target = targetLocationRef.current;
+      const current = animatedLocationRef.current;
+
+      if (!target || !current) return;
+
+      // Calculate distance to target
+      const latDiff = target.lat - current.lat;
+      const lngDiff = target.lng - current.lng;
+      const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+      // If close enough, snap to target
+      if (distance < 0.00001) {
+        animatedLocationRef.current = target;
+        setAnimatedLocation(target);
+        return;
+      }
+
+      // Lerp factor - lower = smoother but slower
+      const lerpFactor = 0.1;
+
+      const newLat = current.lat + latDiff * lerpFactor;
+      const newLng = current.lng + lngDiff * lerpFactor;
+      const newLocation = { lat: newLat, lng: newLng };
+
+      animatedLocationRef.current = newLocation;
+      setAnimatedLocation(newLocation);
+
+      // Continue animation
+      animationFrameRef.current = requestAnimationFrame(animateToTarget);
+    };
+
+    // Cancel previous animation
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    // Start new animation
+    animationFrameRef.current = requestAnimationFrame(animateToTarget);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [currentLocation]);
 
   const [heading, setHeading] = useState(0);
   const prevLocationRef = useRef(null);
@@ -304,13 +385,14 @@ const BookingTrack = () => {
     }
   }, [currentLocation, isLoaded, coords]);
 
-  // Sync Map Heading & Tilt for Navigation Feel
-  useEffect(() => {
-    if (map && currentLocation && heading && isAutoCenter) {
-      map.setHeading(heading);
-      map.setTilt(45); // 45 degree tilt for 3D feel
-    }
-  }, [map, heading, isAutoCenter, currentLocation]);
+  // DISABLED: Auto heading/tilt sync causes map fluctuation
+  // The heading is now displayed on the marker only, not on the map itself
+  // useEffect(() => {
+  //   if (map && currentLocation && heading && isAutoCenter) {
+  //     map.setHeading(heading);
+  //     map.setTilt(45);
+  //   }
+  // }, [map, heading, isAutoCenter, currentLocation]);
 
   // Simulate Rider Location (Since we don't have real rider GPS stream yet for User App)
   // Ideally this would come from a websocket or Firebase subscription
@@ -321,63 +403,73 @@ const BookingTrack = () => {
   // with the real rider's GPS coordinates.
   */
 
-  // Calculate Route & Adjust Bounds
+  // Calculate Route ONCE on initial load only
+  const initialBoundsSetRef = useRef(false);
+  const directionsCalculatedRef = useRef(false);
+
   useEffect(() => {
-    if (isLoaded && currentLocation && coords && map) {
+    // Only calculate directions ONCE when we have all required data
+    if (isLoaded && currentLocation && coords && map && !directionsCalculatedRef.current) {
+      directionsCalculatedRef.current = true; // Prevent recalculation
 
-      // Calculate or Recalculate directions if:
-      // 1. Directions haven't been calculated yet
-      // 2. Worker has moved significant distance (> 500m) from previous route origin
+      const directionsService = new window.google.maps.DirectionsService();
+      directionsService.route(
+        {
+          origin: currentLocation,
+          destination: coords,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === window.google.maps.DirectionsStatus.OK) {
+            setDirections(result);
+            const leg = result.routes[0].legs[0];
+            setDistance(leg.distance.text);
+            setDuration(leg.duration.text);
+            setRoutePath(result.routes[0].overview_path);
 
-      let shouldCalculate = !directions;
-
-      if (directions && lastRouteOriginRef.current) {
-        const distFromLastOrigin = window.google.maps.geometry.spherical.computeDistanceBetween(
-          new window.google.maps.LatLng(currentLocation),
-          new window.google.maps.LatLng(lastRouteOriginRef.current)
-        );
-        if (distFromLastOrigin > 500) { // Recalculate if moved > 500m
-          shouldCalculate = true;
+            // Center on rider
+            map.setCenter(currentLocation);
+            map.setZoom(15);
+          }
         }
+      );
+    }
+  }, [isLoaded, coords, map, currentLocation]);
+
+  // Update distance and ETA as rider moves (without recalculating route)
+  useEffect(() => {
+    if (isLoaded && currentLocation && coords && window.google && directionsCalculatedRef.current) {
+      // Calculate straight-line distance
+      const riderPoint = new window.google.maps.LatLng(currentLocation);
+      const destPoint = new window.google.maps.LatLng(coords);
+      const distanceMeters = window.google.maps.geometry.spherical.computeDistanceBetween(riderPoint, destPoint);
+
+      // Convert to km
+      const distanceKm = distanceMeters / 1000;
+
+      // Format distance
+      if (distanceKm < 1) {
+        setDistance(`${Math.round(distanceMeters)} m`);
+      } else {
+        setDistance(`${distanceKm.toFixed(1)} km`);
       }
 
-      if (shouldCalculate) {
-        const directionsService = new window.google.maps.DirectionsService();
-        directionsService.route(
-          {
-            origin: currentLocation,
-            destination: coords,
-            travelMode: window.google.maps.TravelMode.DRIVING,
-          },
-          (result, status) => {
-            if (status === window.google.maps.DirectionsStatus.OK) {
-              setDirections(result);
-              lastRouteOriginRef.current = currentLocation;
-              const leg = result.routes[0].legs[0];
-              setDistance(leg.distance.text);
-              setDuration(leg.duration.text);
-              setRoutePath(result.routes[0].overview_path);
+      // Estimate time (assuming average speed of 30 km/h in city)
+      const avgSpeedKmh = 30;
+      const timeHours = distanceKm / avgSpeedKmh;
+      const timeMinutes = Math.round(timeHours * 60);
 
-              // Only fitBounds on initial load to show full route
-              // Subsequent movements will use panTo to preserve rotation
-              if (isAutoCenter) {
-                map.fitBounds(result.routes[0].bounds);
-              }
-            }
-          }
-        );
-      } else if (isAutoCenter) {
-        if (isNavigationMode && heading) {
-          map.panTo(currentLocation);
-          map.setZoom(18);
-          map.setTilt(45);
-          map.setHeading(heading);
-        } else {
-          map.panTo(currentLocation);
-        }
+      if (timeMinutes < 1) {
+        setDuration('< 1 min');
+      } else if (timeMinutes < 60) {
+        setDuration(`${timeMinutes} min`);
+      } else {
+        const hours = Math.floor(timeMinutes / 60);
+        const mins = timeMinutes % 60;
+        setDuration(`${hours} hr ${mins} min`);
       }
     }
-  }, [isLoaded, coords, map, currentLocation, isAutoCenter, isNavigationMode, heading]);
+  }, [currentLocation, coords, isLoaded]);
 
   const mapOptions = useMemo(() => ({
     disableDefaultUI: true,
@@ -406,9 +498,9 @@ const BookingTrack = () => {
     </OverlayView>
   ), [coords]);
 
-  const riderMarker = useMemo(() => currentLocation && (
+  const riderMarker = useMemo(() => animatedLocation && (
     <OverlayView
-      position={currentLocation}
+      position={animatedLocation}
       mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
     >
       <div
@@ -420,20 +512,23 @@ const BookingTrack = () => {
         className="pointer-events-none"
       >
         <div
-          className="relative z-20 w-16 h-16 transition-transform duration-500 ease-in-out"
-          style={{ transform: `rotate(${heading - 180}deg)` }}
+          className="relative z-20 w-16 h-16"
+          style={{
+            transform: `rotate(${heading}deg)`,
+            transition: 'transform 0.3s ease-out'
+          }}
         >
           <img
-            src="/rider-3D.png"
+            src="/MapRider.png"
             alt="Rider"
-            className="w-full h-full object-contain drop-shadow-xl"
+            className="w-full h-full object-contain drop-shadow-xl rounded-full"
           />
         </div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-teal-500/30 rounded-full animate-ping z-10 pointer-events-none"></div>
         <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-12 h-3 bg-black/20 blur-sm rounded-full z-0"></div>
       </div>
     </OverlayView>
-  ), [currentLocation, heading]);
+  ), [animatedLocation, heading]);
 
   if (!isLoaded || loading) return <div className="h-screen bg-white flex items-center justify-center"><div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
@@ -443,14 +538,52 @@ const BookingTrack = () => {
   return (
     <div className="h-screen flex flex-col relative bg-white overflow-hidden">
       {/* Top Floating Header */}
-      <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start pointer-events-none">
-        <button
-          onClick={() => navigate(-1)}
-          className="pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-700 hover:bg-white transition-all active:scale-95"
-        >
-          <FiArrowLeft className="w-6 h-6" />
-        </button>
-      </div>
+      {!isFullScreen && (
+        <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start pointer-events-none">
+          <button
+            onClick={() => navigate(-1)}
+            className="pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-700 hover:bg-white transition-all active:scale-95"
+          >
+            <FiArrowLeft className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+
+      {/* Full Screen Stats Card */}
+      <AnimatePresence>
+        {isFullScreen && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="absolute top-6 left-0 right-0 z-10 flex justify-center pointer-events-none"
+          >
+            <div className="pointer-events-auto bg-white/95 backdrop-blur-xl px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-6 border border-white/20 ring-1 ring-black/5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center">
+                  <FiMapPin className="w-4 h-4 text-teal-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Remaining</p>
+                  <p className="text-sm font-black text-gray-800">{distance}</p>
+                </div>
+              </div>
+
+              <div className="w-px h-8 bg-gray-100"></div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center">
+                  <FiClock className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ETA</p>
+                  <p className="text-sm font-black text-gray-800">{duration}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 w-full h-full">
         <GoogleMap
@@ -510,29 +643,36 @@ const BookingTrack = () => {
 
 
 
-        {/* Floating Action Buttons */}
-        <div className="absolute bottom-32 right-4 flex flex-col gap-3 z-20">
-          <button
-            onClick={() => {
-              setIsAutoCenter(true);
-              if (map && currentLocation && coords) {
-                const bounds = new window.google.maps.LatLngBounds();
-                bounds.extend(currentLocation);
-                bounds.extend(coords);
-                map.fitBounds(bounds, { top: 100, bottom: 250, left: 50, right: 50 });
-              }
-            }}
-          >
-            <FiCrosshair className={`w-6 h-6 ${isAutoCenter ? 'animate-pulse' : ''}`} />
-          </button>
-        </div>
+        {/* Full Screen Toggle */}
+        <button
+          onClick={() => setIsFullScreen(!isFullScreen)}
+          className="absolute top-24 right-4 p-4 rounded-full shadow-2xl transition-all active:scale-90 z-20 bg-white text-gray-700 hover:bg-gray-50"
+          style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}
+        >
+          {isFullScreen ? <FiMinimize className="w-6 h-6" /> : <FiMaximize className="w-6 h-6" />}
+        </button>
+
+        {/* Recenter Button */}
+        <button
+          onClick={() => {
+            setIsAutoCenter(true);
+            if (map && currentLocation) {
+              map.panTo(currentLocation);
+              map.setZoom(16);
+            }
+          }}
+          className={`absolute top-40 right-4 p-4 rounded-full shadow-2xl transition-all active:scale-90 z-20 ${isAutoCenter ? 'bg-teal-600 text-white animate-pulse' : 'bg-white text-gray-700'}`}
+          style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}
+        >
+          <FiCrosshair className="w-6 h-6" />
+        </button>
 
         {/* Recenter Button */}
 
       </div>
 
       {/* Bottom Status Card */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-20 p-6 pb-8">
+      <div className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-20 p-6 pb-8 transition-transform duration-300 ${isFullScreen ? 'translate-y-full' : ''}`}>
         <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
 
         <div className="flex items-center justify-between mb-6">

@@ -292,7 +292,14 @@ const getPublicHomeContent = async (req, res) => {
           order: card.order || 0
         })),
         order: section.order || 0
-      }))
+      })),
+      isBannersVisible: homeContent.isBannersVisible ?? true,
+      isPromosVisible: homeContent.isPromosVisible ?? true,
+      isCuratedVisible: homeContent.isCuratedVisible ?? true,
+      isNoteworthyVisible: homeContent.isNoteworthyVisible ?? true,
+      isBookedVisible: homeContent.isBookedVisible ?? true,
+      isCategorySectionsVisible: homeContent.isCategorySectionsVisible ?? true,
+      isCategoriesVisible: homeContent.isCategoriesVisible ?? true
     };
 
     res.status(200).json({

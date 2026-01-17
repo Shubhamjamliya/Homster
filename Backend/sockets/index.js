@@ -78,9 +78,21 @@ const initializeSocket = (server) => {
     });
 
     // Live Tracking Events
-    socket.on('join_tracking', (bookingId) => {
+    socket.on('join_tracking', async (bookingId) => {
       socket.join(`booking_${bookingId}`);
       console.log(`User ${socket.userId} joined tracking for booking_${bookingId}`);
+
+      // Disconnect Recovery: Send last known location from Redis
+      try {
+        const { getLiveLocation } = require('../services/redisService');
+        const cachedLocation = await getLiveLocation(bookingId);
+        if (cachedLocation) {
+          socket.emit('live_location_update', cachedLocation);
+          console.log(`[Socket] Sent cached location to user for booking ${bookingId}`);
+        }
+      } catch (error) {
+        console.error('[Socket] Error fetching cached location:', error);
+      }
     });
 
     // Vendor acknowledges receiving booking alert
@@ -110,43 +122,72 @@ const initializeSocket = (server) => {
       }
     });
 
+    // Rate limiting map for location updates
+    const locationUpdateTimestamps = new Map();
+
     socket.on('update_location', async (data) => {
-      // data: { bookingId, lat, lng }
+      // data: { bookingId, lat, lng, heading }
       const lat = parseFloat(data.lat);
       const lng = parseFloat(data.lng);
+      const heading = parseFloat(data.heading) || 0;
 
       if (isNaN(lat) || isNaN(lng)) return;
 
-      // 1. Broadcast to everyone in the booking room (User is listening)
-      socket.to(`booking_${data.bookingId}`).emit('live_location_update', {
+      // Rate limiting: max 1 update per 2 seconds per booking
+      const rateLimitKey = `${socket.userId}:${data.bookingId}`;
+      const lastUpdate = locationUpdateTimestamps.get(rateLimitKey) || 0;
+      const now = Date.now();
+      if (now - lastUpdate < 2000) {
+        return; // Skip this update, too frequent
+      }
+      locationUpdateTimestamps.set(rateLimitKey, now);
+
+      const locationPayload = {
         lat,
         lng,
+        heading,
         role: socket.userRole
-      });
+      };
 
-      // 2. Save latest location to Database (optional but helps for initial tracking load)
+      // DEBUG: Log the broadcast
+      console.log(`[Socket] 📍 Broadcasting location to booking_${data.bookingId}:`, { lat: lat.toFixed(6), lng: lng.toFixed(6), heading });
+
+      // 1. Broadcast to everyone in the booking room (User is listening)
+      socket.to(`booking_${data.bookingId}`).emit('live_location_update', locationPayload);
+
+      // 2. Cache in Redis with TTL for disconnect recovery
+      try {
+        const { setLiveLocation, setVendorLocation } = require('../services/redisService');
+        await setLiveLocation(data.bookingId, locationPayload, 30); // 30 second TTL
+
+        // Also update vendor geo cache
+        if (socket.userRole === 'VENDOR') {
+          await setVendorLocation(socket.userId, lat, lng);
+        }
+      } catch (error) {
+        console.error('[Socket] Error caching live location:', error);
+      }
+
+      // 3. Save latest location to Database (for initial tracking load)
       try {
         const Vendor = require('../models/Vendor');
         const Worker = require('../models/Worker');
-        const { setVendorLocation } = require('../services/redisService');
 
         const updateData = {
           location: {
             lat,
             lng,
+            heading,
             updatedAt: new Date()
           },
-          // Also update geoLocation for geo queries
           geoLocation: {
             type: 'Point',
-            coordinates: [lng, lat] // GeoJSON is [lng, lat]
+            coordinates: [lng, lat]
           }
         };
 
         if (socket.userRole === 'VENDOR') {
           await Vendor.findByIdAndUpdate(socket.userId, updateData);
-          // Update Redis geo cache for fast lookups
-          await setVendorLocation(socket.userId, lat, lng);
         } else if (socket.userRole === 'WORKER') {
           await Worker.findByIdAndUpdate(socket.userId, updateData);
         }

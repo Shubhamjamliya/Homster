@@ -269,6 +269,44 @@ const clearBookingSearchCache = async (bookingId) => {
   }
 };
 
+// ==========================================
+// LIVE LOCATION TRACKING (TTL-based)
+// ==========================================
+
+/**
+ * Cache live location for a booking with TTL
+ * Used for real-time tracking recovery on disconnect
+ */
+const setLiveLocation = async (bookingId, data, ttlSeconds = 30) => {
+  if (!isRedisConnected()) return false;
+  try {
+    const key = `live:booking:${bookingId}`;
+    await redis.setex(key, ttlSeconds, JSON.stringify({
+      ...data,
+      timestamp: Date.now()
+    }));
+    return true;
+  } catch (error) {
+    console.error('[Redis] setLiveLocation error:', error);
+    return false;
+  }
+};
+
+/**
+ * Get cached live location for a booking
+ */
+const getLiveLocation = async (bookingId) => {
+  if (!isRedisConnected()) return null;
+  try {
+    const key = `live:booking:${bookingId}`;
+    const data = await redis.get(key);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error('[Redis] getLiveLocation error:', error);
+    return null;
+  }
+};
+
 module.exports = {
   initRedis,
   getRedis,
@@ -287,5 +325,8 @@ module.exports = {
   // Booking cache
   cacheBookingSearch,
   getBookingSearchCache,
-  clearBookingSearchCache
+  clearBookingSearchCache,
+  // Live tracking
+  setLiveLocation,
+  getLiveLocation
 };
