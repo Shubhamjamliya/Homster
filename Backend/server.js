@@ -69,6 +69,56 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Quick Redis Test Route
+app.get('/api/test/redis', async (req, res) => {
+  try {
+    const { getRedis, isRedisConnected } = require('./services/redisService');
+    const redis = getRedis();
+
+    if (!isRedisConnected()) {
+      return res.status(503).json({
+        success: false,
+        message: 'Redis is not connected or disabled',
+        redisEnabled: process.env.REDIS_ENABLED === 'true',
+        status: redis ? redis.status : 'no_instance'
+      });
+    }
+
+    const testKey = `test:time:${Date.now()}`;
+    const testValue = 'Hello from Redis!';
+
+    // Test Set
+    await redis.set(testKey, testValue, 'EX', 60);
+
+    // Test Get
+    const retrievedValue = await redis.get(testKey);
+
+    // Test Delete
+    const deleted = await redis.del(testKey);
+
+    res.json({
+      success: true,
+      message: 'Redis is working correctly',
+      testResults: {
+        set: 'Retrieved value: ' + retrievedValue,
+        match: retrievedValue === testValue,
+        delete: deleted === 1 ? 'Success' : 'Failed'
+      },
+      connectionInfo: {
+        status: redis.status,
+        host: redis.options.host
+      }
+    });
+  } catch (error) {
+    console.error('[Redis Test Route] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Redis test failed',
+      error: error.message
+    });
+  }
+});
+
 // API Routes
 // User routes
 app.use('/api/users/auth', require('./routes/user-routes/auth.routes'));
