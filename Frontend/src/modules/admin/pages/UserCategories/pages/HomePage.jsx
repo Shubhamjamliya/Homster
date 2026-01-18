@@ -309,7 +309,6 @@ const HomePage = ({ catalog, setCatalog }) => {
         curated: homeData.curatedServices,
         noteworthy: homeData.newAndNoteworthy,
         booked: homeData.mostBooked,
-        booked: homeData.mostBooked,
         categorySections: homeData.categorySections,
         isBannersVisible: homeData.isBannersVisible,
         isPromosVisible: homeData.isPromosVisible,
