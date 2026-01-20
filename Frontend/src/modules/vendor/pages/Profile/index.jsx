@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiFileText, FiSettings, FiChevronRight, FiCreditCard, FiTarget, FiLogOut, FiTrash2 } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiSettings, FiChevronRight, FiCreditCard, FiLogOut, FiTrash2 } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
@@ -21,10 +21,8 @@ const Profile = () => {
   };
 
   const menuItems = [
-    { id: 1, label: 'My Plans', icon: FiFileText, path: '/vendor/my-plans' },
     { id: 2, label: 'Wallet', icon: FaWallet, path: '/vendor/wallet' },
     { id: 3, label: 'Buy Scrap', icon: FiTrash2, path: '/vendor/scrap' },
-    { id: 4, label: 'Plus Membership', icon: FiTarget, path: '/vendor/plus-membership' },
     { id: 5, label: 'My Ratings', icon: FiStar, path: '/vendor/my-ratings' },
     { id: 6, label: 'Manage Payment Methods', icon: FiCreditCard, path: '/vendor/manage-payment-methods' },
     { id: 7, label: 'Manage Address', icon: FiMapPin, path: '/vendor/address-management' },

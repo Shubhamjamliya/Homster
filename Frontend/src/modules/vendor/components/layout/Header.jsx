@@ -1,37 +1,12 @@
-import React, { useRef, useEffect } from 'react';
+import React, { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiBell, FiSearch } from 'react-icons/fi';
-import { gsap } from 'gsap';
+import { motion } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';
-import { animateLogo } from '../../../../utils/gsapAnimations';
 import Logo from '../../../../components/common/Logo';
 
-const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifications = true, notificationCount = 0 }) => {
+const Header = memo(({ title, onBack, showBack = true, showSearch = false, showNotifications = true, notificationCount = 0 }) => {
   const navigate = useNavigate();
-  const logoRef = useRef(null);
-  const bellRef = useRef(null);
-  const bellButtonRef = useRef(null);
-
-  useEffect(() => {
-    if (logoRef.current && !showBack) {
-      animateLogo(logoRef.current);
-      // Additional entrance animation for more visibility
-      gsap.fromTo(logoRef.current,
-        {
-          opacity: 0,
-          scale: 0.8,
-          y: -10
-        },
-        {
-          opacity: 1,
-          scale: 1.0,
-          y: 0,
-          duration: 0.6,
-          ease: 'back.out(1.7)'
-        }
-      );
-    }
-  }, [showBack]);
 
   const handleBack = () => {
     if (onBack) {
@@ -63,40 +38,25 @@ const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifi
         {/* Left: Back button or Logo */}
         <div className="flex items-center gap-3">
           {showBack ? (
-            <button
+            <motion.button
               onClick={handleBack}
-              className="p-2 rounded-full hover:bg-white/30 transition-colors active:scale-95"
+              className="p-2 rounded-full hover:bg-white/30 transition-colors"
+              whileTap={{ scale: 0.95 }}
             >
               <FiArrowLeft className="w-5 h-5" style={{ color: themeColors.button }} />
-            </button>
+            </motion.button>
           ) : (
-            <div
+            <motion.div
               className="cursor-pointer"
               onClick={handleLogoClick}
-              onMouseEnter={() => {
-                if (logoRef.current) {
-                  gsap.to(logoRef.current, {
-                    scale: 1.2,
-                    duration: 0.3,
-                    ease: 'power2.out',
-                  });
-                }
-              }}
-              onMouseLeave={() => {
-                if (logoRef.current) {
-                  gsap.to(logoRef.current, {
-                    scale: 1.0,
-                    duration: 0.3,
-                    ease: 'power2.out',
-                  });
-                }
-              }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ duration: 0.2 }}
             >
-              <Logo
-                ref={logoRef}
-                className="h-12 w-auto"
-              />
-            </div>
+              <Logo className="h-12 w-auto" />
+            </motion.div>
           )}
           {showBack && <h1 className="text-lg font-bold text-gray-800">{title || 'Vendor'}</h1>}
         </div>
@@ -112,76 +72,18 @@ const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifi
             </button>
           )}
           {showNotifications && (
-            <div
-              ref={bellButtonRef}
-              className="relative rounded-full cursor-pointer group active:scale-95 transition-transform duration-300"
+            <motion.div
+              className="relative rounded-full cursor-pointer"
               style={{
                 width: '42px',
                 height: '42px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '2px' // Spacing for border
+                margin: '2px'
               }}
-              onMouseEnter={() => {
-                if (bellButtonRef.current && bellRef.current) {
-                  const btn = bellButtonRef.current.querySelector('button');
-
-                  // Scale Wrapper
-                  gsap.to(bellButtonRef.current, {
-                    scale: 1.15,
-                    duration: 0.3,
-                    ease: 'power2.out',
-                  });
-
-                  // Shadow on inner button
-                  if (btn) {
-                    gsap.to(btn, {
-                      boxShadow: notificationCount > 0
-                        ? '0 6px 20px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
-                        : `0 4px 12px ${themeColors.brand.teal}40`,
-                      duration: 0.3,
-                      ease: 'power2.out',
-                    });
-                  }
-
-                  // Rotate Bell
-                  gsap.to(bellRef.current, {
-                    rotation: 15,
-                    scale: 1.1,
-                    duration: 0.3,
-                    ease: 'power2.out',
-                  });
-                }
-              }}
-              onMouseLeave={() => {
-                if (bellButtonRef.current && bellRef.current) {
-                  const btn = bellButtonRef.current.querySelector('button');
-
-                  gsap.to(bellButtonRef.current, {
-                    scale: 1.0,
-                    duration: 0.3,
-                    ease: 'power2.out',
-                  });
-
-                  if (btn) {
-                    gsap.to(btn, {
-                      boxShadow: notificationCount > 0
-                        ? '0 3px 12px rgba(239, 68, 68, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4)'
-                        : `0 2px 6px ${themeColors.brand.teal}26`,
-                      duration: 0.3,
-                      ease: 'power2.out',
-                    });
-                  }
-
-                  gsap.to(bellRef.current, {
-                    rotation: 0,
-                    scale: 1.0,
-                    duration: 0.3,
-                    ease: 'power2.out',
-                  });
-                }
-              }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
             >
               {/* 1. Animated Running Border */}
               <div
@@ -197,7 +99,7 @@ const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifi
               <div className="absolute inset-[1px] rounded-full bg-white z-0" />
 
               {/* 3. Inner Button */}
-              <button
+              <motion.button
                 onClick={handleNotifications}
                 className="relative z-10 w-full h-full rounded-full flex items-center justify-center overflow-hidden"
                 style={{
@@ -218,18 +120,22 @@ const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifi
                   </linearGradient>
                 </svg>
 
-                <FiBell
-                  ref={bellRef}
-                  className="w-5 h-5 transition-all duration-300"
-                  style={{
-                    stroke: notificationCount > 0 ? '#EF4444' : 'url(#homster-bell-gradient)',
-                    strokeWidth: '2.5',
-                    color: 'transparent',
-                    filter: notificationCount > 0
-                      ? 'drop-shadow(0 2px 6px rgba(239, 68, 68, 0.4))'
-                      : 'drop-shadow(0 1px 3px rgba(52, 121, 137, 0.3))',
-                  }}
-                />
+                <motion.div
+                  whileHover={{ rotate: 15 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <FiBell
+                    className="w-5 h-5"
+                    style={{
+                      stroke: notificationCount > 0 ? '#EF4444' : 'url(#homster-bell-gradient)',
+                      strokeWidth: '2.5',
+                      color: 'transparent',
+                      filter: notificationCount > 0
+                        ? 'drop-shadow(0 2px 6px rgba(239, 68, 68, 0.4))'
+                        : 'drop-shadow(0 1px 3px rgba(52, 121, 137, 0.3))',
+                    }}
+                  />
+                </motion.div>
                 {notificationCount > 0 && (
                   <span
                     className="absolute top-2 right-2 bg-gradient-to-br from-red-500 to-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center transform translate-x-1/2 -translate-y-1/2"
@@ -243,14 +149,15 @@ const Header = ({ title, onBack, showBack = true, showSearch = false, showNotifi
                     {notificationCount > 9 ? '9+' : notificationCount}
                   </span>
                 )}
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
           )}
         </div>
       </div>
     </header>
   );
-};
+});
 
+Header.displayName = 'VendorHeader';
 export default Header;
 

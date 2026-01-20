@@ -1,52 +1,16 @@
-import React, { useRef, useEffect, useState, memo, useMemo } from 'react';
+import React, { useState, useEffect, memo, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiHome, FiBriefcase, FiUsers, FiUser } from 'react-icons/fi';
 import { HiHome, HiBriefcase, HiUsers, HiUser } from 'react-icons/hi';
 import { FaWallet } from 'react-icons/fa';
-import { gsap } from 'gsap';
 import { vendorTheme as themeColors } from '../../../../theme';
 
 const BottomNav = memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
-  const iconRefs = useRef({});
-  const activeAnimations = useRef({});
   const [pendingJobsCount, setPendingJobsCount] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Detect when any modal is open (elements with z-index >= 100 or fixed overlays)
-  useEffect(() => {
-    const checkForModal = () => {
-      // Check for elements with high z-index that indicate a modal
-      const modalElements = document.querySelectorAll('[class*="z-[100]"], [class*="z-\\[100\\]"], .modal-overlay, [role="dialog"]');
-      const hasModal = modalElements.length > 0;
-
-      // Also check for any fixed elements that cover the screen (modal overlays)
-      const fixedOverlays = document.querySelectorAll('.fixed.inset-0');
-      const hasOverlay = Array.from(fixedOverlays).some(el => {
-        const style = window.getComputedStyle(el);
-        return style.zIndex && parseInt(style.zIndex) >= 50;
-      });
-
-      setIsModalOpen(hasModal || hasOverlay);
-    };
-
-    // Initial check
-    checkForModal();
-
-    // Watch for DOM changes (modals being added/removed)
-    const observer = new MutationObserver(checkForModal);
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style']
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  // Load pending jobs count from localStorage (mock data for now)
+  // Load pending jobs count from localStorage
   useEffect(() => {
     const updatePendingCount = () => {
       try {
@@ -89,8 +53,18 @@ const BottomNav = memo(() => {
     }
   };
 
-  // Hide nav when modal is open
-  if (isModalOpen) {
+  // Hide nav when specific routes are active (booking alerts, maps)
+  const hideNavRoutes = [
+    '/vendor/booking-alert/',
+    '/vendor/booking/',
+  ];
+
+  const shouldHideNav = hideNavRoutes.some(route =>
+    location.pathname.includes(route) &&
+    (location.pathname.includes('/map') || location.pathname.includes('/alert/'))
+  );
+
+  if (shouldHideNav) {
     return null;
   }
 
@@ -125,21 +99,7 @@ const BottomNav = memo(() => {
             <button
               key={item.path}
               onClick={() => handleNavClick(item.path)}
-              className="flex flex-col items-center justify-center relative w-16 h-14 rounded-xl transition-all duration-300 group"
-              style={{
-                // No inline background here, handled by conditionally rendered div
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  // Optional hover effect - kept simple scale
-                  gsap.to(e.currentTarget, { scale: 1.05, duration: 0.2 });
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  gsap.to(e.currentTarget, { scale: 1.0, duration: 0.2 });
-                }
-              }}
+              className="flex flex-col items-center justify-center relative w-16 h-14 rounded-xl transition-all duration-200 group hover:scale-105"
             >
               {/* Active Indicator Bar - Gradient Accent */}
               {isActive && (
@@ -163,9 +123,6 @@ const BottomNav = memo(() => {
               <div className="relative z-10 flex flex-col items-center justify-center">
                 <div className="relative mb-0.5">
                   <IconComponent
-                    ref={(el) => {
-                      iconRefs.current[item.path] = el;
-                    }}
                     className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110' : 'text-gray-400 group-hover:text-gray-600'}`}
                     style={{
                       color: isActive ? themeColors.button : '#9CA3AF',

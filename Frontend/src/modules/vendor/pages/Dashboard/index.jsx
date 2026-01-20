@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
@@ -12,10 +12,12 @@ import { io } from 'socket.io-client';
 
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import LogoLoader from '../../../../components/common/LogoLoader';
+import StatsCards from './components/StatsCards';
+import PendingBookings from './components/PendingBookings';
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
 
-const Dashboard = () => {
+const Dashboard = memo(() => {
   const navigate = useNavigate();
 
   // Helper function to convert hex to rgba
@@ -374,303 +376,17 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Stats Cards - Outside Gradient */}
-        <div className="px-4 pt-4">
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {/* Card 1: Today's Earnings - Dark Blue Gradient */}
-            <div
-              onClick={() => navigate('/vendor/wallet')}
-              className="rounded-xl p-4 relative overflow-hidden cursor-pointer active:scale-95 transition-transform"
-              style={{
-                background: 'linear-gradient(135deg, #001947 0%, #003b77 100%)',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              {/* Decorative Pattern */}
-              <div
-                className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-20"
-                style={{
-                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%)',
-                  transform: 'translate(20px, -20px)',
-                }}
-              />
-              <div className="relative z-10">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <p className="text-xs text-white font-semibold mb-1 opacity-90 uppercase tracking-wide">Today's Earnings</p>
-                    <p className="text-2xl font-bold text-white leading-tight">
-                      ₹{stats.todayEarnings.toLocaleString()}
-                    </p>
-                  </div>
-                  <div
-                    className="p-3 rounded-xl flex-shrink-0"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.25)',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                    }}
-                  >
-                    <FaWallet className="w-6 h-6" style={{ color: '#FFFFFF' }} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 mt-2">
-                  <FiTrendingUp className="w-4 h-4 text-white opacity-80" />
-                  <span className="text-xs text-white opacity-80 font-medium">Today</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Active Jobs - Light Blue Gradient */}
-            <div
-              onClick={() => navigate('/vendor/jobs')}
-              className="rounded-xl p-4 relative overflow-hidden cursor-pointer active:scale-95 transition-transform"
-              style={{
-                background: 'linear-gradient(135deg, #406788 0%, #304a63 100%)',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              {/* Decorative Pattern */}
-              <div
-                className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-20"
-                style={{
-                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%)',
-                  transform: 'translate(20px, -20px)',
-                }}
-              />
-              <div className="relative z-10">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <p className="text-xs text-white font-semibold mb-1 opacity-90 uppercase tracking-wide">Active Jobs</p>
-                    <p className="text-2xl font-bold text-white leading-tight">
-                      {stats.activeJobs}
-                    </p>
-                  </div>
-                  <div
-                    className="p-3 rounded-xl flex-shrink-0"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.25)',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                    }}
-                  >
-                    <FiBriefcase className="w-6 h-6" style={{ color: '#FFFFFF' }} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 mt-2">
-                  <FiCheckCircle className="w-4 h-4 text-white opacity-80" />
-                  <span className="text-xs text-white opacity-80 font-medium">Running</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Pending Alerts - Light Blue Gradient */}
-            <div
-              onClick={() => navigate('/vendor/booking-alerts')}
-              className="rounded-xl p-4 relative overflow-hidden cursor-pointer active:scale-95 transition-transform"
-              style={{
-                background: 'linear-gradient(135deg, #406788 0%, #304a63 100%)',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              {/* Decorative Pattern */}
-              <div
-                className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-20"
-                style={{
-                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%)',
-                  transform: 'translate(20px, -20px)',
-                }}
-              />
-              <div className="relative z-10">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <p className="text-xs text-white font-semibold mb-1 opacity-90 uppercase tracking-wide">Pending Alerts</p>
-                    <p className="text-2xl font-bold text-white leading-tight">
-                      {stats.pendingAlerts}
-                    </p>
-                  </div>
-                  <div
-                    className="p-3 rounded-xl flex-shrink-0"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.25)',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                    }}
-                  >
-                    <FiBell className="w-6 h-6" style={{ color: '#FFFFFF' }} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 mt-2">
-                  <FiBell className="w-4 h-4 text-white opacity-80" />
-                  <span className="text-xs text-white opacity-80 font-medium">
-                    {stats.pendingAlerts > 0 ? 'Action needed' : 'All clear'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Workers Online - Dark Blue Gradient */}
-            <div
-              onClick={() => navigate('/vendor/workers')}
-              className="rounded-xl p-4 relative overflow-hidden cursor-pointer active:scale-95 transition-transform"
-              style={{
-                background: 'linear-gradient(135deg, #001947 0%, #003b77 100%)',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              {/* Decorative Pattern */}
-              <div
-                className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-20"
-                style={{
-                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%)',
-                  transform: 'translate(20px, -20px)',
-                }}
-              />
-              <div className="relative z-10">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <p className="text-xs text-white font-semibold mb-1 opacity-90 uppercase tracking-wide">Workers Online</p>
-                    <p className="text-2xl font-bold text-white leading-tight">
-                      {stats.workersOnline}
-                    </p>
-                  </div>
-                  <div
-                    className="p-3 rounded-xl flex-shrink-0"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.25)',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                    }}
-                  >
-                    <FiUsers className="w-6 h-6" style={{ color: '#FFFFFF' }} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 mt-2">
-                  <div className="w-2 h-2 rounded-full bg-white opacity-80 animate-pulse" />
-                  <span className="text-xs text-white opacity-80 font-medium">Available</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Stats Cards - Optimized Component */}
+        <StatsCards stats={stats} />
 
         {/* Content Section (below gradient) */}
         <div className="px-4 py-4 space-y-4">
-          {/* Pending Booking Alerts */}
-          {pendingBookings.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-base font-bold text-gray-800">Pending Alerts</h2>
-                <button
-                  onClick={() => navigate('/vendor/booking-alerts')}
-                  className="text-sm font-medium"
-                  style={{ color: themeColors.button }}
-                >
-                  View All
-                </button>
-              </div>
-              <div className="space-y-3">
-                {pendingBookings.map((booking) => (
-                  <div
-                    key={booking.id}
-                    onClick={() => setActiveAlertBooking(booking)}
-                    className="bg-white rounded-xl p-4 shadow-md cursor-pointer active:scale-98 transition-transform border-l-4"
-                    style={{
-                      boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)', // Orange for REQUESTED
-                      borderLeftColor: '#F59E0B',
-                      borderTop: '1px solid rgba(245, 158, 11, 0.2)',
-                      borderRight: '1px solid rgba(245, 158, 11, 0.2)',
-                      borderBottom: '1px solid rgba(245, 158, 11, 0.2)',
-                    }}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold text-gray-800">{booking.serviceType || 'New Booking Request'}</p>
-                          <span className="text-xs font-bold px-2 py-1 rounded-full bg-yellow-100 text-yellow-600">
-                            REQUEST
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600">{booking.customerName || 'Customer'}</p>
-                        <p className="text-sm text-gray-600 mt-1">{booking.location?.address || 'Location'}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FiBell className="w-5 h-5 animate-pulse" style={{ color: '#F59E0B' }} />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <FiClock className="w-4 h-4" />
-                        <span>{booking.timeSlot?.time || 'N/A'}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <FiMapPin className="w-4 h-4" />
-                        <span>{booking.location?.distance || 'N/A'} km</span>
-                      </div>
-                      <div className="text-sm font-bold text-gray-800">
-                        ₹{booking.price || 0}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          try {
-                            await acceptBooking(booking.id);
-
-                            // Remove this booking from pending list
-                            setPendingBookings(prev => prev.filter(b => b.id !== booking.id));
-
-                            // Sync localStorage
-                            const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-                            const updated = pendingJobs.filter(b => b.id !== booking.id);
-                            localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
-
-                            // Dispatch stats update event
-                            window.dispatchEvent(new Event('vendorStatsUpdated'));
-                            toast.success('Booking accepted successfully!');
-                          } catch (error) {
-                            console.error('Error accepting:', error);
-                            toast.error('Failed to accept booking');
-                          }
-                        }}
-                        className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          try {
-                            await rejectBooking(booking.id, 'Vendor Dashboard Reject');
-
-                            setPendingBookings(prev => prev.filter(b => b.id !== booking.id));
-
-                            // Sync localStorage
-                            const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-                            const updated = pendingJobs.filter(b => b.id !== booking.id);
-                            localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
-                            toast.success('Booking rejected');
-                            navigate('/vendor/jobs');
-                          } catch (error) {
-                            console.error('Error rejecting:', error);
-                            toast.error('Failed to reject booking');
-                            navigate('/vendor/jobs');
-                          }
-                        }}
-                        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Pending Booking Alerts - Optimized Component */}
+          <PendingBookings
+            bookings={pendingBookings}
+            setPendingBookings={setPendingBookings}
+            setActiveAlertBooking={setActiveAlertBooking}
+          />
 
           {/* Performance Metrics */}
           <div>
@@ -964,6 +680,6 @@ const Dashboard = () => {
       />
     </div>
   );
-};
+});
 
 export default Dashboard;

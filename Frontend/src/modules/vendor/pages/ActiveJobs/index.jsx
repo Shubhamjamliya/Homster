@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiMapPin, FiClock, FiUser, FiFilter, FiSearch, FiLoader } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -10,7 +10,7 @@ import LogoLoader from '../../../../components/common/LogoLoader';
 import { getBookings, assignWorker as assignWorkerApi } from '../../services/bookingService';
 import { ConfirmDialog } from '../../components/common';
 
-const ActiveJobs = () => {
+const ActiveJobs = memo(() => {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,41 +40,40 @@ const ActiveJobs = () => {
     };
   }, []);
 
+  // Memoize loadJobs to prevent recreation
+  const loadJobs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getBookings();
+      const jobsData = response.data || [];
+      // Map API response to Component State structure
+      const mappedJobs = jobsData.map(job => ({
+        id: job._id || job.id,
+        serviceType: job.serviceId?.title || job.serviceType || 'Service',
+        user: {
+          name: job.userId?.name || job.customerName || 'Customer'
+        },
+        location: {
+          address: job.address?.addressLine1 || job.location?.address || 'Address not available'
+        },
+        price: (job.vendorEarnings || (job.finalAmount ? job.finalAmount * 0.9 : 0)).toFixed(2),
+        status: job.status,
+        assignedTo: job.workerId ? { name: job.workerId.name } : (job.assignedAt ? { name: 'You (Self)' } : null),
+        timeSlot: {
+          date: job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'Date',
+          time: job.scheduledTime || 'Time'
+        }
+      }));
+      setJobs(mappedJobs);
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-
-
-    const loadJobs = async () => {
-      try {
-        setLoading(true);
-        const response = await getBookings();
-        const jobsData = response.data || [];
-        // Map API response to Component State structure
-        const mappedJobs = jobsData.map(job => ({
-          id: job._id || job.id,
-          serviceType: job.serviceId?.title || job.serviceType || 'Service',
-          user: {
-            name: job.userId?.name || job.customerName || 'Customer'
-          },
-          location: {
-            address: job.address?.addressLine1 || job.location?.address || 'Address not available'
-          },
-          price: (job.vendorEarnings || (job.finalAmount ? job.finalAmount * 0.9 : 0)).toFixed(2),
-          status: job.status,
-          assignedTo: job.workerId ? { name: job.workerId.name } : (job.assignedAt ? { name: 'You (Self)' } : null),
-          timeSlot: {
-            date: job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'Date',
-            time: job.scheduledTime || 'Time'
-          }
-        }));
-        setJobs(mappedJobs);
-      } catch (error) {
-        console.error('Error loading jobs:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Load immediately (removed duplicate setTimeout call)
+    // Load immediately
     loadJobs();
 
     window.addEventListener('vendorJobsUpdated', loadJobs);
@@ -82,7 +81,7 @@ const ActiveJobs = () => {
     return () => {
       window.removeEventListener('vendorJobsUpdated', loadJobs);
     };
-  }, []);
+  }, [loadJobs]);
 
   const handleAssignToSelf = async (jobId) => {
     setConfirmDialog({
@@ -387,7 +386,7 @@ const ActiveJobs = () => {
       <BottomNav />
     </div>
   );
-};
+});
 
 export default ActiveJobs;
 

@@ -7,33 +7,60 @@ import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
 // import useAppNotifications from '../../../hooks/useAppNotifications.jsx'; // Handled globally
 
+// Lazy load wrapper with error handling (same as user app)
+const lazyLoad = (importFunc) => {
+  return lazy(() => {
+    return Promise.resolve(importFunc()).catch((error) => {
+      console.error('Failed to load vendor page:', error);
+      // Return a fallback component wrapped in a Promise
+      return Promise.resolve({
+        default: () => (
+          <div className="flex items-center justify-center min-h-screen bg-white">
+            <div className="text-center p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Failed to load page</h2>
+              <p className="text-gray-600 mb-4">Please refresh the page or try again later.</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 rounded-xl text-white font-semibold transition-all duration-300 hover:opacity-90"
+                style={{ backgroundColor: '#347989' }}
+              >
+                Refresh Page
+              </button>
+            </div>
+          </div>
+        ),
+      });
+    });
+  });
+};
+
 // Lazy load vendor pages for code splitting
-const Login = lazy(() => import('../pages/login'));
-const Signup = lazy(() => import('../pages/signup'));
-const Dashboard = lazy(() => import('../pages/Dashboard'));
-const BookingAlert = lazy(() => import('../pages/BookingAlert'));
-const BookingAlerts = lazy(() => import('../pages/BookingAlerts'));
-const BookingDetails = lazy(() => import('../pages/BookingDetails'));
-const BookingTimeline = lazy(() => import('../pages/BookingTimeline'));
-const ActiveJobs = lazy(() => import('../pages/ActiveJobs'));
-const WorkersList = lazy(() => import('../pages/WorkersList'));
-const AddEditWorker = lazy(() => import('../pages/AddEditWorker'));
-const AssignWorker = lazy(() => import('../pages/AssignWorker'));
-const Earnings = lazy(() => import('../pages/Earnings'));
-const Wallet = lazy(() => import('../pages/Wallet'));
-const WithdrawalRequest = lazy(() => import('../pages/WithdrawalRequest'));
-const Profile = lazy(() => import('../pages/Profile'));
-const ProfileDetails = lazy(() => import('../pages/Profile/ProfileDetails'));
-const EditProfile = lazy(() => import('../pages/Profile/EditProfile'));
-const BookingMap = lazy(() => import('../pages/BookingMap'));
-const Settings = lazy(() => import('../pages/Settings'));
-const AddressManagement = lazy(() => import('../pages/AddressManagement'));
-const Notifications = lazy(() => import('../pages/Notifications'));
-const Scrap = lazy(() => import('../pages/Scrap'));
-const SettlementRequest = lazy(() => import('../pages/Wallet/SettlementRequest'));
-const SettlementHistory = lazy(() => import('../pages/Wallet/SettlementHistory'));
-const MyRatings = lazy(() => import('../pages/MyRatings'));
-const AboutHomster = lazy(() => import('../pages/AboutHomster'));
+const Login = lazyLoad(() => import('../pages/login'));
+const Signup = lazyLoad(() => import('../pages/signup'));
+const Dashboard = lazyLoad(() => import('../pages/Dashboard'));
+const BookingAlert = lazyLoad(() => import('../pages/BookingAlert'));
+const BookingAlerts = lazyLoad(() => import('../pages/BookingAlerts'));
+const BookingDetails = lazyLoad(() => import('../pages/BookingDetails'));
+const BookingTimeline = lazyLoad(() => import('../pages/BookingTimeline'));
+const ActiveJobs = lazyLoad(() => import('../pages/ActiveJobs'));
+const WorkersList = lazyLoad(() => import('../pages/WorkersList'));
+const AddEditWorker = lazyLoad(() => import('../pages/AddEditWorker'));
+const AssignWorker = lazyLoad(() => import('../pages/AssignWorker'));
+const Earnings = lazyLoad(() => import('../pages/Earnings'));
+const Wallet = lazyLoad(() => import('../pages/Wallet'));
+const WithdrawalRequest = lazyLoad(() => import('../pages/WithdrawalRequest'));
+const Profile = lazyLoad(() => import('../pages/Profile'));
+const ProfileDetails = lazyLoad(() => import('../pages/Profile/ProfileDetails'));
+const EditProfile = lazyLoad(() => import('../pages/Profile/EditProfile'));
+const BookingMap = lazyLoad(() => import('../pages/BookingMap'));
+const Settings = lazyLoad(() => import('../pages/Settings'));
+const AddressManagement = lazyLoad(() => import('../pages/AddressManagement'));
+const Notifications = lazyLoad(() => import('../pages/Notifications'));
+const Scrap = lazyLoad(() => import('../pages/Scrap'));
+const SettlementRequest = lazyLoad(() => import('../pages/Wallet/SettlementRequest'));
+const SettlementHistory = lazyLoad(() => import('../pages/Wallet/SettlementHistory'));
+const MyRatings = lazyLoad(() => import('../pages/MyRatings'));
+const AboutHomster = lazyLoad(() => import('../pages/AboutHomster'));
 
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';

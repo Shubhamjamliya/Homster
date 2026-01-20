@@ -4,6 +4,8 @@ import { FiCheck, FiMapPin, FiPhone, FiCheckCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import api from '../../../../services/api';
 import { themeColors } from '../../../../theme';
+import Header from '../../components/layout/Header';
+import BottomNav from '../../components/layout/BottomNav';
 
 const VendorScrapPage = () => {
   const navigate = useNavigate();
@@ -60,11 +62,7 @@ const VendorScrapPage = () => {
   // UI for accepting
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white px-4 py-4 shadow-sm sticky top-0 z-10 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2"><FiCheckCircle className="w-5 h-5 text-gray-500" /></button>
-        {/* Using CheckCircle as back icon placeholder or just remove back if it's tab */}
-        <h1 className="text-xl font-bold text-gray-900">Scrap Requests</h1>
-      </div>
+      <Header title="Scrap Requests" showBack={true} />
 
       {/* Tabs */}
       <div className="flex bg-white border-b border-gray-200 mt-1">
@@ -143,6 +141,7 @@ const VendorScrapPage = () => {
           ))
         )}
       </div>
+      <BottomNav />
     </div>
   );
 };

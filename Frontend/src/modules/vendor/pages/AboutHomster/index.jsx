@@ -1,27 +1,34 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiCheckCircle, FiUsers, FiShield, FiClock, FiAward, FiHeart, FiGlobe, FiSmile, FiSmartphone } from 'react-icons/fi';
-import { gsap } from 'gsap';
+import { motion } from 'framer-motion';
 import Logo from '../../../../components/common/Logo';
 
 const AboutHomster = () => {
   const navigate = useNavigate();
-  const containerRef = useRef(null);
 
-  useEffect(() => {
-    // Simple entrance animation
-    const ctx = gsap.context(() => {
-      gsap.from('.animate-item', {
-        y: 20,
-        opacity: 0,
+  // Container animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
         duration: 0.6,
-        stagger: 0.1,
-        ease: 'power2.out'
-      });
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, []);
+        ease: [0.25, 0.1, 0.25, 1]
+      }
+    }
+  };
 
   // Gradient Definition for re-use in inline styles
   const homsterGradient = 'linear-gradient(135deg, #347989 0%, #BB5F36 100%)';
@@ -61,7 +68,12 @@ const AboutHomster = () => {
   ];
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-gray-50 pb-10">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="min-h-screen bg-gray-50 pb-10"
+    >
       {/* SVG Gradient Definition */}
       <svg width="0" height="0" className="absolute">
         <linearGradient id="homster-about-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -86,7 +98,7 @@ const AboutHomster = () => {
 
       <main className="px-5 py-6 space-y-8">
         {/* Hero Section */}
-        <div className="animate-item text-center">
+        <motion.div variants={itemVariants} className="text-center">
           <div className="relative w-28 h-28 mx-auto mb-6">
             {/* Spinning Border */}
             <div
@@ -108,10 +120,10 @@ const AboutHomster = () => {
           <p className="text-gray-500 max-w-xs mx-auto leading-relaxed">
             Your trusted partner for premium home and personal care services.
           </p>
-        </div>
+        </motion.div>
 
         {/* Stats Row */}
-        <div className="animate-item flex justify-between bg-white rounded-2xl p-6 shadow-sm border border-gray-100 divide-x divide-gray-100">
+        <motion.div variants={itemVariants} className="flex justify-between bg-white rounded-2xl p-6 shadow-sm border border-gray-100 divide-x divide-gray-100">
           {stats.map((stat, idx) => (
             <div key={idx} className="flex-1 text-center px-2">
               <div className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#347989] to-[#BB5F36]">
@@ -122,10 +134,10 @@ const AboutHomster = () => {
               </div>
             </div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Mission Statement */}
-        <div className="animate-item">
+        <motion.div variants={itemVariants}>
           <div className="bg-gradient-to-br from-[#347989]/5 to-[#BB5F36]/5 rounded-2xl p-6 border border-[#347989]/10 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-5">
               <FiGlobe className="w-24 h-24" />
@@ -135,10 +147,10 @@ const AboutHomster = () => {
               Homster is dedicated to revolutionizing how you experience home services. We connect you with top-tier professionals to deliver safe, reliable, and high-quality services right at your doorstep. We believe in making life simpler, one service at a time.
             </p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Why Choose Us Grid */}
-        <div className="animate-item">
+        <motion.div variants={itemVariants}>
           <h3 className="text-lg font-bold text-gray-800 mb-4 px-1">Why Choose Homster?</h3>
           <div className="grid grid-cols-2 gap-3">
             {features.map((feature, index) => (
@@ -155,10 +167,10 @@ const AboutHomster = () => {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* How It Works */}
-        <div className="animate-item">
+        <motion.div variants={itemVariants}>
           <h3 className="text-lg font-bold text-gray-800 mb-4 px-1">How We Work</h3>
           <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-100">
             {[
@@ -178,14 +190,14 @@ const AboutHomster = () => {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Footer Info */}
-        <div className="animate-item text-center pt-4 border-t border-gray-200">
+        <motion.div variants={itemVariants} className="text-center pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-400 mb-1">Designed & Developed by</p>
           <span className="text-sm font-bold tracking-wide" style={homsterTextGradient}>Homster Team</span>
           <p className="text-[10px] text-gray-300 mt-4">v7.6.27 • Made with ❤️ in India</p>
-        </div>
+        </motion.div>
       </main>
 
       <style jsx>{`
@@ -194,7 +206,7 @@ const AboutHomster = () => {
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </div>
+    </motion.div>
   );
 };
 

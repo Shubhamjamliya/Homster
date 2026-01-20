@@ -25,9 +25,7 @@ const EditProfile = () => {
     phone: '',
     email: '',
     address: '',
-    address: '',
     serviceCategories: [], // Array for multiple selection
-    skills: [],
     skills: [],
     profilePhoto: '', // URL
     aadharDocument: '', // URL
@@ -100,9 +98,7 @@ const EditProfile = () => {
             phone: v.phone || '',
             email: v.email || '',
             address: addressData,
-            address: addressData,
             serviceCategories: Array.isArray(v.service) ? v.service : (v.service ? [v.service] : []),
-            skills: v.skills || [],
             skills: v.skills || [],
             profilePhoto: v.profilePhoto || '',
             aadharDocument: v.aadharDocument || (v.aadhar && v.aadhar.document) || '',
