@@ -1,7 +1,24 @@
 import api from '../../../services/api';
-// Import FCM helper if available or handle in UI. 
-// I'll stick to basic data handling since I don't want to break imports if file doesn't exist relative to this.
-// Actually, `../../../services/pushNotificationService` should exist.
+import { registerFCMToken } from '../../../services/pushNotificationService';
+
+/**
+ * Notify Flutter WebView about successful login
+ * This directly calls Flutter's captureLoginResponse handler
+ * @param {object} responseData - The login response data containing accessToken and vendor info
+ */
+function notifyFlutterLogin(responseData) {
+  try {
+    if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+      console.log('[VENDOR AUTH] Notifying Flutter about login with verify-login response');
+      window.flutter_inappwebview.callHandler('captureLoginResponse', JSON.stringify({
+        url: '/auth/verify-login',
+        body: responseData
+      }));
+    }
+  } catch (e) {
+    console.error('[VENDOR AUTH] Error notifying Flutter:', e);
+  }
+}
 
 /**
  * Send OTP for vendor authentication
@@ -28,6 +45,15 @@ export const verifyLogin = async (data) => {
       localStorage.setItem('vendorAccessToken', response.data.accessToken);
       localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
       localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+
+      // Notify Flutter about the login for mobile app FCM token handling
+      notifyFlutterLogin(response.data);
+
+      // Register FCM token after successful login
+      console.log('[VENDOR AUTH] Vendor login successful via verify-login, registering FCM token...');
+      registerFCMToken('vendor', true).catch(err => {
+        console.error('[VENDOR AUTH] FCM token registration failed:', err);
+      });
     }
     return response.data;
   } catch (error) {
