@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiClock, FiMapPin, FiTool, FiCheckCircle, FiChevronRight, FiNavigation } from 'react-icons/fi';
+import { FiClock, FiMapPin, FiTool, FiCheckCircle, FiChevronRight, FiNavigation, FiX } from 'react-icons/fi';
 import userBookingService from '../../../../services/bookingService';
 import { userTheme } from '../../../../theme';
 import RatingModal from './RatingModal';
@@ -10,10 +10,17 @@ import { useSocket } from '../../../../context/SocketContext';
 
 const LiveBookingCard = ({ hasBottomNav }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const socket = useSocket();
   const [activeBooking, setActiveBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  // Reset dismissed state when location changes (page changes)
+  useEffect(() => {
+    setIsDismissed(false);
+  }, [location.pathname]);
 
   // Status mapping for UI
   const getStatusInfo = (status) => {
@@ -113,7 +120,7 @@ const LiveBookingCard = ({ hasBottomNav }) => {
     }
   };
 
-  if (!activeBooking) return null;
+  if (!activeBooking || isDismissed) return null;
 
   const statusInfo = getStatusInfo(activeBooking.status);
   if (!statusInfo) return null;
@@ -141,7 +148,18 @@ const LiveBookingCard = ({ hasBottomNav }) => {
         }}
         className={`fixed ${hasBottomNav ? 'bottom-24' : 'bottom-6'} left-4 right-4 z-50`}
       >
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 flex items-center gap-4 relative overflow-hidden cursor-pointer active:scale-95 transition-transform">
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 flex items-center gap-4 relative overflow-hidden cursor-pointer active:scale-95 transition-transform group">
+
+          {/* Close Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDismissed(true);
+            }}
+            className="absolute top-1 right-1 p-1 bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 z-20 pointer-events-auto"
+          >
+            <FiX className="w-3 h-3" />
+          </button>
 
           {/* Progress Bar Background */}
           <div className="absolute bottom-0 left-0 h-1 bg-gray-100 w-full">

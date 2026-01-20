@@ -4,6 +4,7 @@ const Settlement = require('../../models/Settlement');
 const Withdrawal = require('../../models/Withdrawal');
 const Booking = require('../../models/Booking');
 const Worker = require('../../models/Worker');
+const { uploadPaymentScreenshot } = require('../../utils/cloudinaryUpload');
 
 /**
  * Get vendor wallet with ledger balance
@@ -611,6 +612,25 @@ const payWorker = async (req, res) => {
       });
     }
 
+    // Upload screenshot to Cloudinary if provided
+    let screenshotUrl = null;
+    if (screenshot) {
+      try {
+        // Check if screenshot is base64
+        if (screenshot.startsWith('data:image')) {
+          screenshotUrl = await uploadPaymentScreenshot(screenshot, bookingId);
+          console.log('Payment screenshot uploaded to Cloudinary:', screenshotUrl);
+        } else {
+          // If already a URL, use it as is
+          screenshotUrl = screenshot;
+        }
+      } catch (uploadError) {
+        console.error('Failed to upload payment screenshot:', uploadError);
+        // Continue without screenshot rather than failing the entire payment
+        screenshotUrl = null;
+      }
+    }
+
     // Record Transaction
     const transaction = new Transaction({
       vendorId,
@@ -625,7 +645,7 @@ const payWorker = async (req, res) => {
       metadata: {
         notes,
         transactionId,
-        screenshot,
+        screenshot: screenshotUrl, // Store Cloudinary URL instead of base64
         paymentMethod
       }
     });
@@ -653,7 +673,8 @@ const payWorker = async (req, res) => {
       data: {
         bookingId: booking._id,
         workerName: worker.name,
-        amount: parseFloat(amount)
+        amount: parseFloat(amount),
+        screenshotUploaded: !!screenshotUrl
       }
     });
   } catch (error) {

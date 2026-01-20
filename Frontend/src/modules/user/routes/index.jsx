@@ -58,6 +58,7 @@ const Signup = lazyLoad(() => import('../pages/signup'));
 const ServiceDynamic = lazyLoad(() => import('../pages/ServiceDynamic'));
 const Scrap = lazyLoad(() => import('../pages/Scrap'));
 const Notifications = lazyLoad(() => import('../pages/Notifications'));
+const HelpSupport = lazyLoad(() => import('../pages/HelpSupport'));
 
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -90,7 +91,7 @@ const UserRoutes = () => {
     '/user/checkout', '/user/my-bookings', '/user/settings', '/user/manage-payment-methods',
     '/user/manage-addresses', '/user/wallet', '/user/my-plan',
     '/user/my-rating', '/user/about-homster', '/user/update-profile', '/user/scrap',
-    '/user/notifications'
+    '/user/notifications', '/user/help-support'
   ];
   const isDynamicServicePage = !staticUserPaths.includes(location.pathname) &&
     !isBookingDetailsPage &&
@@ -131,6 +132,7 @@ const UserRoutes = () => {
             <Route path="/update-profile" element={<ProtectedRoute userType="user"><UpdateProfile /></ProtectedRoute>} />
             <Route path="/scrap" element={<ProtectedRoute userType="user"><Scrap /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute userType="user"><Notifications /></ProtectedRoute>} />
+            <Route path="/help-support" element={<ProtectedRoute userType="user"><HelpSupport /></ProtectedRoute>} />
             <Route path="/:slug" element={<ProtectedRoute userType="user"><ServiceDynamic /></ProtectedRoute>} />
           </Routes>
         </PageTransition>

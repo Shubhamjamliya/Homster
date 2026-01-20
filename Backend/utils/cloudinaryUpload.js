@@ -101,10 +101,38 @@ const deleteFromCloudinary = async (publicId, resourceType = 'image') => {
   }
 };
 
+/**
+ * Upload payment screenshot (from base64)
+ * @param {String} base64Data - Base64 image data
+ * @param {String} transactionId - Transaction ID for folder organization
+ * @returns {Promise<String>} - Cloudinary URL
+ */
+const uploadPaymentScreenshot = async (base64Data, transactionId) => {
+  try {
+    const folder = `homster/payment_proofs/${transactionId}`;
+
+    const result = await cloudinary.uploader.upload(base64Data, {
+      folder: folder,
+      resource_type: 'image',
+      allowed_formats: ['jpg', 'jpeg', 'png'],
+      transformation: [
+        { width: 1200, height: 1200, crop: 'limit' }, // Limit max dimensions
+        { quality: 'auto:good' } // Auto optimize quality
+      ]
+    });
+
+    return result.secure_url;
+  } catch (error) {
+    console.error('Error uploading payment screenshot:', error);
+    throw new Error('Failed to upload payment screenshot');
+  }
+};
+
 module.exports = {
   uploadToCloudinary,
   uploadVendorDocument,
   uploadWorkerDocument,
   uploadProfilePhoto,
-  deleteFromCloudinary
+  deleteFromCloudinary,
+  uploadPaymentScreenshot
 };

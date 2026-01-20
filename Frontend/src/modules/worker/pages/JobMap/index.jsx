@@ -2,17 +2,36 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView, PolylineF } from '@react-google-maps/api';
 import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiCheckCircle, FiMaximize, FiMinimize, FiClock, FiWifiOff, FiAlertTriangle, FiRefreshCw } from 'react-icons/fi';
-// ... existing imports ...
+import { toast } from 'react-hot-toast';
+import workerService from '../../../../services/workerService';
+import VisitVerificationModal from '../../components/common/VisitVerificationModal';
+import useAppNotifications from '../../../../hooks/useAppNotifications';
 
-// ... existing code ...
+const libraries = ['places', 'geometry'];
+const SHOW_SIMULATION_BUTTON = false; // Set to true for debugging
 
 const JobMap = () => {
-  // ... existing states ...
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [job, setJob] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [coords, setCoords] = useState(null);
+  const [heading, setHeading] = useState(0);
+  const [routePath, setRoutePath] = useState([]);
+  const [directions, setDirections] = useState(null);
+  const [distance, setDistance] = useState('');
+  const [duration, setDuration] = useState('');
+  const [isAutoCenter, setIsAutoCenter] = useState(true);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [map, setMap] = useState(null);
+  const [isNavigationMode, setIsNavigationMode] = useState(false);
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
   const [routeError, setRouteError] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   // Network Status Listener
   useEffect(() => {
@@ -136,7 +155,6 @@ const JobMap = () => {
     }
   }, [currentLocation, socket, id, isSimulating]); // Add isSimulating to dependency array
   // DEBUG: Location Simulator for testing
-  const [isSimulating, setIsSimulating] = useState(false);
   const simulationRef = useRef(null);
 
   const startSimulation = () => {
@@ -500,6 +518,13 @@ const JobMap = () => {
     isFractionalZoomEnabled: true,
     mapId: mapId || '8e0a97af9386fefc',
   }), [mapId]);
+
+  // Default center fallback (use currentLocation, coords, or default to India)
+  const defaultCenter = useMemo(() => {
+    if (currentLocation) return currentLocation;
+    if (coords) return coords;
+    return { lat: 20.5937, lng: 78.9629 }; // Center of India as fallback
+  }, [currentLocation, coords]);
 
   if (!isLoaded || loading) return <div className="h-screen bg-gray-100 flex items-center justify-center"><div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div></div>;
 

@@ -110,6 +110,20 @@ const settingsSchema = new mongoose.Schema({
   currentInvoiceNumber: {
     type: Number,
     default: 0
+  },
+
+  // Support Settings
+  supportEmail: {
+    type: String,
+    default: ''
+  },
+  supportPhone: {
+    type: String,
+    default: ''
+  },
+  supportWhatsapp: {
+    type: String,
+    default: ''
   }
 }, { timestamps: true });
 

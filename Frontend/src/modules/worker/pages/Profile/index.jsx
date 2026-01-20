@@ -207,7 +207,9 @@ const Profile = () => {
                     <span className="text-white text-sm font-bold">{profile.rating}</span>
                   </div>
                   <span className="text-white/60 text-xs">•</span>
-                  <p className="text-sm text-white opacity-90 font-medium">{profile.completedJobs} Jobs Done</p>
+                  <p className="text-sm text-white opacity-90 font-medium">{profile.completedJobs} Completed</p>
+                  <span className="text-white/60 text-xs">•</span>
+                  <p className="text-sm text-white opacity-90 font-medium">{profile.totalJobs} Total</p>
                 </div>
               </div>
               {/* Edit Profile Button on Card */}

@@ -114,6 +114,7 @@ const Account = () => {
     { id: 5, label: 'Manage addresses', icon: FiMapPin },
     { id: 6, label: 'Manage payment methods', icon: FiCreditCard },
     { id: 7, label: 'Settings', icon: FiSettings },
+    { id: 9, label: 'Help & Support', icon: FiHeadphones },
     { id: 8, label: 'About Homster', icon: null, customIcon: 'Homster' },
   ];
 
@@ -122,6 +123,8 @@ const Account = () => {
       navigate('/user/my-bookings');
     } else if (cardType === 'wallet') {
       navigate('/user/wallet');
+    } else if (cardType === 'support') {
+      navigate('/user/help-support');
     }
     // Navigate to respective page
   };
@@ -139,6 +142,8 @@ const Account = () => {
       navigate('/user/wallet');
     } else if (item.label === 'My rating') {
       navigate('/user/my-rating');
+    } else if (item.label === 'Help & Support') {
+      navigate('/user/help-support');
     } else if (item.label === 'About Homster') {
       navigate('/user/about-homster');
     }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone } from 'react-icons/fi';
+import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle } from 'react-icons/fi';
 import { getSettings, updateSettings, updateAdminProfile, getAdminProfile, getAllAdmins, createAdmin, deleteAdmin } from '../../services/settingsService';
 import { toast } from 'react-hot-toast';
 
@@ -31,6 +31,14 @@ const AdminSettings = () => {
     sacCode: '998599'
   });
   const [billingLoading, setBillingLoading] = useState(false);
+
+  // Support Settings State
+  const [supportSettings, setSupportSettings] = useState({
+    supportEmail: '',
+    supportPhone: '',
+    supportWhatsapp: ''
+  });
+  const [supportLoading, setSupportLoading] = useState(false);
 
   const [profile, setProfile] = useState({
     name: '',
@@ -106,6 +114,12 @@ const AdminSettings = () => {
             companyEmail: res.settings.companyEmail || '',
             invoicePrefix: res.settings.invoicePrefix || 'INV',
             sacCode: res.settings.sacCode || '998599'
+          });
+          // Load support settings
+          setSupportSettings({
+            supportEmail: res.settings.supportEmail || '',
+            supportPhone: res.settings.supportPhone || '',
+            supportWhatsapp: res.settings.supportWhatsapp || ''
           });
         }
       } catch (error) {
@@ -186,6 +200,26 @@ const AdminSettings = () => {
       toast.error('Failed to update billing settings');
     } finally {
       setBillingLoading(false);
+    }
+  };
+
+  // Handle support settings change
+  const handleSupportChange = (e) => {
+    const { name, value } = e.target;
+    setSupportSettings(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Save support settings
+  const handleSupportSave = async (e) => {
+    e.preventDefault();
+    setSupportLoading(true);
+    try {
+      await updateSettings(supportSettings);
+      toast.success('Support settings updated');
+    } catch (error) {
+      toast.error('Failed to update support settings');
+    } finally {
+      setSupportLoading(false);
     }
   };
 
@@ -346,6 +380,51 @@ const AdminSettings = () => {
                   className="px-5 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center gap-2 disabled:opacity-60">
                   {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSave className="w-4 h-4" />}
                   Save
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Support Settings */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3 mb-4">
+              <FiHeadphones className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg font-bold text-gray-800">Help & Support Setup</h2>
+            </div>
+
+            <form onSubmit={handleSupportSave} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Support Email</label>
+                <div className="relative">
+                  <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input type="email" name="supportEmail" value={supportSettings.supportEmail} onChange={handleSupportChange}
+                    placeholder="support@homster.com"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Support Phone</label>
+                <div className="relative">
+                  <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input type="tel" name="supportPhone" value={supportSettings.supportPhone} onChange={handleSupportChange}
+                    placeholder="+91 XXXXXXXXXX"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">WhatsApp Number</label>
+                <div className="relative">
+                  <FiMessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input type="tel" name="supportWhatsapp" value={supportSettings.supportWhatsapp} onChange={handleSupportChange}
+                    placeholder="+91 XXXXXXXXXX"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500" />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button type="submit" disabled={supportLoading}
+                  className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center gap-2 disabled:opacity-60">
+                  {supportLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSave className="w-4 h-4" />}
+                  Save Settings
                 </button>
               </div>
             </form>

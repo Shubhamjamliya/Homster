@@ -37,7 +37,11 @@ exports.updateSettings = async (req, res, next) => {
       razorpayWebhookSecret,
       cloudinaryCloudName,
       cloudinaryApiKey,
-      cloudinaryApiSecret
+      cloudinaryApiSecret,
+      // Billing Settings
+      companyName, companyGSTIN, companyPAN, companyAddress, companyCity, companyState, companyPincode, companyPhone, companyEmail, invoicePrefix, sacCode,
+      // Support Settings
+      supportEmail, supportPhone, supportWhatsapp
     } = req.body;
 
     let settings = await Settings.findOne({ type: 'global' });
@@ -69,6 +73,26 @@ exports.updateSettings = async (req, res, next) => {
       if (cloudinaryApiKey !== undefined) settings.cloudinaryApiKey = cloudinaryApiKey;
       if (cloudinaryApiSecret !== undefined) settings.cloudinaryApiSecret = cloudinaryApiSecret;
 
+      if (cloudinaryApiSecret !== undefined) settings.cloudinaryApiSecret = cloudinaryApiSecret;
+
+      // Billing update
+      if (companyName !== undefined) settings.companyName = companyName;
+      if (companyGSTIN !== undefined) settings.companyGSTIN = companyGSTIN;
+      if (companyPAN !== undefined) settings.companyPAN = companyPAN;
+      if (companyAddress !== undefined) settings.companyAddress = companyAddress;
+      if (companyCity !== undefined) settings.companyCity = companyCity;
+      if (companyState !== undefined) settings.companyState = companyState;
+      if (companyPincode !== undefined) settings.companyPincode = companyPincode;
+      if (companyPhone !== undefined) settings.companyPhone = companyPhone;
+      if (companyEmail !== undefined) settings.companyEmail = companyEmail;
+      if (invoicePrefix !== undefined) settings.invoicePrefix = invoicePrefix;
+      if (sacCode !== undefined) settings.sacCode = sacCode;
+
+      // Support update
+      if (supportEmail !== undefined) settings.supportEmail = supportEmail;
+      if (supportPhone !== undefined) settings.supportPhone = supportPhone;
+      if (supportWhatsapp !== undefined) settings.supportWhatsapp = supportWhatsapp;
+
       await settings.save();
     }
 
@@ -97,7 +121,7 @@ exports.updateSettings = async (req, res, next) => {
 // Get Public Settings (Visited Charges, GST)
 exports.getPublicSettings = async (req, res, next) => {
   try {
-    let settings = await Settings.findOne({ type: 'global' }).select('visitedCharges gstPercentage');
+    let settings = await Settings.findOne({ type: 'global' }).select('visitedCharges gstPercentage supportEmail supportPhone supportWhatsapp');
 
     // Default if not found (fallback values)
     if (!settings) {
