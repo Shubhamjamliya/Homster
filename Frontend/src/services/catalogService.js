@@ -157,6 +157,7 @@ export const publicCatalogService = {
     const queryParams = new URLSearchParams();
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
     if (params.categorySlug) queryParams.append('categorySlug', params.categorySlug);
+    if (params.search) queryParams.append('search', params.search);
 
     const cacheKey = `public:services:${queryParams.toString()}`;
     const cached = apiCache.get(cacheKey);

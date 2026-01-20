@@ -3,17 +3,14 @@ import { FiSearch } from 'react-icons/fi';
 import NotificationBell from '../../../components/common/NotificationBell';
 import { themeColors } from '../../../../../theme';
 
-const SearchBar = ({ onSearch }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+const SearchBar = ({ onInputClick }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
   const [currentServiceIndex, setCurrentServiceIndex] = useState(0);
-  const placeholderRef = useRef(null);
 
   const serviceNames = ['facial', 'kitchen cleaning', 'AC service'];
 
   useEffect(() => {
-    // ... existing effect ...
     let timer;
     const currentFullText = serviceNames[currentServiceIndex];
 
@@ -39,14 +36,9 @@ const SearchBar = ({ onSearch }) => {
     return () => clearTimeout(timer);
   }, [displayedText, isTyping, currentServiceIndex]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSearch(searchQuery);
-  };
-
   return (
     <div className="flex items-center gap-3 w-full">
-      <form onSubmit={handleSubmit} className="flex-1 relative">
+      <div className="flex-1 relative cursor-pointer" onClick={onInputClick}>
         <div className="relative w-full group">
           {/* Glow effect on hover */}
           <div
@@ -71,49 +63,31 @@ const SearchBar = ({ onSearch }) => {
             />
           </div>
 
-          {/* Floating input */}
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder=" "
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl text-[15px] bg-white border border-gray-200 transition-all duration-300 text-gray-800 outline-none"
+          {/* Simulated Input */}
+          <div
+            className="w-full pl-12 pr-4 py-3.5 rounded-2xl text-[15px] bg-white border border-gray-200 transition-all duration-300 text-gray-800 flex items-center h-[52px]"
             style={{
               boxShadow: '0 4px 20px -4px rgba(0,0,0,0.05)',
             }}
-            onFocus={(e) => {
-              e.target.style.borderColor = themeColors.brand.teal;
-              e.target.style.boxShadow = `0 8px 30px -6px ${themeColors.brand.teal}33`;
-              e.target.parentElement.style.transform = 'scale(1.01)';
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = '#E5E7EB';
-              e.target.style.boxShadow = '0 4px 20px -4px rgba(0,0,0,0.05)';
-              e.target.parentElement.style.transform = 'scale(1)';
-            }}
-          />
-
-          {/* Placeholder text with typing animation */}
-          {!searchQuery && (
-            <div className="absolute inset-y-0 left-12 right-4 flex items-center pointer-events-none">
-              <span className="text-[15px] text-gray-400 tracking-wide font-light">
-                Search for <span
-                  className="font-medium inline-block min-w-[2px]"
-                  style={{
-                    background: themeColors.gradient,
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    color: 'transparent'
-                  }}
-                >
-                  {displayedText}
-                  <span className="animate-pulse ml-0.5" style={{ color: themeColors.brand.teal }}>|</span>
-                </span>
+          >
+            {/* Placeholder text with typing animation */}
+            <span className="text-[15px] text-gray-400 tracking-wide font-light">
+              Search for <span
+                className="font-medium inline-block min-w-[2px]"
+                style={{
+                  background: themeColors.gradient,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  color: 'transparent'
+                }}
+              >
+                {displayedText}
+                <span className="animate-pulse ml-0.5" style={{ color: themeColors.brand.teal }}>|</span>
               </span>
-            </div>
-          )}
+            </span>
+          </div>
         </div>
-      </form>
+      </div>
 
       {/* Notification Bell next to Search Bar */}
       <div className="shrink-0">

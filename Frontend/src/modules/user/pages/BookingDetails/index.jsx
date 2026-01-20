@@ -396,11 +396,26 @@ const BookingDetails = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <FiLoader className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">Loading booking details...</p>
-        </div>
+      <div className="min-h-screen bg-gray-50/50 pb-32">
+        {/* Skeleton Header */}
+        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100">
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse"></div>
+              <div className="flex-1 space-y-2">
+                <div className="h-5 w-32 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-3 w-24 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </header>
+        {/* Skeleton Body */}
+        <main className="max-w-xl mx-auto px-4 py-6 space-y-6">
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-24 animate-pulse"></div>
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-32 animate-pulse"></div>
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-48 animate-pulse"></div>
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-64 animate-pulse"></div>
+        </main>
       </div>
     );
   }

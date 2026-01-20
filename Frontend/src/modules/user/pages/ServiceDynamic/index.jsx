@@ -16,6 +16,7 @@ import CategoryCart from '../../components/common/CategoryCart';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OptimizedImage from '../../../../components/common/OptimizedImage';
 import { optimizeCloudinaryUrl } from '../../../../utils/cloudinaryOptimize';
+import SearchOverlay from '../Home/components/SearchOverlay';
 
 const toAssetUrl = (url) => {
   if (!url) return '';
@@ -69,6 +70,7 @@ const ServiceDynamic = () => {
   const [showCategoryCartModal, setShowCategoryCartModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const bannerRef = useRef(null);
 
   useEffect(() => {
@@ -197,7 +199,45 @@ const ServiceDynamic = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner message="Loading service details..." />;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white pb-24">
+        {/* Skeleton Header */}
+        <div className="h-[250px] bg-gray-200 animate-pulse relative">
+          <div className="absolute top-4 left-4 w-10 h-10 bg-white/50 rounded-full"></div>
+        </div>
+
+        {/* Skeleton Rating */}
+        <div className="px-4 -mt-8 relative z-10">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+            <div className="h-6 w-32 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-8 w-16 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Skeleton Content */}
+        <div className="px-4 mt-8 space-y-8">
+          {[1, 2].map((i) => (
+            <div key={i} className="space-y-4">
+              <div className="h-6 w-40 bg-gray-200 rounded animate-pulse"></div>
+              <div className="space-y-4">
+                {[1, 2].map((j) => (
+                  <div key={j} className="bg-white rounded-xl border border-gray-200 p-4 h-32 flex gap-4 animate-pulse">
+                    <div className="flex-1 space-y-3">
+                      <div className="h-5 w-3/4 bg-gray-200 rounded"></div>
+                      <div className="h-4 w-1/2 bg-gray-200 rounded"></div>
+                      <div className="h-6 w-20 bg-gray-200 rounded mt-auto"></div>
+                    </div>
+                    <div className="w-24 h-24 bg-gray-200 rounded-lg shrink-0"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!service) {
     return (
@@ -228,24 +268,22 @@ const ServiceDynamic = () => {
       <StickyHeader
         title={service.title}
         onBack={handleBack}
+        onSearch={() => setIsSearchOpen(true)}
+        onShare={() => {
+          if (navigator.share) {
+            navigator.share({
+              title: service.title,
+              text: service.page?.description || `Check out ${service.title} on Appzeto`,
+              url: window.location.href,
+            });
+          }
+        }}
         isVisible={showStickyHeader}
       />
       <StickySubHeading
         title={currentSection}
         isVisible={showStickyHeader && !!currentSection}
       />
-
-      {/* Spacer to prevent layout shift when sticky header appears */}
-      <div
-        className={`transition-all duration-300 ease-in-out ${showStickyHeader ? 'h-[57px]' : 'h-0'}`}
-        aria-hidden="true"
-      ></div>
-
-      {/* Spacer for sticky sub-heading to prevent layout shift */}
-      <div
-        className={`transition-all duration-300 ease-in-out ${showStickyHeader && currentSection ? 'h-10' : 'h-0'}`}
-        aria-hidden="true"
-      ></div>
 
       <main>
         <BannerSection
@@ -258,6 +296,8 @@ const ServiceDynamic = () => {
             { id: 1, image: toAssetUrl(service.icon), text: service.title }
           ]}
           onBack={handleBack}
+          onSearch={() => setIsSearchOpen(true)}
+          showStickyNav={showStickyHeader}
         />
 
         <RatingSection
@@ -649,6 +689,12 @@ const ServiceDynamic = () => {
           title: c.title,
           image: toAssetUrl(c.imageUrl)
         })) || []}
+      />
+
+      {/* Search Overlay */}
+      <SearchOverlay
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
       />
     </div>
   );

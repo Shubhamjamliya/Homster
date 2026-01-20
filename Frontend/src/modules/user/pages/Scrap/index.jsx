@@ -159,7 +159,23 @@ const UserScrapPage = () => {
       {/* Content */}
       <div className="p-4 space-y-4">
         {loading ? (
-          <div className="text-center py-10 text-gray-500">Loading...</div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 animate-pulse">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="space-y-2">
+                    <div className="h-4 w-20 bg-gray-200 rounded"></div>
+                    <div className="h-5 w-40 bg-gray-200 rounded"></div>
+                    <div className="h-3 w-32 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="h-6 w-16 bg-gray-200 rounded"></div>
+                </div>
+                <div className="pt-3 border-t border-gray-50 flex justify-between">
+                  <div className="h-4 w-24 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (activeTab === 'active' ? activeScraps : historyScraps).length === 0 ? (
           <div className="text-center py-20">
             <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">

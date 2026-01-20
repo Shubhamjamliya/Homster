@@ -48,7 +48,6 @@ const BookingConfirmation = lazyLoad(() => import('../pages/BookingConfirmation'
 const Settings = lazyLoad(() => import('../pages/Settings'));
 const ManagePaymentMethods = lazyLoad(() => import('../pages/ManagePaymentMethods'));
 const ManageAddresses = lazyLoad(() => import('../pages/ManageAddresses'));
-const MySubscription = lazyLoad(() => import('../pages/MySubscription'));
 const Wallet = lazyLoad(() => import('../pages/Wallet'));
 const MyPlan = lazyLoad(() => import('../pages/MyPlan'));
 const MyRating = lazyLoad(() => import('../pages/MyRating'));
@@ -61,13 +60,10 @@ const Scrap = lazyLoad(() => import('../pages/Scrap'));
 const Notifications = lazyLoad(() => import('../pages/Notifications'));
 
 // Loading fallback component
+import LogoLoader from '../../../components/common/LogoLoader';
+
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen bg-white">
-    <div className="flex flex-col items-center gap-3">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: '#00a6a6' }}></div>
-      <p className="text-gray-600 text-sm">Loading...</p>
-    </div>
-  </div>
+  <LogoLoader />
 );
 
 // Import Live Booking Card
@@ -86,6 +82,20 @@ const UserRoutes = () => {
 
   // Check if we hide the live booking card (e.g. if we are on the specific booking details or track page)
   const isBookingDetailsPage = location.pathname.match(/^\/user\/booking\/[a-zA-Z0-9]+(\/track)?$/);
+  const isBookingConfirmationPage = location.pathname.includes('/booking-confirmation');
+
+  // Check if we are on dynamic service pages where we should hide the card
+  const staticUserPaths = [
+    '/user', '/user/', '/user/rewards', '/user/account', '/user/native', '/user/cart',
+    '/user/checkout', '/user/my-bookings', '/user/settings', '/user/manage-payment-methods',
+    '/user/manage-addresses', '/user/wallet', '/user/my-plan',
+    '/user/my-rating', '/user/about-homster', '/user/update-profile', '/user/scrap',
+    '/user/notifications'
+  ];
+  const isDynamicServicePage = !staticUserPaths.includes(location.pathname) &&
+    !isBookingDetailsPage &&
+    !isBookingConfirmationPage &&
+    location.pathname.startsWith('/user/');
 
   // Check if we are on public pages (login/signup) where we shouldn't fetch bookings
   const isPublicPage = location.pathname.includes('/login') || location.pathname.includes('/signup');
@@ -114,7 +124,6 @@ const UserRoutes = () => {
             <Route path="/settings" element={<ProtectedRoute userType="user"><Settings /></ProtectedRoute>} />
             <Route path="/manage-payment-methods" element={<ProtectedRoute userType="user"><ManagePaymentMethods /></ProtectedRoute>} />
             <Route path="/manage-addresses" element={<ProtectedRoute userType="user"><ManageAddresses /></ProtectedRoute>} />
-            <Route path="/my-subscription" element={<ProtectedRoute userType="user"><MySubscription /></ProtectedRoute>} />
             <Route path="/wallet" element={<ProtectedRoute userType="user"><Wallet /></ProtectedRoute>} />
             <Route path="/my-plan" element={<ProtectedRoute userType="user"><MyPlan /></ProtectedRoute>} />
             <Route path="/my-rating" element={<ProtectedRoute userType="user"><MyRating /></ProtectedRoute>} />
@@ -126,7 +135,7 @@ const UserRoutes = () => {
           </Routes>
         </PageTransition>
       </Suspense>
-      {!isBookingDetailsPage && !isPublicPage && <LiveBookingCard hasBottomNav={shouldShowBottomNav} />}
+      {!isBookingDetailsPage && !isBookingConfirmationPage && !isDynamicServicePage && !isPublicPage && <LiveBookingCard hasBottomNav={shouldShowBottomNav} />}
       {shouldShowBottomNav && <BottomNav />}
     </ErrorBoundary>
   );

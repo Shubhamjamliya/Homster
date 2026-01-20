@@ -104,7 +104,7 @@ const CategoryCart = ({
       </header>
 
       {/* Cart Items */}
-      <main className="px-4 py-4" style={{ paddingBottom: categoryItems.length > 0 ? '240px' : '100px' }}>
+      <main className="px-4 py-4" style={{ paddingBottom: categoryItems.length > 0 ? '160px' : '40px' }}>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <FiLoader className="w-16 h-16 text-gray-300 mb-4 animate-spin" />
@@ -236,52 +236,56 @@ const CategoryCart = ({
         {/* Order Summary - Fixed at bottom if items exist */}
         {categoryItems.length > 0 && (
           <div
-            className="fixed left-0 right-0 z-[9997] px-4 py-4 border-t border-gray-200"
+            className="fixed left-0 right-0 z-[9997] px-4 pt-4 pb-6 border-t border-gray-200"
             style={{
               backgroundColor: '#ffffff',
-              boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.08)',
-              bottom: '70px',
+              boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.1)',
+              bottom: '0',
               position: 'fixed',
               willChange: 'transform',
               transform: 'translateZ(0)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
+              borderTopLeftRadius: '24px',
+              borderTopRightRadius: '24px'
             }}
           >
-            <div className="mb-3 pb-3 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Subtotal</span>
-                <span className="text-base font-bold text-black">
-                  ₹{totalPrice.toLocaleString('en-IN')}
-                </span>
-              </div>
-              {totalOriginalPrice > totalPrice && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400 line-through">Original Price</span>
-                  <span className="text-sm text-gray-400 line-through">
-                    ₹{totalOriginalPrice.toLocaleString('en-IN')}
+            <div className="max-w-screen-xl mx-auto">
+              <div className="mb-4 pb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-600">Subtotal ({cartCount} {cartCount === 1 ? 'item' : 'items'})</span>
+                  <span className="text-lg font-bold text-black">
+                    ₹{totalPrice.toLocaleString('en-IN')}
                   </span>
                 </div>
-              )}
+                {totalOriginalPrice > totalPrice && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400 line-through">Original Price</span>
+                    <span className="text-sm text-gray-400 line-through">
+                      ₹{totalOriginalPrice.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleCheckout}
+                className="w-full py-3.5 rounded-xl text-base font-bold text-white transition-all active:scale-98 shadow-lg"
+                style={{
+                  backgroundColor: themeColors.button,
+                  boxShadow: '0 4px 12px rgba(0, 166, 166, 0.4)'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = themeColors.button;
+                  e.target.style.boxShadow = '0 6px 16px rgba(0, 166, 166, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = themeColors.button;
+                  e.target.style.boxShadow = '0 4px 12px rgba(0, 166, 166, 0.4)';
+                }}
+              >
+                Proceed to Checkout
+              </button>
             </div>
-            <button
-              onClick={handleCheckout}
-              className="w-full py-3.5 rounded-xl text-base font-bold text-white transition-all active:scale-98 shadow-lg"
-              style={{
-                backgroundColor: themeColors.button,
-                boxShadow: '0 4px 12px rgba(0, 166, 166, 0.4)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = themeColors.button;
-                e.target.style.boxShadow = '0 6px 16px rgba(0, 166, 166, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = themeColors.button;
-                e.target.style.boxShadow = '0 4px 12px rgba(0, 166, 166, 0.4)';
-              }}
-            >
-              Proceed to Checkout
-            </button>
           </div>
         )}
       </main>

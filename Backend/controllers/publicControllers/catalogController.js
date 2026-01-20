@@ -64,12 +64,18 @@ const getPublicCategories = async (req, res) => {
  */
 const getPublicServices = async (req, res) => {
   try {
-    const { categoryId, categorySlug } = req.query;
+    const { categoryId, categorySlug, search } = req.query;
 
     // Build query
     const query = { status: 'active' };
     if (categoryId) {
       query.categoryIds = categoryId;
+    }
+
+    if (search) {
+      // Escape special characters for regex to prevent ReDoS or invalid regex
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.title = { $regex: escapedSearch, $options: 'i' };
     }
 
     let services = await Service.find(query)

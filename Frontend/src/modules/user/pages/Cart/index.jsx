@@ -189,7 +189,30 @@ const Cart = () => {
       {/* Cart Items - Grouped by Category */}
       <main className="px-4 py-4" style={{ paddingBottom: cartItems.length > 0 ? '70px' : '100px' }}>
         {loading ? (
-          <LoadingSpinner fullScreen={false} message="Loading cart..." />
+          <div className="space-y-6">
+            {[1, 2].map(i => (
+              <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 animate-pulse">
+                {/* Category Header Skeleton */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 w-32 bg-gray-200 rounded"></div>
+                    <div className="h-3 w-24 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+                {/* Items Skeleton */}
+                <div className="space-y-3">
+                  <div className="h-10 w-full bg-gray-100 rounded"></div>
+                  <div className="h-10 w-full bg-gray-100 rounded"></div>
+                </div>
+                {/* Buttons Skeleton */}
+                <div className="flex gap-2 mt-4">
+                  <div className="flex-1 h-10 bg-gray-200 rounded-xl"></div>
+                  <div className="flex-1 h-10 bg-gray-300 rounded-xl"></div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : cartItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <FiShoppingCart className="w-16 h-16 text-gray-300 mb-4" />

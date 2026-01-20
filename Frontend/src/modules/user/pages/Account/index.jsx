@@ -110,7 +110,6 @@ const Account = () => {
   const menuItems = [
     { id: 1, label: 'My Plans', icon: FiFileText },
     { id: 2, label: 'Wallet', icon: MdAccountBalanceWallet },
-    { id: 3, label: 'Plus membership', icon: FiTarget },
     { id: 4, label: 'My rating', icon: FiStar },
     { id: 5, label: 'Manage addresses', icon: FiMapPin },
     { id: 6, label: 'Manage payment methods', icon: FiCreditCard },
@@ -138,8 +137,6 @@ const Account = () => {
       navigate('/user/my-plan');
     } else if (item.label === 'Wallet') {
       navigate('/user/wallet');
-    } else if (item.label === 'Plus membership') {
-      navigate('/user/my-subscription');
     } else if (item.label === 'My rating') {
       navigate('/user/my-rating');
     } else if (item.label === 'About Homster') {
