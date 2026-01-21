@@ -16,11 +16,12 @@ const {
 // Validation rules
 const addWorkerValidation = [
   body('name').trim().notEmpty().withMessage('Name is required'),
-  body('email').isEmail().withMessage('Valid email is required'),
+  body('email').optional({ checkFalsy: true }).isEmail().withMessage('Valid email is required'),
   body('phone').trim().notEmpty().isLength({ min: 10, max: 10 }).withMessage('Phone number must be 10 digits'),
   body('aadhar.number').trim().notEmpty().isLength({ min: 12, max: 12 }).withMessage('Aadhar number must be 12 digits'),
   body('aadhar.document').trim().notEmpty().withMessage('Aadhar document is required'),
   body('serviceCategory').optional().trim(),
+  body('serviceCategories').optional().isArray().withMessage('Service Categories must be an array'),
   body('skills').optional().isArray().withMessage('Skills must be an array')
 ];
 
@@ -28,6 +29,7 @@ const updateWorkerValidation = [
   body('name').optional().trim().notEmpty(),
   body('email').optional().isEmail(),
   body('serviceCategory').optional().trim(),
+  body('serviceCategories').optional().isArray(),
   body('skills').optional().isArray(),
   body('status').optional().isIn(['active', 'inactive', 'suspended'])
 ];

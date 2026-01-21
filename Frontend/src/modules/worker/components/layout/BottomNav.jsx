@@ -65,7 +65,7 @@ const BottomNav = memo(() => {
         left: 0,
         right: 0,
         width: '100%',
-        zIndex: 9999,
+        zIndex: 40,
         willChange: 'transform',
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden',

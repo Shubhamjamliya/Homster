@@ -69,9 +69,13 @@ const WorkersList = () => {
   };
 
   const filteredWorkers = workers.filter(worker => {
+    const workerStatus = (worker.status || 'OFFLINE').toUpperCase();
+    const isOnline = workerStatus === 'ONLINE';
+    const isOffline = workerStatus === 'OFFLINE' || workerStatus === 'ACTIVE';
+
     const matchesFilter = filter === 'all' ||
-      (filter === 'online' && worker.availability === 'ONLINE') ||
-      (filter === 'offline' && worker.availability === 'OFFLINE');
+      (filter === 'online' && isOnline) ||
+      (filter === 'offline' && isOffline);
 
     const matchesSearch = searchQuery === '' ||
       worker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -91,11 +95,10 @@ const WorkersList = () => {
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search workers..."
+              placeholder="Search workers by name or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-0"
-              style={{ focusRingColor: themeColors.button }}
+              className="w-full pl-10 pr-4 py-3.5 bg-white rounded-2xl border border-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-all font-medium"
             />
           </div>
         </div>
@@ -103,29 +106,30 @@ const WorkersList = () => {
         {/* Filter Buttons */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
           {[
-            { id: 'all', label: 'All' },
+            { id: 'all', label: 'All Workers' },
             { id: 'online', label: 'Online' },
             { id: 'offline', label: 'Offline' },
-          ].map((filterOption) => (
+          ].map((option) => (
             <button
-              key={filterOption.id}
-              onClick={() => setFilter(filterOption.id)}
-              className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${filter === filterOption.id
-                ? 'text-white'
-                : 'bg-white text-gray-700'
-                }`}
+              key={option.id}
+              onClick={() => setFilter(option.id)}
+              className={`px-5 py-2.5 rounded-full font-bold text-xs whitespace-nowrap transition-all duration-300 ${
+                filter === option.id 
+                  ? 'text-white shadow-lg shadow-teal-500/20' 
+                  : 'bg-white text-gray-500 border border-gray-100'
+              }`}
               style={
-                filter === filterOption.id
-                  ? {
-                    background: themeColors.button,
-                    boxShadow: `0 2px 8px ${themeColors.button}40`,
-                  }
-                  : {
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                  }
+                filter === option.id
+                  ? { background: themeColors.button }
+                  : { boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)' }
               }
             >
-              {filterOption.label}
+              {option.label}
+              {filter === option.id && (
+                <span className="ml-2 bg-white/20 px-1.5 py-0.5 rounded-md text-[10px]">
+                  {filteredWorkers.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -134,216 +138,152 @@ const WorkersList = () => {
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse">
-                <div className="flex justify-between mb-4 pb-4 border-b border-slate-50">
-                  <div className="flex gap-3">
-                    <div className="w-12 h-12 bg-slate-100 rounded-full shrink-0"></div>
-                    <div className="space-y-2 py-1">
-                      <div className="h-4 w-32 bg-slate-100 rounded"></div>
-                      <div className="h-6 w-20 bg-slate-100 rounded-full"></div>
+              <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 animate-pulse">
+                <div className="flex gap-4">
+                  <div className="w-16 h-16 bg-slate-100 rounded-2xl shrink-0" />
+                  <div className="flex-1 space-y-3">
+                    <div className="h-5 w-40 bg-slate-100 rounded" />
+                    <div className="h-4 w-24 bg-slate-100 rounded" />
+                    <div className="flex gap-2">
+                      <div className="h-6 w-16 bg-slate-100 rounded-full" />
+                      <div className="h-6 w-16 bg-slate-100 rounded-full" />
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
-                    <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="h-4 w-full bg-slate-100 rounded"></div>
-                  <div className="h-4 w-3/4 bg-slate-100 rounded"></div>
-                  <div className="h-8 w-1/2 bg-slate-100 rounded-lg mt-2"></div>
                 </div>
               </div>
             ))}
           </div>
         ) : filteredWorkers.length === 0 ? (
-          <div
-            className="bg-white rounded-xl p-8 text-center shadow-md"
-            style={{
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            <FiUsers className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-600 font-semibold mb-2">No workers found</p>
-            <p className="text-sm text-gray-500 mb-4">
-              {searchQuery ? 'Try a different search term' : 'Add your first worker to get started'}
+          <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-dashed border-gray-200">
+            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiUsers className="w-10 h-10 text-gray-200" />
+            </div>
+            <p className="text-gray-600 font-bold mb-1">No workers found</p>
+            <p className="text-xs text-gray-400 mb-6 font-medium">
+              {searchQuery ? 'Try matching a different name or phone' : 'Start by adding a worker to your team'}
             </p>
             <button
               onClick={() => navigate('/vendor/workers/add')}
-              className="px-6 py-3 rounded-xl font-semibold text-white"
-              style={{
-                background: themeColors.button,
-                boxShadow: `0 4px 12px ${themeColors.button}40`,
-              }}
+              className="px-8 py-3.5 rounded-xl font-bold text-white text-sm transition-all active:scale-95 shadow-lg shadow-teal-500/20"
+              style={{ background: themeColors.button }}
             >
               Add Worker
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {filteredWorkers.map((worker, index) => {
-              const getAvailabilityColor = (availability) => {
-                return availability === 'ONLINE' ? themeColors.icon : '#94A3B8';
-              };
+              const statusRaw = (worker.status || 'OFFLINE').toUpperCase();
+              
+              let displayStatus = 'Offline';
+              let statusColor = '#94A3B8'; // Grey
 
-              const statusColor = getAvailabilityColor(worker.availability);
-              const hexToRgba = (hex, alpha) => {
-                const r = parseInt(hex.slice(1, 3), 16);
-                const g = parseInt(hex.slice(3, 5), 16);
-                const b = parseInt(hex.slice(5, 7), 16);
-                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-              };
+              if (statusRaw === 'ONLINE') {
+                statusColor = '#22C55E'; // Green
+                displayStatus = 'Online';
+              } else if (statusRaw === 'BUSY') {
+                statusColor = '#F97316'; // Orange
+                displayStatus = 'Busy';
+              }
 
               return (
                 <div
                   key={worker.id || index}
-                  className="rounded-xl p-4 shadow-lg cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
-                  style={{
-                    background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%)',
-                    boxShadow: `0 8px 24px ${hexToRgba(statusColor, 0.15)}, 0 4px 12px ${hexToRgba(statusColor, 0.1)}, 0 0 0 2px ${hexToRgba(statusColor, 0.2)}`,
-                    border: `2px solid ${hexToRgba(statusColor, 0.3)}`,
-                  }}
+                  onClick={() => navigate(`/vendor/workers/${worker.id}/edit`)}
+                  className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-[0.99] group relative"
                 >
-                  {/* Left border accent */}
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
-                    style={{
-                      background: `linear-gradient(180deg, ${statusColor} 0%, ${statusColor}dd 100%)`,
-                    }}
-                  />
-
-                  <div className="relative z-10 pl-2">
-                    {/* Header Section */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div
-                            className="p-1 rounded-lg"
-                            style={{
-                              background: `${statusColor}15`,
-                            }}
-                          >
-                            {worker.profilePhoto ? (
-                              <img src={worker.profilePhoto} alt={worker.name} className="w-8 h-8 rounded-full object-cover" />
-                            ) : (
-                              <FiUser className="w-4 h-4" style={{ color: statusColor }} />
-                            )}
+                  <div className="flex gap-4">
+                    {/* Profile Photo */}
+                    <div className="relative shrink-0">
+                      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50 border-2 border-white shadow-sm ring-1 ring-gray-100">
+                        {worker.profilePhoto ? (
+                          <img src={worker.profilePhoto} alt={worker.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                            <FiUser className="w-8 h-8 text-gray-300" />
                           </div>
-                          <h3 className="font-bold text-gray-800 text-base">{worker.name}</h3>
-                        </div>
-                        <div className="ml-8 mb-2">
-                          <span
-                            className="text-xs font-bold px-3 py-1.5 rounded-full"
-                            style={{
-                              background: `linear-gradient(135deg, ${statusColor} 0%, ${statusColor}dd 100%)`,
-                              color: '#FFFFFF',
-                              boxShadow: `0 2px 8px ${hexToRgba(statusColor, 0.3)}`,
-                            }}
-                          >
-                            {worker.availability}
-                          </span>
-                        </div>
+                        )}
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/vendor/workers/${worker.id}/edit`);
-                          }}
-                          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                          style={{ color: themeColors.button }}
-                        >
-                          <FiEdit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(worker.id);
-                          }}
-                          className="p-2 rounded-lg hover:bg-red-50 transition-colors text-red-500"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <div 
+                        className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-white shadow-sm transition-all duration-300 ${statusRaw === 'ONLINE' ? 'animate-pulse ring-4 ring-green-100' : ''}`}
+                        style={{ backgroundColor: statusColor }}
+                      />
                     </div>
 
-                    {/* Info Section */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
-                          <FiPhone className="w-4 h-4" style={{ color: statusColor }} />
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 py-0.5">
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-gray-900 text-lg truncate">{worker.name}</h3>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} />
+                              <span 
+                                className="text-[10px] font-bold uppercase tracking-wider"
+                                style={{ color: statusColor }}
+                              >
+                                {displayStatus}
+                              </span>
+                            </div>
+                            <span className="text-gray-300">•</span>
+                            <span className="text-gray-500 font-medium text-xs font-mono">{worker.phone}</span>
+                          </div>
                         </div>
-                        <span className="text-gray-700 font-medium">{worker.phone}</span>
+
+                        {/* Actions */}
+                        <div className="flex gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/vendor/workers/${worker.id}/edit`);
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-teal-50 text-teal-600 transition-colors"
+                          >
+                            <FiEdit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(worker.id);
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
-                      {worker.skills && worker.skills.length > 0 && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
-                            <FiBriefcase className="w-4 h-4" style={{ color: statusColor }} />
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 flex-1">
-                            {worker.skills.slice(0, 3).map((skill, index) => (
+                      {/* Skills & Stats */}
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <div className="flex flex-wrap gap-1.5 min-w-0 max-w-[60%]">
+                          {worker.skills && worker.skills.length > 0 ? (
+                            worker.skills.slice(0, 2).map((skill, idx) => (
                               <span
-                                key={index}
-                                className="px-2 py-0.5 rounded text-xs font-semibold"
-                                style={{
-                                  background: `${statusColor}15`,
-                                  color: statusColor,
-                                }}
+                                key={idx}
+                                className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-gray-50 text-gray-500 border border-gray-100 whitespace-nowrap"
                               >
                                 {skill}
                               </span>
-                            ))}
-                            {worker.skills.length > 3 && (
-                              <span className="px-2 py-0.5 rounded text-xs font-semibold text-gray-600 bg-gray-100">
-                                +{worker.skills.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {worker.currentJob ? (
-                        <div className="flex items-center gap-2 text-sm">
-                          <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
-                            <FiBriefcase className="w-4 h-4" style={{ color: statusColor }} />
-                          </div>
-                          <span className="text-gray-700 font-medium">
-                            Assigned to: <span className="font-semibold">{worker.currentJob}</span>
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-sm">
-                          <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
-                            <FiBriefcase className="w-4 h-4" style={{ color: statusColor }} />
-                          </div>
-                          <span className="text-gray-700 font-medium">Available for assignment</span>
-                        </div>
-                      )}
-
-                      {worker.stats && (
-                        <div className="flex items-center gap-4 pt-1">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
-                              <FiBriefcase className="w-4 h-4" style={{ color: statusColor }} />
-                            </div>
-                            <span className="text-gray-700 font-medium">
-                              <span className="font-bold" style={{ color: statusColor }}>
-                                {worker.stats.jobsCompleted || 0}
-                              </span>{' '}
-                              jobs
-                            </span>
-                          </div>
-                          {worker.stats.rating && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-yellow-500">⭐</span>
-                              <span className="text-gray-700 font-medium">
-                                <span className="font-bold">{worker.stats.rating}</span> rating
-                              </span>
-                            </div>
+                            ))
+                          ) : (
+                            <span className="text-[10px] text-gray-400 font-medium italic">No skills</span>
+                          )}
+                          {worker.skills?.length > 2 && (
+                            <span className="text-[10px] text-gray-400 font-bold">+{worker.skills.length - 2}</span>
                           )}
                         </div>
-                      )}
+                        
+                        <div className="flex items-center gap-3 ml-auto shrink-0">
+                          <div className="flex items-center gap-1">
+                            <span className="text-amber-400 text-xs text-yellow-500">⭐</span>
+                            <span className="text-xs font-bold text-gray-800">{worker.rating || '4.5'}</span>
+                          </div>
+                          <div className="h-3 w-[1px] bg-gray-200" />
+                          <div className="text-[10px] font-bold text-gray-600">
+                             {worker.completedJobs || 0} Jobs
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -353,22 +293,9 @@ const WorkersList = () => {
         )}
       </main>
 
-      {/* Floating Action Button */}
-      <button
-        onClick={() => navigate('/vendor/workers/add')}
-        className="fixed bottom-24 right-6 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 z-40"
-        style={{
-          background: themeColors.button,
-          boxShadow: `0 8px 24px ${themeColors.button}50`,
-        }}
-      >
-        <FiPlus className="w-6 h-6 text-white" />
-      </button>
-
       <BottomNav />
     </div>
   );
 };
 
 export default WorkersList;
-

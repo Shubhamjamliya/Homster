@@ -30,7 +30,7 @@ const EditProfile = () => {
       state: '',
       pincode: '',
     },
-    serviceCategory: '',
+    serviceCategories: [],
     skills: [],
     profilePhoto: null,
     status: 'OFFLINE'
@@ -61,7 +61,7 @@ const EditProfile = () => {
               state: w.address?.state || '',
               pincode: w.address?.pincode || '',
             },
-            serviceCategory: w.serviceCategory || '',
+            serviceCategories: w.serviceCategories || (w.serviceCategory ? [w.serviceCategory] : []),
             skills: w.skills || [],
             profilePhoto: w.profilePhoto || null,
             status: w.status || 'OFFLINE'
@@ -85,7 +85,16 @@ const EditProfile = () => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/image/upload`, {
+    let baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    if (!baseUrl) {
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        baseUrl = 'http://localhost:5000';
+      } else {
+        baseUrl = window.location.origin;
+      }
+    }
+    baseUrl = baseUrl.replace(/\/api$/, '');
+    const response = await fetch(`${baseUrl}/api/image/upload`, {
       method: 'POST',
       body: formData,
     });
@@ -120,11 +129,17 @@ const EditProfile = () => {
   };
 
   const handleCategoryChange = (val) => {
-    setFormData(prev => ({
-      ...prev,
-      serviceCategory: val,
-      skills: [] // Reset skills on category change
-    }));
+    setFormData(prev => {
+      const current = prev.serviceCategories || [];
+      const updated = current.includes(val)
+        ? current.filter(c => c !== val)
+        : [...current, val];
+
+      return {
+        ...prev,
+        serviceCategories: updated
+      };
+    });
   };
 
   const toggleSkill = (skill) => {
@@ -170,10 +185,8 @@ const EditProfile = () => {
   const validate = () => {
     const errs = {};
     if (!formData.name.trim()) errs.name = 'Name is required';
-    if (!formData.serviceCategory) errs.serviceCategory = 'Category is required';
-
-    // Validate phone just in case, though it's read-only usually
-    // Validate email
+    if (!formData.serviceCategories || formData.serviceCategories.length === 0) errs.serviceCategories = 'At least one category is required';
+    if (!formData.skills || formData.skills.length === 0) errs.skills = 'At least one service is required';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -184,12 +197,11 @@ const EditProfile = () => {
     try {
       setSaving(true);
 
-      // Prepare payload to match backend expectation
-      // Backend expects address object, skills array, etc.
       const payload = {
         name: formData.name,
         email: formData.email,
-        serviceCategory: formData.serviceCategory,
+        serviceCategories: formData.serviceCategories,
+        serviceCategory: formData.serviceCategories[0], // Fallback/Primary legacy support
         skills: formData.skills,
         address: formData.address,
         status: formData.status
@@ -214,12 +226,7 @@ const EditProfile = () => {
       const currentWorker = JSON.parse(localStorage.getItem('workerData') || '{}');
       localStorage.setItem('workerData', JSON.stringify({
         ...currentWorker,
-        name: payload.name,
-        email: payload.email,
-        serviceCategory: payload.serviceCategory,
-        skills: payload.skills,
-        address: payload.address,
-        status: payload.status,
+        ...payload,
         profilePhoto: payload.profilePhoto || currentWorker.profilePhoto
       }));
 
@@ -232,8 +239,13 @@ const EditProfile = () => {
     }
   };
 
-  // Find the selected category object to get its skills
-  const selectedCategoryObj = categories.find(c => c.title === formData.serviceCategory);
+  // Get aggregated sub-services (skills) from ALL selected categories
+  const availableSkills = categories
+    .filter(c => formData.serviceCategories.includes(c.title))
+    .flatMap(c => c.subServices || []);
+
+  // Remove duplicates
+  const uniqueAvailableSkills = [...new Set(availableSkills.map(s => typeof s === 'string' ? s : (s.name || s.title)))];
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -394,39 +406,53 @@ const EditProfile = () => {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">Category</label>
+            <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">
+              Categories
+            </label>
             <div className="relative">
               <div
                 onClick={() => setIsCategoryOpen(!isCategoryOpen)}
                 className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between cursor-pointer"
               >
-                <span className={`font-medium ${formData.serviceCategory ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {formData.serviceCategory || 'Select a Category'}
-                </span>
+                <div className="flex flex-wrap gap-2">
+                  {formData.serviceCategories && formData.serviceCategories.length > 0 ? (
+                    formData.serviceCategories.map((cat, idx) => (
+                      <span key={idx} className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">
+                        {cat}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-400">Select Categories</span>
+                  )}
+                </div>
                 <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
               </div>
 
               {isCategoryOpen && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-60 overflow-y-auto">
-                  {categories.map((cat, index) => (
-                    <div
-                      key={cat._id || index}
-                      onClick={() => {
-                        handleCategoryChange(cat.title);
-                        setIsCategoryOpen(false);
-                      }}
-                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 font-medium text-gray-700"
-                    >
-                      {cat.title}
-                    </div>
-                  ))}
+                  {categories.map((cat, index) => {
+                    const isSelected = formData.serviceCategories.includes(cat.title);
+                    return (
+                      <div
+                        key={cat._id || index}
+                        onClick={() => {
+                          handleCategoryChange(cat.title);
+                          // Don't close immediately for multi-select
+                        }}
+                        className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 font-medium text-gray-700 flex justify-between items-center"
+                      >
+                        <span>{cat.title}</span>
+                        {isSelected && <FiCheck className="text-blue-600 w-4 h-4" />}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
-            {errors.serviceCategory && <p className="text-red-500 text-[10px] mt-1">Required</p>}
+            {errors.serviceCategories && <p className="text-red-500 text-[10px] mt-1">{errors.serviceCategories}</p>}
           </div>
 
-          {formData.serviceCategory && (
+          {formData.serviceCategories.length > 0 && (
             <div>
               <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">Services (Skills)</label>
 
@@ -437,23 +463,21 @@ const EditProfile = () => {
                   className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between cursor-pointer"
                 >
                   <span className="font-medium text-gray-400">
-                    Select Services...
+                    {formData.skills.length > 0 ? `${formData.skills.length} Selected` : 'Select Services...'}
                   </span>
                   <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isServicesOpen ? 'rotate-180' : ''}`} />
                 </div>
 
                 {isServicesOpen && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-60 overflow-y-auto">
-                    {selectedCategoryObj?.subServices && selectedCategoryObj.subServices.length > 0 ? (
-                      selectedCategoryObj.subServices.map((skill, idx) => {
-                        const skillName = typeof skill === 'string' ? skill : (skill.name || skill.title);
+                    {uniqueAvailableSkills.length > 0 ? (
+                      uniqueAvailableSkills.map((skillName, idx) => {
                         const isSelected = formData.skills.includes(skillName);
                         return (
                           <div
                             key={skillName || idx}
                             onClick={() => {
                               toggleSkill(skillName);
-                              // Keep dropdown open for multiple selection
                             }}
                             className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 font-medium text-gray-700 flex items-center justify-between"
                           >
@@ -464,7 +488,7 @@ const EditProfile = () => {
                       })
                     ) : (
                       <div className="px-4 py-3 text-gray-400 text-sm italic">
-                        No services available for this category
+                        No services available for selected categories
                       </div>
                     )}
                   </div>

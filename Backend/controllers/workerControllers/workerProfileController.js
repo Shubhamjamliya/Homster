@@ -25,7 +25,8 @@ const getProfile = async (req, res) => {
         name: worker.name,
         email: worker.email,
         phone: worker.phone,
-        serviceCategory: worker.serviceCategories?.[0] || '',
+        serviceCategories: worker.serviceCategories || [],
+        serviceCategory: worker.serviceCategories?.[0] || '', // Legacy support
         skills: worker.skills || [],
         address: worker.address || null,
         rating: worker.rating || 0,
@@ -64,7 +65,7 @@ const updateProfile = async (req, res) => {
     }
 
     const workerId = req.user.id;
-    const { name, serviceCategory, skills, address, status, profilePhoto } = req.body;
+    const { name, serviceCategories, serviceCategory, skills, address, status, profilePhoto } = req.body;
 
     const worker = await Worker.findById(workerId);
 
@@ -77,7 +78,14 @@ const updateProfile = async (req, res) => {
 
     // Update fields
     if (name) worker.name = name.trim();
-    if (serviceCategory) worker.serviceCategories = [serviceCategory.trim()];
+
+    // Handle categories: prefer array, fallback to single legacy string
+    if (serviceCategories && Array.isArray(serviceCategories)) {
+      worker.serviceCategories = serviceCategories;
+    } else if (serviceCategory) {
+      worker.serviceCategories = [serviceCategory.trim()];
+    }
+
     if (skills && Array.isArray(skills)) worker.skills = skills;
     if (address) {
       worker.address = {
@@ -120,6 +128,7 @@ const updateProfile = async (req, res) => {
         name: worker.name,
         email: worker.email,
         phone: worker.phone,
+        serviceCategories: worker.serviceCategories,
         serviceCategory: worker.serviceCategories?.[0] || '',
         skills: worker.skills,
         address: worker.address,

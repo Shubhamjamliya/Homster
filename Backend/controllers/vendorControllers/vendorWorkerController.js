@@ -120,7 +120,7 @@ const addWorker = async (req, res) => {
     // Create worker
     worker = await Worker.create({
       name,
-      email,
+      email: email || null, // Handle empty string as null for sparse index
       phone,
       aadhar: {
         number: aadhar.number,
@@ -228,7 +228,7 @@ const updateWorker = async (req, res) => {
 
     // Update fields
     if (updateData.name) worker.name = updateData.name;
-    if (updateData.email) worker.email = updateData.email;
+    if (updateData.email !== undefined) worker.email = updateData.email || null;
     if (updateData.serviceCategories) worker.serviceCategories = updateData.serviceCategories;
     if (updateData.skills) worker.skills = updateData.skills;
     if (updateData.address) worker.address = { ...worker.address, ...updateData.address };

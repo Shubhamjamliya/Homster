@@ -53,7 +53,7 @@ const Profile = () => {
             rating: workerData.rating || 0,
             totalJobs: workerData.totalJobs || 0,
             completedJobs: workerData.completedJobs || 0,
-            serviceCategory: workerData.serviceCategory || '',
+            serviceCategories: workerData.serviceCategories || (workerData.serviceCategory ? [workerData.serviceCategory] : []),
             skills: workerData.skills || [],
             photo: workerData.profilePhoto || null,
             isPhoneVerified: workerData.isPhoneVerified || false,
@@ -74,7 +74,7 @@ const Profile = () => {
               rating: localWorkerData.rating || 0,
               totalJobs: localWorkerData.totalJobs || 0,
               completedJobs: localWorkerData.completedJobs || 0,
-              serviceCategory: localWorkerData.serviceCategory || '',
+              serviceCategories: localWorkerData.serviceCategories || (localWorkerData.serviceCategory ? [localWorkerData.serviceCategory] : []),
               skills: localWorkerData.skills || [],
               photo: localWorkerData.profilePhoto || null
             });
@@ -96,7 +96,7 @@ const Profile = () => {
             rating: localWorkerData.rating || 0,
             totalJobs: localWorkerData.totalJobs || 0,
             completedJobs: localWorkerData.completedJobs || 0,
-            serviceCategory: localWorkerData.serviceCategory || '',
+            serviceCategories: localWorkerData.serviceCategories || (localWorkerData.serviceCategory ? [localWorkerData.serviceCategory] : []),
             skills: localWorkerData.skills || [],
             photo: localWorkerData.profilePhoto || null
           });
@@ -193,14 +193,20 @@ const Profile = () => {
                   <FiUser className="w-10 h-10 text-white" />
                 )}
               </div>
-              <div className="flex-1">
+              <div className="flex-1 pr-12">
                 <h2 className="text-xl font-bold text-white mb-0.5">{profile.name}</h2>
-                {(profile.serviceCategory || profile.category) && (
-                  <p className="text-sm text-white font-medium opacity-90 mb-2">{profile.serviceCategory || profile.category}</p>
-                )}
-                {!profile.serviceCategory && !profile.category && (
+                {profile.serviceCategories && profile.serviceCategories.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {profile.serviceCategories.map((cat, idx) => (
+                      <span key={idx} className="text-xs text-white bg-white/20 px-2 py-0.5 rounded font-medium backdrop-blur-sm">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
                   <div className="mb-2"></div>
                 )}
+
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-lg backdrop-blur-sm">
                     <FiStar className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" />
@@ -212,20 +218,21 @@ const Profile = () => {
                   <p className="text-sm text-white opacity-90 font-medium">{profile.totalJobs} Total</p>
                 </div>
               </div>
-              {/* Edit Profile Button on Card */}
-              <button
-                onClick={() => navigate('/worker/profile/edit')}
-                className="p-2.5 rounded-lg flex-shrink-0 transition-all active:scale-95"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.25)',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                  border: '1.5px solid rgba(255, 255, 255, 0.3)',
-                }}
-              >
-                <FiEdit2 className="w-5 h-5 text-white" />
-              </button>
             </div>
+
+            {/* Edit Profile Button - Absolute Positioned */}
+            <button
+              onClick={() => navigate('/worker/profile/edit')}
+              className="absolute top-0 right-0 p-2.5 rounded-lg transition-all active:scale-95"
+              style={{
+                background: 'rgba(255, 255, 255, 0.25)',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                border: '1.5px solid rgba(255, 255, 255, 0.3)',
+              }}
+            >
+              <FiEdit2 className="w-5 h-5 text-white" />
+            </button>
           </div>
         </div>
 
@@ -271,14 +278,24 @@ const Profile = () => {
         >
           <h3 className="font-bold text-gray-800 mb-4">Service Information</h3>
           <div className="space-y-3">
-            {/* Service Category */}
-            <div className="flex items-center gap-3">
+            {/* Service Categories */}
+            <div className="flex items-start gap-3">
               <div className="p-2 rounded-lg" style={{ background: `${themeColors.icon}15` }}>
-                <FiTag className="w-5 h-5" style={{ color: themeColors.icon }} />
+                <FiBriefcase className="w-5 h-5" style={{ color: themeColors.icon }} />
               </div>
               <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-0.5">Service Category</p>
-                <p className="text-sm font-semibold text-gray-800">{profile.serviceCategory || profile.category || 'Not set'}</p>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Service Categories</p>
+                {profile.serviceCategories && profile.serviceCategories.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {profile.serviceCategories.map((cat, idx) => (
+                      <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-sm font-medium border border-gray-200">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-800">Not set</p>
+                )}
               </div>
             </div>
 

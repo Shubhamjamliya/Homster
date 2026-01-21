@@ -121,7 +121,16 @@ const AddEditWorker = () => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/image/upload`, {
+    let baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    if (!baseUrl) {
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        baseUrl = 'http://localhost:5000';
+      } else {
+        baseUrl = window.location.origin;
+      }
+    }
+    baseUrl = baseUrl.replace(/\/api$/, '');
+    const response = await fetch(`${baseUrl}/api/image/upload`, {
       method: 'POST',
       body: formData,
     });
@@ -234,11 +243,11 @@ const AddEditWorker = () => {
     const errs = {};
     if (!formData.name.trim()) errs.name = 'Required';
     if (!formData.phone.trim()) errs.phone = 'Required';
-    if (!formData.email.trim()) errs.email = 'Required';
+    // if (!formData.email.trim()) errs.email = 'Required';
     if (!isEdit) {
       // Only validate aadhar for new add, or if desired for updates
       if (!formData.aadhar.number) errs['aadhar.number'] = 'Required';
-      if (!formData.aadhar.document) errs['aadhar.document'] = 'Required';
+      if (!formData.aadhar.document && !aadharFile) errs['aadhar.document'] = 'Required';
     }
     if (formData.serviceCategories.length === 0) errs.serviceCategories = 'Required';
     if (formData.skills.length === 0) errs.skills = 'Select at least one';
@@ -499,7 +508,7 @@ const AddEditWorker = () => {
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="Email Address *"
+                  placeholder="Email Address (Optional)"
                   className={`w-full px-4 py-3 bg-gray-50 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-100 ${errors.email ? 'border-red-500' : 'border-gray-100'}`}
                 />
               </div>
@@ -526,12 +535,12 @@ const AddEditWorker = () => {
             </div>
 
             {/* Work Profile */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide">Work Profile</h4>
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-2">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Work Profile</h4>
 
               {/* Category Dropdown */}
               <div>
-                <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">Category</label>
+                <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">Category</label>
                 <div className="relative">
                   <button
                     onClick={() => setIsCategoryOpen(!isCategoryOpen)}
@@ -577,7 +586,7 @@ const AddEditWorker = () => {
 
                 {/* Selected Categories Tags */}
                 {formData.serviceCategories.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
+                  <div className="flex flex-wrap gap-2 mt-2">
                     {formData.serviceCategories.map((cat, idx) => (
                       <span
                         key={idx}
@@ -600,7 +609,7 @@ const AddEditWorker = () => {
               {/* Services (Skills) Dropdown */}
               {formData.serviceCategories.length > 0 && (
                 <div>
-                  <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">Services (Skills)</label>
+                  <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">Services (Skills)</label>
                   <div className="relative">
                     <button
                       onClick={() => setIsServicesOpen(!isServicesOpen)}
@@ -645,7 +654,7 @@ const AddEditWorker = () => {
 
                   {/* Selected Services Tags */}
                   {formData.skills.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3">
+                    <div className="flex flex-wrap gap-2 mt-2">
                       {formData.skills.map((skill, idx) => (
                         <span
                           key={idx}

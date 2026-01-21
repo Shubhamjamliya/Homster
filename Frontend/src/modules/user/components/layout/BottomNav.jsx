@@ -150,7 +150,7 @@ const BottomNav = React.memo(() => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 w-full"
+      className="fixed bottom-0 left-0 right-0 z-40 w-full"
       style={{
         WebkitBackfaceVisibility: 'hidden',
       }}

@@ -10,10 +10,11 @@ const workerSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Please provide an email'],
     unique: true,
+    sparse: true, // Allow multiple nulls
     trim: true,
-    lowercase: true
+    lowercase: true,
+    default: null
   },
   phone: {
     type: String,

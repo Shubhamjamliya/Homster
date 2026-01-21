@@ -181,7 +181,18 @@ const EditProfile = () => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/image/upload`, {
+    let baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    if (!baseUrl) {
+      // If no env var, check hostname to determine dev vs prod
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        baseUrl = 'http://localhost:5000';
+      } else {
+        // In production, fallback to same origin (relative path)
+        baseUrl = window.location.origin;
+      }
+    }
+    baseUrl = baseUrl.replace(/\/api$/, '');
+    const response = await fetch(`${baseUrl}/api/image/upload`, {
       method: 'POST',
       body: formData,
     });
