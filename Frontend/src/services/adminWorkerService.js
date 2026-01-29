@@ -42,6 +42,22 @@ const adminWorkerService = {
   },
 
   /**
+   * Toggle worker active status
+   */
+  toggleStatus: async (id, isActive) => {
+    const response = await api.patch(`/admin/workers/${id}/status`, { isActive });
+    return response.data;
+  },
+
+  /**
+   * Delete worker
+   */
+  deleteWorker: async (id) => {
+    const response = await api.delete(`/admin/workers/${id}`);
+    return response.data;
+  },
+
+  /**
    * Get jobs for a specific worker
    */
   getWorkerJobs: async (id, params = {}) => {

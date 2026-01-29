@@ -375,7 +375,7 @@ const getAllWorkerJobs = async (req, res) => {
           { phone: { $regex: search, $options: 'i' } }
         ]
       }).select('_id');
-      
+
       const workerIds = workers.map(w => w._id);
       query.workerId = { $in: workerIds };
     }
@@ -415,11 +415,11 @@ const getAllWorkerJobs = async (req, res) => {
 const getWorkerPaymentsSummary = async (req, res) => {
   try {
     // For now, return workers with non-zero balances or recent job activity
-    const workers = await Worker.find({ 
-      'wallet.balance': { $exists: true } 
+    const workers = await Worker.find({
+      'wallet.balance': { $exists: true }
     })
-    .select('name phone wallet email serviceCategory approvalStatus')
-    .sort({ 'wallet.balance': -1 });
+      .select('name phone wallet email serviceCategory approvalStatus')
+      .sort({ 'wallet.balance': -1 });
 
     res.status(200).json({
       success: true,
@@ -434,6 +434,69 @@ const getWorkerPaymentsSummary = async (req, res) => {
   }
 };
 
+/**
+ * Toggle worker active status
+ */
+const toggleWorkerStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body; // Expecting { isActive: true/false }
+
+    const worker = await Worker.findById(id);
+
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message: 'Worker not found'
+      });
+    }
+
+    worker.isActive = isActive;
+    await worker.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Worker ${isActive ? 'activated' : 'deactivated'} successfully`,
+      data: worker
+    });
+  } catch (error) {
+    console.error('Toggle worker status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update worker status'
+    });
+  }
+};
+
+/**
+ * Delete worker details
+ */
+const deleteWorker = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const worker = await Worker.findByIdAndDelete(id);
+
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message: 'Worker not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Worker deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete worker error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete worker'
+    });
+  }
+};
+
 module.exports = {
   getAllWorkers,
   getWorkerDetails,
@@ -444,5 +507,7 @@ module.exports = {
   getWorkerEarnings,
   payWorker,
   getAllWorkerJobs,
-  getWorkerPaymentsSummary
+  getWorkerPaymentsSummary,
+  toggleWorkerStatus,
+  deleteWorker
 };

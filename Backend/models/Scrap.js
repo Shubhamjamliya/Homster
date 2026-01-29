@@ -16,18 +16,9 @@ const scrapSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  category: {
+  description: {
     type: String,
-    enum: ['AC', 'Fridge', 'Washing Machine', 'Geyser', 'RO', 'Cooler', 'Microwave', 'TV', 'Other Appliance'],
-    default: 'Other Appliance'
-  },
-  quantity: {
-    type: String, // e.g. "5 kg"
-    required: true
-  },
-  expectedPrice: {
-    type: Number,
-    default: 0
+    trim: true
   },
   images: [{
     type: String

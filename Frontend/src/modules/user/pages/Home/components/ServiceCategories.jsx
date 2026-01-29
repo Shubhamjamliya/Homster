@@ -28,31 +28,38 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
   }));
 
   return (
-    <div className="">
+    <div className="px-5">
       {/* Section Header */}
-      <div className="flex items-center justify-between px-4 mb-5">
-        <h2 className="text-[19px] font-bold text-gray-900 tracking-tight flex items-center gap-2">
-          Categories
-          {/* <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[11px] font-bold uppercase tracking-wider">Explore</span> */}
-        </h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col">
+          <h2 className="text-[20px] font-black text-gray-900 tracking-tight flex items-center gap-2">
+            Service Categories
+            <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(40,116,240,0.5)]"></div>
+          </h2>
+          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-[0.15em] -mt-0.5">Premium Home Services</p>
+        </div>
+        <button
+          onClick={onSeeAllClick}
+          className="group flex items-center gap-1.5 text-[11px] font-black text-primary-600 px-4 py-2 bg-primary-50 hover:bg-primary-100/80 rounded-2xl transition-all active:scale-95 uppercase tracking-widest border border-primary-100/50"
+        >
+          View All
+          <div className="w-1.5 h-1.5 bg-primary-600 rounded-full group-hover:scale-125 transition-transform"></div>
+        </button>
       </div>
 
-      {/* Scrollable Container with better padding */}
-      <div
-        className="flex gap-1 overflow-x-auto pb-4 px-4 scrollbar-hide -mx-0"
-        style={{ scrollSnapType: 'x mandatory' }}
-      >
+      {/* Professional Grid Layout */}
+      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-y-7 gap-x-3">
         {serviceCategories.map((category, index) => {
           const iconSrc = toAssetUrl(category.icon || category.image);
           return (
-            <div key={category.id} className="shrink-0" style={{ scrollSnapAlign: 'start' }}>
+            <div key={category.id} className="flex justify-center h-full">
               <CategoryCard
                 title={category.title}
                 icon={
                   <img
                     src={iconSrc}
                     alt={category.title}
-                    className="w-10 h-10 object-contain"
+                    className="w-12 h-12 object-contain group-hover:rotate-12 transition-transform duration-500 will-change-transform"
                     loading="lazy"
                     decoding="async"
                   />
@@ -65,6 +72,9 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
           );
         })}
       </div>
+
+      {/* Subtle Bottom Separator */}
+      <div className="mt-10 h-[1px] w-full bg-gradient-to-r from-transparent via-gray-100 to-transparent"></div>
     </div>
   );
 });

@@ -42,6 +42,22 @@ const adminVendorService = {
   },
 
   /**
+   * Toggle vendor active status
+   */
+  toggleStatus: async (id, isActive) => {
+    const response = await api.patch(`/admin/vendors/${id}/status`, { isActive });
+    return response.data;
+  },
+
+  /**
+   * Delete vendor
+   */
+  deleteVendor: async (id) => {
+    const response = await api.delete(`/admin/vendors/${id}`);
+    return response.data;
+  },
+
+  /**
    * Get bookings for a specific vendor
    */
   getVendorBookings: async (id, params = {}) => {

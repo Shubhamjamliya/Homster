@@ -18,6 +18,14 @@ const getProfile = async (req, res) => {
       });
     }
 
+    // Lazy Check: Update plan expiry if needed
+    if (user.plans && user.plans.isActive && user.plans.expiry) {
+      if (new Date() > new Date(user.plans.expiry)) {
+        user.plans.isActive = false;
+        await user.save();
+      }
+    }
+
     res.status(200).json({
       success: true,
       user: {

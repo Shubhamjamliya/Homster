@@ -13,11 +13,9 @@ import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
 import { z } from "zod";
 
 // Zod schema for Scrap
+// Zod schema for Scrap
 const scrapSchema = z.object({
   title: z.string().min(3, "Title too short"),
-  category: z.string(),
-  quantity: z.string().min(1, "Quantity is required"),
-  expectedPrice: z.union([z.string(), z.number()]).optional(),
   description: z.string().optional(),
   address: z.object({
     addressLine1: z.string().min(5, "Address must be selected"),
@@ -44,9 +42,6 @@ const UserScrapPage = () => {
   // Form State
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Other Appliance',
-    quantity: '',
-    expectedPrice: '',
     description: '',
     images: [],
     address: {
@@ -160,7 +155,7 @@ const UserScrapPage = () => {
         toast.success('Scrap item listed!', { id: 'scrap' });
         setShowAddModal(false);
         setFormData({
-          title: '', category: 'Other Appliance', quantity: '', expectedPrice: '', description: '',
+          title: '', description: '',
           images: [],
           address: { addressLine1: '', city: '', state: '', pincode: '', lat: null, lng: null }
         });
@@ -317,11 +312,8 @@ const UserScrapPage = () => {
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="inline-block px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 mb-1.5 border border-blue-100/50">
-                          {item.category}
-                        </span>
                         <h3 className="font-extrabold text-gray-900 leading-tight line-clamp-1">{item.title}</h3>
-                        <p className="text-xs font-bold text-gray-500 mt-1">{item.quantity} • ₹{item.expectedPrice || 'Best Offer'}</p>
+                        <p className="text-xs font-medium text-gray-500 mt-1 line-clamp-1">{item.description}</p>
                       </div>
                       <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border
                         ${item.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100' : ''}
@@ -407,47 +399,7 @@ const UserScrapPage = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                      <div className="relative">
-                        <select
-                          className="w-full p-3 bg-gray-50 rounded-xl border-none appearance-none"
-                          value={formData.category}
-                          onChange={e => setFormData({ ...formData, category: e.target.value })}
-                        >
-                          {['Other Appliance', 'AC', 'Fridge', 'Washing Machine', 'Geyser', 'RO', 'Cooler', 'Microwave', 'TV'].map(c => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                      <input
-                        type="text"
-                        className="w-full p-3 bg-gray-50 rounded-xl border-none"
-                        placeholder="e.g. 1 unit"
-                        value={formData.quantity}
-                        onChange={e => setFormData({ ...formData, quantity: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Expected Price (Optional)</label>
-                    <input
-                      type="number"
-                      className="w-full p-3 bg-gray-50 rounded-xl border-none"
-                      placeholder="₹ Estimate"
-                      value={formData.expectedPrice}
-                      onChange={e => setFormData({ ...formData, expectedPrice: e.target.value })}
-                    />
-                  </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -608,7 +560,6 @@ const UserScrapPage = () => {
                 {/* Header */}
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-md z-10">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest italic">{selectedScrap.category}</span>
                     <h2 className="text-xl font-black text-gray-900 leading-tight">{selectedScrap.title}</h2>
                   </div>
                   <button
@@ -631,17 +582,7 @@ const UserScrapPage = () => {
                     </div>
                   )}
 
-                  {/* Info Cards */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Quantity</p>
-                      <p className="font-extrabold text-gray-900">{selectedScrap.quantity}</p>
-                    </div>
-                    <div className="bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Expected</p>
-                      <p className="font-extrabold text-blue-600">₹{selectedScrap.expectedPrice || 'Best'}</p>
-                    </div>
-                  </div>
+
 
                   {/* Status Badge */}
                   <div className={`p-4 rounded-3xl border text-center font-black uppercase tracking-widest text-xs
@@ -693,7 +634,7 @@ const UserScrapPage = () => {
 
         {/* Hide bottom nav when modal is open to prevent z-index issues / clutter */}
       </div>
-    </div>
+    </div >
   );
 };
 

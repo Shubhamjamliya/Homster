@@ -12,15 +12,12 @@ exports.createScrap = async (req, res) => {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const { title, description, category, quantity, expectedPrice, images, address } = req.body;
+    const { title, description, images, address } = req.body;
 
     const scrap = new Scrap({
       userId: req.user.id,
       title,
       description,
-      category,
-      quantity,
-      expectedPrice,
       images,
       address
     });

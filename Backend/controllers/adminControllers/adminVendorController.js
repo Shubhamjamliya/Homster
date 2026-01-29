@@ -393,7 +393,7 @@ const getAllVendorBookings = async (req, res) => {
           { phone: { $regex: search, $options: 'i' } }
         ]
       }).select('_id');
-      
+
       const vendorIds = vendors.map(v => v._id);
       query.vendorId = { $in: vendorIds };
     }
@@ -434,11 +434,11 @@ const getAllVendorBookings = async (req, res) => {
 const getVendorPaymentsSummary = async (req, res) => {
   try {
     // Return vendors with their wallet balances and earnings
-    const vendors = await Vendor.find({ 
-      'wallet.balance': { $exists: true } 
+    const vendors = await Vendor.find({
+      'wallet.balance': { $exists: true }
     })
-    .select('name businessName phone wallet email approvalStatus')
-    .sort({ 'wallet.balance': -1 });
+      .select('name businessName phone wallet email approvalStatus')
+      .sort({ 'wallet.balance': -1 });
 
     res.status(200).json({
       success: true,
@@ -453,6 +453,72 @@ const getVendorPaymentsSummary = async (req, res) => {
   }
 };
 
+/**
+ * Toggle vendor active status (approve/disable login)
+ */
+const toggleVendorStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body; // Expecting { isActive: true/false }
+
+    const vendor = await Vendor.findById(id);
+
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found'
+      });
+    }
+
+    vendor.isActive = isActive;
+    await vendor.save();
+
+    // Log the action (optional but recommended)
+    // console.log(`Vendor ${vendor._id} status changed to ${isActive}`);
+
+    res.status(200).json({
+      success: true,
+      message: `Vendor ${isActive ? 'activated' : 'deactivated'} successfully`,
+      data: vendor
+    });
+  } catch (error) {
+    console.error('Toggle vendor status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update vendor status'
+    });
+  }
+};
+
+/**
+ * Delete vendor
+ */
+const deleteVendor = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const vendor = await Vendor.findByIdAndDelete(id);
+
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Vendor deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete vendor error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete vendor'
+    });
+  }
+};
+
 module.exports = {
   getAllVendors,
   getVendorDetails,
@@ -462,6 +528,8 @@ module.exports = {
   getVendorBookings,
   getVendorEarnings,
   getAllVendorBookings,
-  getVendorPaymentsSummary
+  getVendorPaymentsSummary,
+  toggleVendorStatus,
+  deleteVendor
 };
 

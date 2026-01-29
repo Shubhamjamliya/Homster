@@ -129,7 +129,8 @@ const MyPlan = () => {
               return (
                 <div
                   key={plan._id}
-                  className={`relative rounded-3xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl border flex flex-col h-full ${style.container} ${isDisabled ? 'opacity-80 grayscale-[0.5]' : ''}`}
+                  onClick={() => navigate(`/user/my-plan/${plan._id}`)}
+                  className={`relative cursor-pointer rounded-3xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl border flex flex-col h-full ${style.container} ${isDisabled && !isCurrent ? 'opacity-80 grayscale-[0.5]' : ''}`}
                 >
                   {/* Popular Badge */}
                   {isBestValue && (
@@ -149,14 +150,17 @@ const MyPlan = () => {
                   <div className="flex-1">
                     <div className="w-full h-px bg-current opacity-10 mb-6"></div>
                     <ul className="space-y-4 mb-8">
-                      {plan.services.map((feature, idx) => (
+                      {plan.services.slice(0, 4).map((feature, idx) => (
                         <li key={idx} className="flex items-start">
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${style.icon}`}>
                             <FiCheck className="w-3 h-3" />
                           </div>
-                          <p className="ml-3 text-sm font-medium opacity-90">{feature}</p>
+                          <p className="ml-3 text-sm font-medium opacity-90 line-clamp-1">{feature}</p>
                         </li>
                       ))}
+                      {plan.services.length > 4 && (
+                        <li className="text-xs opacity-60 font-bold ml-8">+ {plan.services.length - 4} more benefits</li>
+                      )}
                       {plan.services.length === 0 && (
                         <li className="flex items-center justify-center text-sm opacity-60 italic">
                           Standard benefits included
@@ -167,23 +171,9 @@ const MyPlan = () => {
 
                   <div className="mt-auto">
                     <button
-                      onClick={() => {
-                        navigate('/user/checkout', {
-                          state: {
-                            plan: {
-                              id: plan._id,
-                              name: plan.name,
-                              price: plan.price,
-                              description: plan.description || `${plan.duration || 'Monthly'} Plan`
-                            },
-                            isUpgrade
-                          }
-                        });
-                      }}
-                      disabled={isDisabled}
-                      className={`w-full py-3.5 px-4 rounded-xl font-bold shadow-md transition-all active:scale-95 ${style.button} ${isDisabled ? 'cursor-not-allowed opacity-70' : ''}`}
+                      className={`w-full py-3.5 px-4 rounded-xl font-bold shadow-md transition-all active:scale-95 ${style.button} ${isDisabled && !isCurrent ? 'cursor-not-allowed opacity-70' : ''}`}
                     >
-                      {buttonText}
+                      {isCurrent ? 'View Details' : buttonText}
                     </button>
                   </div>
                 </div>

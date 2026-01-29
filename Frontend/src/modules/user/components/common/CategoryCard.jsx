@@ -27,23 +27,19 @@ const CategoryCard = memo(({ icon, title, onClick, hasSaleBadge = false, index =
   return (
     <div
       ref={cardRef}
-      className="flex flex-col items-center justify-center p-1 cursor-pointer relative category-card-container group transition-transform duration-300 ease-out active:scale-95"
+      className="flex flex-col items-center justify-center p-1 cursor-pointer relative category-card-container group transition-transform duration-300 ease-out active:scale-95 w-full"
       onClick={onClick}
       style={{
-        minWidth: 'fit-content',
-        width: '76px',
         opacity: 0, // Start hidden for GSAP
       }}
     >
       <div
-        className="w-[64px] h-[64px] rounded-[20px] flex items-center justify-center mb-2 relative border border-white flex-shrink-0 transition-all duration-300 group-hover:shadow-md group-hover:scale-105"
+        className="w-[64px] h-[64px] rounded-2xl flex items-center justify-center mb-2 relative border border-gray-100 flex-shrink-0 transition-all duration-500 group-hover:shadow-lg group-hover:shadow-primary-100 group-hover:-translate-y-1 bg-white"
         style={{
-          background: `linear-gradient(135deg, #FFFFFF 0%, ${themeColors.brand.teal}10 100%)`,
-          boxShadow: themeColors.cardShadow,
+          boxShadow: '0 8px 20px -6px rgba(0,0,0,0.05)',
         }}
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = `${themeColors.brand.teal}33`}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'white'}
       >
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
         {icon || (
           <svg
             className="w-7 h-7 text-gray-400 transition-colors duration-300"
@@ -75,10 +71,9 @@ const CategoryCard = memo(({ icon, title, onClick, hasSaleBadge = false, index =
         )}
       </div>
       <span
-        className="text-[11px] text-center text-gray-700 font-medium leading-snug tracking-tight transition-colors duration-300"
+        className="text-[11px] text-center text-gray-700 font-medium leading-tight tracking-tight mt-1 transition-colors duration-300 w-full line-clamp-2 px-1"
         style={{
           wordWrap: 'break-word',
-          maxWidth: '76px',
           color: 'inherit'
         }}
         onMouseEnter={(e) => e.currentTarget.style.color = themeColors.button}

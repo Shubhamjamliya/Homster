@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader, FiDollarSign } from 'react-icons/fi';
+import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader, FiDollarSign, FiPower, FiTrash2 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
@@ -101,6 +101,43 @@ const AllWorkers = () => {
     } catch (error) {
       console.error('Error rejecting worker:', error);
       toast.error('Failed to reject worker. Please try again.');
+    }
+  };
+
+  const handleToggleStatus = async (workerId, currentStatus) => {
+    try {
+      const newStatus = !currentStatus;
+      const response = await adminWorkerService.toggleStatus(workerId, newStatus);
+      if (response.success) {
+        setWorkers(prev => prev.map(w =>
+          w.id === workerId ? { ...w, isActive: newStatus } : w
+        ));
+        toast.success(`Worker ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      } else {
+        toast.error(response.message || 'Failed to update worker status');
+      }
+    } catch (error) {
+      console.error('Error toggling worker status:', error);
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleDelete = async (workerId) => {
+    if (!window.confirm('Are you sure you want to delete this worker? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await adminWorkerService.deleteWorker(workerId);
+      if (response.success) {
+        setWorkers(prev => prev.filter(w => w.id !== workerId));
+        toast.success('Worker deleted successfully');
+      } else {
+        toast.error(response.message || 'Failed to delete worker');
+      }
+    } catch (error) {
+      console.error('Error deleting worker:', error);
+      toast.error('Failed to delete worker');
     }
   };
 
@@ -258,6 +295,7 @@ const AllWorkers = () => {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
+                          {/* View Details */}
                           <button
                             onClick={() => handleViewDetails(worker)}
                             className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
@@ -265,18 +303,19 @@ const AllWorkers = () => {
                           >
                             <FiEye className="w-3.5 h-3.5" />
                           </button>
-                          {worker.approvalStatus === 'approved' && (
-                            <button
-                              onClick={() => {
-                                setSelectedWorker(worker);
-                                setIsPayModalOpen(true);
-                              }}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Make Payment"
-                            >
-                              <FiDollarSign className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+
+                          {/* Toggle Active Status */}
+                          <button
+                            onClick={() => handleToggleStatus(worker.id, worker.isActive)}
+                            className={`p-1.5 rounded-lg transition-colors ${worker.isActive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                            title={worker.isActive ? "Disable Login" : "Enable Login"}
+                          >
+                            <FiPower className={`w-3.5 h-3.5 ${worker.isActive ? 'fill-current' : ''}`} />
+                          </button>
+
+
+
+                          {/* Approve/Reject (Only for pending) */}
                           {worker.approvalStatus === 'pending' && (
                             <>
                               <button
@@ -295,6 +334,15 @@ const AllWorkers = () => {
                               </button>
                             </>
                           )}
+
+                          {/* Delete Worker */}
+                          <button
+                            onClick={() => handleDelete(worker.id)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Worker"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>

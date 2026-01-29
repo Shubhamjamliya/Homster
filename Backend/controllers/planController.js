@@ -29,7 +29,10 @@ exports.getAllPlans = async (req, res) => {
       filter.isActive = true;
     }
 
-    const plans = await Plan.find(filter).sort({ price: 1 });
+    const plans = await Plan.find(filter)
+      .populate('freeCategories', 'title')
+      .populate('freeServices', 'title')
+      .sort({ price: 1 });
     res.status(200).json({ success: true, data: plans });
   } catch (error) {
     console.error('Get All Plans Error:', error);
@@ -40,7 +43,9 @@ exports.getAllPlans = async (req, res) => {
 // Get Single Plan
 exports.getPlanById = async (req, res) => {
   try {
-    const plan = await Plan.findById(req.params.id);
+    const plan = await Plan.findById(req.params.id)
+      .populate('freeCategories', 'title')
+      .populate('freeServices', 'title');
     if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
     res.status(200).json({ success: true, data: plan });
   } catch (error) {

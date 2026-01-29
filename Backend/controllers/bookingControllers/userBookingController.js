@@ -152,81 +152,90 @@ const createBooking = async (req, res) => {
     let bookingStatus = BOOKING_STATUS.SEARCHING;
     let bookingPaymentStatus = PAYMENT_STATUS.PENDING;
 
-    // Check if this is a PLAN BENEFIT booking
+    // -------------------------------------------------------------------------
+    // PRICING CALCULATION LOGIC
+    // -------------------------------------------------------------------------
+
+    // 1. Determine if we can use Plan Benefits
+    let usePlanBenefits = false;
     if (paymentMethod === 'plan_benefit') {
+      if (user.plans && user.plans.isActive) {
+        if (user.plans.expiry && new Date() > new Date(user.plans.expiry)) {
+          // Plan expired - update status and FALLBACK to normal
+          console.log(`[CreateBooking] Plan expired for user ${userId}. Falling back to normal booking.`);
+          user.plans.isActive = false;
+          await user.save();
+          paymentMethod = 'pay_at_home'; // Fallback to Pay at Home
+        } else {
+          usePlanBenefits = true;
+        }
+      } else {
+        // No active plan or invalid status - Fallback
+        paymentMethod = 'pay_at_home';
+      }
+    }
+
+    // 2. Logic Branch: Plan Benefit vs Standard
+    if (usePlanBenefits) {
       const Plan = require('../../models/Plan');
-
-      // Validate user has active plan
-      if (!user.plans || !user.plans.isActive) {
-        return res.status(400).json({ success: false, message: 'No active plan found' });
-      }
-
       const userPlan = await Plan.findOne({ name: user.plans.name });
+
       if (!userPlan) {
-        return res.status(400).json({ success: false, message: 'Plan details not found' });
-      }
-
-      // Check if service or category is covered
-      const isCategoryCovered = categoryId && userPlan.freeCategories &&
-        userPlan.freeCategories.some(cat => String(cat) === String(categoryId));
-      const isServiceCovered = serviceId && userPlan.freeServices &&
-        userPlan.freeServices.some(svc => String(svc) === String(serviceId));
-
-      if (isCategoryCovered || isServiceCovered) {
-        // Valid Free Booking - user pays 0 (PLUS PENALTY), but vendor gets paid by admin
-        // FIX: Use totalServiceValue for basePrice to show real cost in DB
-        basePrice = totalServiceValue > 0 ? totalServiceValue : (service.basePrice || 500);
-        discount = basePrice; // Full discount for user
-        tax = 0;
-        visitingCharges = 0;
-
-        // Add Penalty if exists
-        finalAmount = pendingPenalty;
-
-        bookingStatus = BOOKING_STATUS.SEARCHING;
-        // If penalty exists, status is PENDING payment (not covered fully)
-        // If finalAmount > 0 (penalty), paymentStatus is PENDING
-        bookingPaymentStatus = finalAmount > 0 ? PAYMENT_STATUS.PENDING : PAYMENT_STATUS.PLAN_COVERED;
-
+        // Fallback if data missing (rare)
+        usePlanBenefits = false;
+        paymentMethod = 'pay_at_home';
       } else {
-        return res.status(400).json({ success: false, message: 'Service not covered by your plan' });
+        // Check Coverage
+        const isCategoryCovered = categoryId && userPlan.freeCategories &&
+          userPlan.freeCategories.some(cat => String(cat) === String(categoryId));
+        const isServiceCovered = serviceId && userPlan.freeServices &&
+          userPlan.freeServices.some(svc => String(svc) === String(serviceId));
+
+        if (isCategoryCovered || isServiceCovered) {
+          // >>> APPLY FREE PRICING <<<
+          basePrice = totalServiceValue > 0 ? totalServiceValue : (service.basePrice || 500);
+          discount = basePrice; // Full discount
+          tax = 0;
+          visitingCharges = 0;
+          finalAmount = pendingPenalty; // User only pays penalty
+
+          bookingStatus = BOOKING_STATUS.SEARCHING;
+          bookingPaymentStatus = finalAmount > 0 ? PAYMENT_STATUS.PENDING : PAYMENT_STATUS.PLAN_COVERED;
+        } else {
+          // Not covered -> Fallback
+          usePlanBenefits = false;
+          paymentMethod = 'pay_at_home';
+        }
       }
-    } else if (amount && amount > 0) {
-      // Use amount from frontend (Does check include penalty? Likely not yet)
-      // We take clean calc + penalty
+    }
 
-      if (reqBasePrice !== undefined && reqTax !== undefined) {
-        // Use breakdown provided by frontend
-        basePrice = reqBasePrice;
-        discount = reqDiscount || 0;
-        tax = reqTax;
-        visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges || 49);
-
-        // Final Amount from breakdown parts + Penalty
-        // Frontend 'amount' might not include penalty.
-        // We recalculate finalAmount to be safe: 
-        finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
-
+    // 3. Standard Pricing (Fallback) if NOT using Plan Benefits
+    if (!usePlanBenefits) {
+      if (amount && amount > 0) {
+        // Use amount from frontend logic
+        if (reqBasePrice !== undefined && reqTax !== undefined) {
+          // Use breakdown provided by frontend
+          basePrice = reqBasePrice;
+          discount = reqDiscount || 0;
+          tax = reqTax;
+          visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges || 49);
+          finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
+        } else {
+          // Backward compatibility: Reverse calculate
+          if (!visitingCharges) visitingCharges = 49;
+          basePrice = Math.round((amount - visitingCharges) / 1.18);
+          tax = amount - basePrice - visitingCharges;
+          discount = 0;
+          finalAmount = amount + pendingPenalty;
+        }
       } else {
-        // Backward compatibility: Reverse calculate
+        // Fallback to service pricing (if no amount sent)
         if (!visitingCharges) visitingCharges = 49;
-
-        // Note: 'amount' likely excludes penalty if frontend isn't aware.
-        // We trust 'amount' as the Service Cost. Then ADD penalty.
-
-        basePrice = Math.round((amount - visitingCharges) / 1.18);
-        tax = amount - basePrice - visitingCharges;
-        discount = 0;
-        finalAmount = amount + pendingPenalty;
+        basePrice = service.basePrice || 500;
+        discount = service.discountPrice ? (basePrice - service.discountPrice) : 0;
+        tax = Math.round(basePrice * 0.18);
+        finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
       }
-    } else {
-      // Fallback to service pricing
-      if (!visitingCharges) visitingCharges = 49;
-
-      basePrice = service.basePrice || 500; // Default minimum ₹500
-      discount = service.discountPrice ? (basePrice - service.discountPrice) : 0;
-      tax = Math.round(basePrice * 0.18); // 18% GST
-      finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
     }
 
     // Calculate vendor earnings and admin commission

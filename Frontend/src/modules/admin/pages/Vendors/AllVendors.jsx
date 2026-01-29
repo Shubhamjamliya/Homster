@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader } from 'react-icons/fi';
+import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader, FiPower, FiTrash2 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
@@ -104,6 +104,43 @@ const AllVendors = () => {
     } catch (error) {
       console.error('Error rejecting vendor:', error);
       toast.error('Failed to reject vendor. Please try again.');
+    }
+  };
+
+  const handleToggleStatus = async (vendorId, currentStatus) => {
+    try {
+      const newStatus = !currentStatus;
+      const response = await adminVendorService.toggleStatus(vendorId, newStatus);
+      if (response.success) {
+        setVendors(prev => prev.map(v =>
+          v.id === vendorId ? { ...v, isActive: newStatus } : v
+        ));
+        toast.success(`Vendor ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      } else {
+        toast.error(response.message || 'Failed to update vendor status');
+      }
+    } catch (error) {
+      console.error('Error toggling vendor status:', error);
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleDelete = async (vendorId) => {
+    if (!window.confirm('Are you sure you want to delete this vendor? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await adminVendorService.deleteVendor(vendorId);
+      if (response.success) {
+        setVendors(prev => prev.filter(v => v.id !== vendorId));
+        toast.success('Vendor deleted successfully');
+      } else {
+        toast.error(response.message || 'Failed to delete vendor');
+      }
+    } catch (error) {
+      console.error('Error deleting vendor:', error);
+      toast.error('Failed to delete vendor');
     }
   };
 
@@ -230,6 +267,7 @@ const AllVendors = () => {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
+                          {/* View Details */}
                           <button
                             onClick={() => handleViewDetails(vendor)}
                             className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
@@ -237,6 +275,17 @@ const AllVendors = () => {
                           >
                             <FiEye className="w-3.5 h-3.5" />
                           </button>
+
+                          {/* Toggle Active Status */}
+                          <button
+                            onClick={() => handleToggleStatus(vendor.id, vendor.isActive)}
+                            className={`p-1.5 rounded-lg transition-colors ${vendor.isActive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                            title={vendor.isActive ? "Disable Login" : "Enable Login"}
+                          >
+                            <FiPower className={`w-3.5 h-3.5 ${vendor.isActive ? 'fill-current' : ''}`} />
+                          </button>
+
+                          {/* Approve/Reject (Only for pending) */}
                           {vendor.approvalStatus === 'pending' && (
                             <>
                               <button
@@ -255,6 +304,15 @@ const AllVendors = () => {
                               </button>
                             </>
                           )}
+
+                          {/* Delete Vendor */}
+                          <button
+                            onClick={() => handleDelete(vendor.id)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Vendor"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>

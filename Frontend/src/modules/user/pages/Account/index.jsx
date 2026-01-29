@@ -20,7 +20,10 @@ import {
   FiBell,
   FiShoppingBag,
   FiLogOut,
-  FiGift
+  FiGift,
+  FiShield,
+  FiZap,
+  FiCheckCircle
 } from 'react-icons/fi';
 import { MdAccountBalanceWallet } from 'react-icons/md';
 import NotificationBell from '../../components/common/NotificationBell';
@@ -33,7 +36,8 @@ const Account = () => {
     email: '',
     isPhoneVerified: false,
     isEmailVerified: false,
-    walletBalance: 0
+    walletBalance: 0,
+    plans: null
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -66,7 +70,8 @@ const Account = () => {
             isPhoneVerified: response.user.isPhoneVerified || false,
             isEmailVerified: response.user.isEmailVerified || false,
             profilePhoto: response.user.profilePhoto || '',
-            walletBalance: response.user.wallet?.balance ?? 0
+            walletBalance: response.user.wallet?.balance ?? 0,
+            plans: response.user.plans
           });
         }
       } catch (error) {
@@ -285,6 +290,46 @@ const Account = () => {
               </div>
             </div>
           </motion.div>
+
+          {/* Designer Active Plan Card */}
+          {userProfile.plans && userProfile.plans.isActive && (
+            <motion.div
+              variants={itemVariants}
+              onClick={() => navigate('/user/my-plan')}
+              className="relative overflow-hidden mb-6 rounded-[28px] p-6 text-white cursor-pointer group transition-all"
+              style={{
+                background: `linear-gradient(135deg, ${themeColors.brand.teal} -10%, ${themeColors.brand.orange} 120%)`,
+                boxShadow: `0 20px 40px -12px ${themeColors.brand.teal}40`
+              }}
+            >
+              {/* Decorative elements */}
+              <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
+              <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-black/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-500"></div>
+
+              <div className="relative z-10 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <FiShield className="w-4 h-4 text-white/80" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Membership Status</span>
+                  </div>
+                  <h3 className="text-2xl font-black mb-1">{userProfile.plans.name}</h3>
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full w-fit mt-3 border border-white/10">
+                    <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Expires: {new Date(userProfile.plans.expiry).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-inner group-hover:rotate-12 transition-transform duration-500">
+                  <FiZap className="w-8 h-8 fill-white text-white drop-shadow-lg" />
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-white/10 flex justify-between items-center relative z-10">
+                <span className="text-xs font-bold text-white/80">Manage Benefits</span>
+                <FiChevronRight className="w-5 h-5 opacity-70 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </motion.div>
+          )}
 
           {/* Quick Actions Grid */}
           <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-6">
