@@ -175,8 +175,24 @@ messaging.onBackgroundMessage((payload) => {
     timestamp: Date.now()
   };
 
-  // Show the notification
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  // Show the notification ONLY if app is not in foreground (to avoid duplicate with in-app socket toast)
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then(function (clientList) {
+      const isVisible = clientList.some(function (client) {
+        return client.visibilityState === 'visible';
+      });
+
+      if (isVisible) {
+        console.log('[SW] 🚫 App is visible, skipping system notification to avoid duplicate');
+        return;
+      }
+
+      return self.registration.showNotification(notificationTitle, notificationOptions);
+    })
+    .catch(function (err) {
+      console.error('[SW] ⚠️ Error checking clients, falling back to notification:', err);
+      return self.registration.showNotification(notificationTitle, notificationOptions);
+    });
 });
 
 // Handle notification click

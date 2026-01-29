@@ -1,4 +1,6 @@
 const Scrap = require('../models/Scrap');
+const User = require('../models/User');
+const Admin = require('../models/Admin');
 const { validationResult } = require('express-validator');
 const { createNotification } = require('./notificationControllers/notificationController');
 
@@ -24,6 +26,32 @@ exports.createScrap = async (req, res) => {
     });
 
     await scrap.save();
+
+    // Fetch user details for notification
+    const user = await User.findById(req.user.id);
+
+    // Notify User
+    await createNotification({
+      userId: req.user.id,
+      type: 'scrap_listed',
+      title: 'Scrap Listed Successfully',
+      message: `Your scrap item "${scrap.title}" has been listed. Vendors in your area will be notified.`,
+      relatedId: scrap._id,
+      relatedType: 'scrap'
+    });
+
+    // Notify Admins
+    const admins = await Admin.find({});
+    for (const admin of admins) {
+      await createNotification({
+        adminId: admin._id,
+        type: 'new_scrap_added',
+        title: 'New Scrap Item',
+        message: `${user ? user.name : 'A user'} has added a new scrap item: "${scrap.title}"`,
+        relatedId: scrap._id,
+        relatedType: 'scrap'
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -93,14 +121,18 @@ exports.acceptScrap = async (req, res) => {
     scrap.pickupDate = new Date(); // Default to now, or accept from body
     await scrap.save();
 
+    // Customize message based on acceptor role
+    const isVendor = req.userRole === 'vendor';
+    const acceptorType = isVendor ? 'A vendor' : 'An admin';
+
     // Notify User
     await createNotification({
       userId: scrap.userId,
-      type: 'SCRAP_ACCEPTED',
+      type: 'scrap_accepted',
       title: 'Scrap Request Accepted!',
-      message: `A vendor has accepted your scrap request for "${scrap.title}". They will contact you shortly.`,
+      message: `${acceptorType} has accepted your scrap request for "${scrap.title}". They will contact you shortly.`,
       relatedId: scrap._id,
-      relatedType: 'SCRAP'
+      relatedType: 'scrap'
     });
 
     res.json({ success: true, data: scrap, message: 'Request accepted. Please contact user for pickup.' });
@@ -119,7 +151,10 @@ exports.completeScrap = async (req, res) => {
     const scrap = await Scrap.findById(id);
     if (!scrap) return res.status(404).json({ success: false, message: 'Scrap item not found' });
 
-    if (scrap.vendorId.toString() !== req.user.id) {
+    // Check if the user is the assigned vendor OR an admin
+    const isAdmin = req.userRole === 'admin' || req.userRole === 'super_admin' || req.userRole === 'ADMIN';
+
+    if (scrap.vendorId && scrap.vendorId.toString() !== req.user.id && !isAdmin) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
@@ -130,11 +165,11 @@ exports.completeScrap = async (req, res) => {
     // Notify User
     await createNotification({
       userId: scrap.userId,
-      type: 'SCRAP_COMPLETED',
+      type: 'scrap_completed',
       title: 'Scrap Pickup Completed',
       message: `Your scrap item "${scrap.title}" has been successfully picked up and completed.`,
       relatedId: scrap._id,
-      relatedType: 'SCRAP'
+      relatedType: 'scrap'
     });
 
     res.json({ success: true, data: scrap, message: 'Transactions completed' });
@@ -173,6 +208,36 @@ exports.getScrapById = async (req, res) => {
     res.json({ success: true, data: scrap });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// Delete scrap item
+exports.deleteScrap = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role; // e.g., 'ADMIN', 'USER'
+
+    const scrap = await Scrap.findById(id);
+    if (!scrap) return res.status(404).json({ success: false, message: 'Scrap item not found' });
+
+    // Authorization check
+    // Allow deletion if:
+    // 1. User is the creator of the scrap item
+    // 2. User is an Admin
+    const isOwner = scrap.userId.toString() === userId;
+    const isAdmin = ['ADMIN', 'admin', 'super_admin'].includes(userRole);
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this item' });
+    }
+
+    await Scrap.findByIdAndDelete(id);
+
+    res.json({ success: true, message: 'Scrap item deleted successfully' });
+  } catch (error) {
+    console.error('Delete scrap error:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };

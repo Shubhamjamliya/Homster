@@ -375,22 +375,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
 
   return (
     <div className="space-y-6">
-      <CardShell icon={FiGrid}>
-        <div className="space-y-4">
-          <div>
-            <div className="text-lg font-bold text-gray-900 mb-3">App Mode</div>
-            <ModeSelector
-              mode={catalog.mode}
-              onChange={(mode) => {
-                const next = { ...catalog, mode };
-                if (mode === "single" && next.categories.length > 1) next.categories = [next.categories[0]];
-                setCatalog(next);
-                saveCatalog(next);
-              }}
-            />
-          </div>
-        </div>
-      </CardShell>
+      {/* App Mode selector removed as per request */}
 
       <CardShell icon={FiGrid}>
         {fetching && (

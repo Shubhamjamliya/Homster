@@ -89,16 +89,7 @@ async function sendPushNotification(tokens, payload) {
       // Android specific configuration for high priority
       android: {
         priority: 'high', // HIGH priority for immediate delivery
-        notification: {
-          sound: 'default',
-          priority: 'high',
-          defaultSound: true,
-          defaultVibrateTimings: true,
-          channelId: 'high_priority_channel', // High priority channel
-          vibrateTimingsMillis: [0, 500, 200, 500], // Custom vibration pattern
-          visibility: 'public',
-          notificationCount: 1
-        }
+        // notification block removed to ensure Data-Only message
       },
       // iOS/APNs specific configuration
       apns: {
@@ -121,20 +112,18 @@ async function sendPushNotification(tokens, payload) {
           Urgency: 'high',
           TTL: '86400' // 24 hours
         },
-        notification: {
-          icon: payload.icon || '/Homster-logo.png',
-          badge: '/Homster-logo.png',
-          requireInteraction: payload.highPriority !== false,
-          vibrate: [500, 200, 500]
-        },
         fcmOptions: {
           link: payload.data?.link || '/'
         }
+        // notification block removed to ensure Data-Only message
       },
       priority: payload.highPriority !== false ? 'high' : 'normal'
     };
 
+    /*
     // Standard notification block (Top-level)
+    // Commented out to prevent duplicate notifications (Reason #4: Both notification + data payload)
+    // We rely entirely on data payload and Service Worker/App handling
     message.notification = {
       title: payload.title || 'App Notification',
       body: payload.body || 'New Update',
@@ -164,15 +153,19 @@ async function sendPushNotification(tokens, payload) {
       icon: payload.icon || '/Homster-logo.png',
       badge: '/Homster-logo.png',
     };
+    */
 
+    /*
     if (payload.icon) {
       message.notification.image = payload.icon;
       message.android.notification.image = payload.icon;
     }
+    */
 
     // Ensure critical fields are also in data for background handling
-    message.data.title = message.notification.title;
-    message.data.body = message.notification.body;
+    // Use payload source directly since message.notification is disabled
+    message.data.title = payload.title || 'App Notification';
+    message.data.body = payload.body || 'New Update';
     if (payload.icon) message.data.icon = payload.icon;
 
     // Log intent

@@ -735,13 +735,6 @@ const AdminSettings = () => {
                     </button>
                   </div>
 
-                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-3">
-                    <FiGrid className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-blue-900 text-sm">Service Mode</h4>
-                      <p className="text-xs text-blue-700 mt-1">Current configuration: <span className="font-bold">{serviceMode === 'single' ? 'Single Service' : 'Multi Service'}</span></p>
-                    </div>
-                  </div>
                 </div>
               </div>
 

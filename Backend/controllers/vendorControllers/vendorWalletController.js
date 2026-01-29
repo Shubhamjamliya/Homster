@@ -345,6 +345,38 @@ const requestSettlement = async (req, res) => {
       status: 'pending'
     });
 
+    // 🔔 NOTIFY ALL ADMINS about settlement request
+    try {
+      const { createNotification } = require('../notificationControllers/notificationController');
+      const Admin = require('../../models/Admin');
+
+      const admins = await Admin.find({ isActive: true }).select('_id');
+
+      for (const admin of admins) {
+        await createNotification({
+          adminId: admin._id,
+          type: 'vendor_settlement_request',
+          title: '💰 Settlement Request',
+          message: `${vendor.businessName || vendor.name} submitted settlement of ₹${amount}`,
+          relatedId: settlement._id,
+          relatedType: 'settlement',
+          data: {
+            vendorId: vendor._id,
+            vendorName: vendor.businessName || vendor.name,
+            amount,
+            settlementId: settlement._id
+          },
+          pushData: {
+            type: 'admin_alert',
+            link: '/admin/settlements'
+          }
+        });
+      }
+      console.log(`[Settlement] Notified ${admins.length} admins about settlement request from ${vendor.name}`);
+    } catch (notifyErr) {
+      console.error('[Settlement] Failed to notify admins:', notifyErr);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Settlement request submitted successfully. Pending admin approval.',

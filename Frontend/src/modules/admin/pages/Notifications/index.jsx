@@ -131,6 +131,26 @@ const Notifications = () => {
                 Mark All Read
               </button>
             )}
+            {notifications.length > 0 && (
+              <button
+                onClick={async () => {
+                  if (window.confirm('Are you sure you want to delete all notifications?')) {
+                    try {
+                      await api.delete('/notifications/delete-all');
+                      setNotifications([]);
+                      toast.success('All notifications cleared');
+                    } catch (error) {
+                      console.error('Error clearing notifications:', error);
+                      toast.error('Failed to clear notifications');
+                    }
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <FiTrash2 className="text-sm" />
+                Clear All
+              </button>
+            )}
           </div>
         </div>
 
@@ -141,8 +161,8 @@ const Notifications = () => {
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${filter === f
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-500 hover:bg-gray-100'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-500 hover:bg-gray-100'
                 }`}
             >
               {f}
