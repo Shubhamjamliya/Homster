@@ -103,6 +103,7 @@ const VendorSignup = () => {
     }
 
     setUploadingDocs(prev => ({ ...prev, [type]: true }));
+    const loadingToast = toast.loading("Processing file...");
 
     try {
       let fileToUpload = file;
@@ -117,8 +118,11 @@ const VendorSignup = () => {
             quality: 0.8
           });
           fileToUpload = compressedFile;
+          toast.dismiss(loadingToast); // Dismiss compression loading
         } catch (compressionError) {
           console.error("Compression failed, using original file", compressionError);
+          toast.error("Compression failed, using original");
+          // fileToUpload remains original
         }
       }
 
@@ -134,11 +138,20 @@ const VendorSignup = () => {
           [type]: previewUrl
         }));
         setUploadingDocs(prev => ({ ...prev, [type]: false }));
+        toast.success("File processed", { duration: 2000 });
       };
+
+      reader.onerror = () => {
+        console.error("FileReader failed");
+        toast.error("Failed to read file");
+        setUploadingDocs(prev => ({ ...prev, [type]: false }));
+      };
+
       reader.readAsDataURL(fileToUpload);
 
     } catch (error) {
       console.error("Upload processing error", error);
+      toast.dismiss(loadingToast);
       toast.error("Failed to process file");
       setUploadingDocs(prev => ({ ...prev, [type]: false }));
     }
