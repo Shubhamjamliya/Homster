@@ -138,7 +138,7 @@ const VendorSignup = () => {
           [type]: previewUrl
         }));
         setUploadingDocs(prev => ({ ...prev, [type]: false }));
-        toast.success("File processed", { duration: 2000 });
+        toast.success("Image uploaded", { duration: 2000 });
       };
 
       reader.onerror = () => {
@@ -188,8 +188,10 @@ const VendorSignup = () => {
 
     // Manual Document Validation remains
     const hasAadharDoc = formData.documents.some(d => d.type === 'aadhar');
+    const hasAadharBackDoc = formData.documents.some(d => d.type === 'aadharBack');
     const hasPanDoc = formData.documents.some(d => d.type === 'pan');
-    if (!hasAadharDoc) { toast.error('Please upload Aadhar document'); return; }
+    if (!hasAadharDoc) { toast.error('Please upload Aadhar Front document'); return; }
+    if (!hasAadharBackDoc) { toast.error('Please upload Aadhar Back document'); return; }
     if (!hasPanDoc) { toast.error('Please upload PAN document'); return; }
 
     setIsLoading(true);
@@ -197,6 +199,7 @@ const VendorSignup = () => {
     if (verificationToken) {
       try {
         const aadharDoc = formData.documents.find(d => d.type === 'aadhar')?.url || null;
+        const aadharBackDoc = formData.documents.find(d => d.type === 'aadharBack')?.url || null;
         const panDoc = formData.documents.find(d => d.type === 'pan')?.url || null;
         const otherDocs = formData.documents.filter(d => d.type === 'other').map(d => d.url);
 
@@ -208,12 +211,11 @@ const VendorSignup = () => {
           pan: formData.pan,
           service: [],
           aadharDocument: aadharDoc,
+          aadharBackDocument: aadharBackDoc,
           panDocument: panDoc,
           otherDocuments: otherDocs,
           verificationToken
         };
-
-        toast.success("Sending data to server, please wait...", { duration: 3000 });
 
         const response = await register(registerData);
 
@@ -286,6 +288,7 @@ const VendorSignup = () => {
     setIsLoading(true);
     try {
       const aadharDoc = formData.documents.find(d => d.type === 'aadhar')?.url || null;
+      const aadharBackDoc = formData.documents.find(d => d.type === 'aadharBack')?.url || null;
       const panDoc = formData.documents.find(d => d.type === 'pan')?.url || null;
       const otherDocs = formData.documents.filter(d => d.type === 'other').map(d => d.url);
 
@@ -297,6 +300,7 @@ const VendorSignup = () => {
         pan: formData.pan,
         service: formData.service,
         aadharDocument: aadharDoc,
+        aadharBackDocument: aadharBackDoc,
         panDocument: panDoc,
         otherDocuments: otherDocs,
         otp: otpValue,
@@ -452,8 +456,9 @@ const VendorSignup = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     {/* Aadhar Upload */}
+                    {/* Aadhar Front Upload */}
                     <div className="space-y-2 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Aadhar Card</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Aadhar Front</p>
                       {documentPreview.aadhar ? (
                         <div className="relative group overflow-hidden rounded-xl">
                           <img src={documentPreview.aadhar} className="w-full h-28 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
@@ -474,8 +479,38 @@ const VendorSignup = () => {
                             <div className="p-2.5 bg-blue-50 text-blue-600 rounded-full mb-1 hover:bg-blue-100">
                               <FiUpload className="w-5 h-5" />
                             </div>
-                            <span className="text-[10px] text-gray-500 font-bold">Upload Image</span>
-                            <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => handleDocumentUpload(e, 'aadhar')} disabled={uploadingDocs.aadhar} />
+                            <span className="text-[10px] text-gray-500 font-bold">Upload Front</span>
+                            <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'aadhar')} disabled={uploadingDocs.aadhar} />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Aadhar Back Upload */}
+                    <div className="space-y-2 animate-fade-in" style={{ animationDelay: '0.25s' }}>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Aadhar Back</p>
+                      {documentPreview.aadharBack ? (
+                        <div className="relative group overflow-hidden rounded-xl">
+                          <img src={documentPreview.aadharBack} className="w-full h-28 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button type="button" onClick={() => removeDocument('aadharBack')} className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
+                              <FiX size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:border-[#347989] group bg-white relative">
+                          {uploadingDocs.aadharBack ? (
+                            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10 rounded-xl">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#347989]"></div>
+                            </div>
+                          ) : null}
+                          <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
+                            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-full mb-1 hover:bg-blue-100">
+                              <FiUpload className="w-5 h-5" />
+                            </div>
+                            <span className="text-[10px] text-gray-500 font-bold">Upload Back</span>
+                            <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'aadharBack')} disabled={uploadingDocs.aadharBack} />
                           </label>
                         </div>
                       )}
@@ -505,7 +540,7 @@ const VendorSignup = () => {
                               <FiUpload className="w-5 h-5" />
                             </div>
                             <span className="text-[10px] text-gray-500 font-bold">Upload Image</span>
-                            <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => handleDocumentUpload(e, 'pan')} disabled={uploadingDocs.pan} />
+                            <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'pan')} disabled={uploadingDocs.pan} />
                           </label>
                         </div>
                       )}

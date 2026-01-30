@@ -146,7 +146,7 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadharNumber, aadharDocument } = req.body;
+    const { name, email, verificationToken, aadharNumber, aadharDocument, aadharBackDocument } = req.body;
     let phone = req.body.phone;
 
     if (verificationToken) {
@@ -171,9 +171,16 @@ const register = async (req, res) => {
 
     // Upload Aadhar
     let aadharUrl = aadharDocument || null;
+    let aadharBackUrl = aadharBackDocument || null;
+
     if (aadharUrl && aadharUrl.startsWith('data:')) {
       const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'workers/documents' });
       if (uploadRes.success) aadharUrl = uploadRes.url;
+    }
+
+    if (aadharBackUrl && aadharBackUrl.startsWith('data:')) {
+      const uploadRes = await cloudinaryService.uploadFile(aadharBackUrl, { folder: 'workers/documents' });
+      if (uploadRes.success) aadharBackUrl = uploadRes.url;
     }
 
     // Create worker
@@ -182,7 +189,8 @@ const register = async (req, res) => {
       isPhoneVerified: true,
       aadhar: {
         number: req.body.aadhar || aadharNumber,
-        document: aadharUrl
+        document: aadharUrl,
+        backDocument: aadharBackUrl
       },
       status: WORKER_STATUS.OFFLINE
     });

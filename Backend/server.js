@@ -66,17 +66,7 @@ app.use(cors({
 
 // CORS configuration finished above
 
-// DEBUG: Log Vendor Register Request (Placed BEFORE Body Parser to catch connection)
-app.use('/api/vendors/auth/register', (req, res, next) => {
-  console.log('================================================');
-  console.log('DEBUG: Vendor Register Request Hit Server (Pre-BodyParser)');
-  console.log('Method:', req.method);
-  console.log('Headers Content-Type:', req.headers['content-type']);
-  console.log('Headers Content-Length:', req.headers['content-length']);
-  console.log('Origin:', req.headers['origin']);
-  console.log('================================================');
-  next();
-});
+// CORS configuration finished above
 
 // Body parser middleware
 app.use(express.json({ limit: '50mb' }));

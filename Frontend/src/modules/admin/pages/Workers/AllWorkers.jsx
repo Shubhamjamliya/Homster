@@ -40,6 +40,7 @@ const AllWorkers = () => {
           pan: worker.pan?.number,
           documents: {
             aadhar: worker.aadhar?.document,
+            aadharBack: worker.aadhar?.backDocument,
             pan: worker.pan?.document,
             other: worker.otherDocuments?.[0]
           },
@@ -414,14 +415,32 @@ const AllWorkers = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {selectedWorker.documents.aadhar && (
                   <div>
-                    <label className="block text-xs text-gray-600 mb-2">Aadhar Document</label>
+                    <label className="block text-xs text-gray-600 mb-2">Aadhar Front</label>
                     <img
                       src={selectedWorker.documents.aadhar}
-                      alt="Aadhar"
+                      alt="Aadhar Front"
                       className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
                     />
                     <a
                       href={selectedWorker.documents.aadhar}
+                      download
+                      className="mt-2 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      <FiDownload className="w-4 h-4" />
+                      Download
+                    </a>
+                  </div>
+                )}
+                {selectedWorker.documents.aadharBack && (
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-2">Aadhar Back</label>
+                    <img
+                      src={selectedWorker.documents.aadharBack}
+                      alt="Aadhar Back"
+                      className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
+                    />
+                    <a
+                      href={selectedWorker.documents.aadharBack}
                       download
                       className="mt-2 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
                     >

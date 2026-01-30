@@ -203,12 +203,17 @@ const register = async (req, res) => {
 
     // Upload documents
     let aadharUrl = req.body.aadharDocument || null;
+    let aadharBackUrl = req.body.aadharBackDocument || null;
     let panUrl = req.body.panDocument || null;
     let otherUrls = req.body.otherDocuments || [];
 
     if (aadharUrl && aadharUrl.startsWith('data:')) {
       const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'vendors/documents' });
       if (uploadRes.success) aadharUrl = uploadRes.url;
+    }
+    if (aadharBackUrl && aadharBackUrl.startsWith('data:')) {
+      const uploadRes = await cloudinaryService.uploadFile(aadharBackUrl, { folder: 'vendors/documents' });
+      if (uploadRes.success) aadharBackUrl = uploadRes.url;
     }
     if (panUrl && panUrl.startsWith('data:')) {
       const uploadRes = await cloudinaryService.uploadFile(panUrl, { folder: 'vendors/documents' });
@@ -230,7 +235,11 @@ const register = async (req, res) => {
     const vendor = await Vendor.create({
       name, email, phone,
       service: [], // Default empty as requested
-      aadhar: { number: aadhar, document: aadharUrl },
+      aadhar: {
+        number: aadhar,
+        document: aadharUrl,
+        backDocument: aadharBackUrl
+      },
       pan: { number: pan, document: panUrl },
       otherDocuments: otherUrls,
       approvalStatus: VENDOR_STATUS.PENDING,

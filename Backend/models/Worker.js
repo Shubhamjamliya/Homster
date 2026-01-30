@@ -38,8 +38,12 @@ const workerSchema = new mongoose.Schema({
       trim: true
     },
     document: {
-      type: String, // Cloudinary URL
-      required: [true, 'Please upload Aadhar document']
+      type: String, // Cloudinary URL (Front)
+      required: [true, 'Please upload Aadhar Front document']
+    },
+    backDocument: {
+      type: String, // Cloudinary URL (Back)
+      required: [true, 'Please upload Aadhar Back document']
     }
   },
   vendorId: {

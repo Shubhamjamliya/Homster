@@ -37,6 +37,7 @@ const AllVendors = () => {
           pan: vendor.pan?.number,
           documents: {
             aadhar: vendor.aadhar?.document,
+            aadharBack: vendor.aadhar?.backDocument,
             pan: vendor.pan?.document,
             other: vendor.otherDocuments?.[0]
           },
@@ -382,14 +383,32 @@ const AllVendors = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {selectedVendor.documents.aadhar && (
                   <div>
-                    <label className="block text-xs text-gray-600 mb-2">Aadhar Card</label>
+                    <label className="block text-xs text-gray-600 mb-2">Aadhar Front</label>
                     <img
                       src={selectedVendor.documents.aadhar}
-                      alt="Aadhar"
+                      alt="Aadhar Front"
                       className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
                     />
                     <a
                       href={selectedVendor.documents.aadhar}
+                      download
+                      className="mt-2 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      <FiDownload className="w-4 h-4" />
+                      Download
+                    </a>
+                  </div>
+                )}
+                {selectedVendor.documents.aadharBack && (
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-2">Aadhar Back</label>
+                    <img
+                      src={selectedVendor.documents.aadharBack}
+                      alt="Aadhar Back"
+                      className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
+                    />
+                    <a
+                      href={selectedVendor.documents.aadharBack}
                       download
                       className="mt-2 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
                     >
