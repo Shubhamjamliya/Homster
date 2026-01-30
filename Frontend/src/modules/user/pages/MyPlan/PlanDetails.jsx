@@ -141,6 +141,37 @@ const PlanDetails = () => {
                 <p className="text-gray-400 text-sm italic py-4 text-center">Standard benefits are included with this plan.</p>
               )}
             </ul>
+
+            {(() => {
+              const planOrder = ['Silver', 'Gold', 'Platinum', 'Diamond'];
+              const currentName = planOrder.find(p => plan.name?.toLowerCase().includes(p.toLowerCase()));
+              const currentIndex = currentName ? planOrder.indexOf(currentName) : -1;
+              const previousPlan = currentIndex > 0 ? planOrder[currentIndex - 1] : null;
+
+              if (previousPlan) {
+                // Determine border color based on theme
+                const borderColor = theme.color.replace('text-', 'border-').replace('600', '200');
+                // Fallback if needed, but 'text-indigo-600' -> 'border-indigo-200' is standard tailwind.
+                // However, dynamic string construction is risky. 
+                // Let's use a simpler known border.
+                return (
+                  <div className={`mt-6 p-4 rounded-2xl border border-dashed flex items-start gap-3 bg-gray-50 border-gray-300`}>
+                    <div className={`mt-0.5 p-1.5 rounded-full ${theme.bg} text-white shadow-sm shrink-0`}>
+                      <FiInfo size={14} />
+                    </div>
+                    <div>
+                      <h4 className={`text-base font-black ${theme.color} mb-1 uppercase tracking-wide`}>
+                        INCLUDES {previousPlan} BENEFITS
+                      </h4>
+                      <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                        This plan is comprehensive! It includes <span className="font-bold text-gray-900 border-b-2 border-gray-200">everything in the {previousPlan} Plan</span> plus the exclusive {plan.name} benefits listed above.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
         </div>
 

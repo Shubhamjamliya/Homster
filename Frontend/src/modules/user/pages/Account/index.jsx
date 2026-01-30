@@ -405,11 +405,7 @@ const Account = () => {
               label="Manage Addresses"
               onClick={() => navigate('/user/manage-addresses')}
             />
-            <MenuItem
-              icon={FiCreditCard}
-              label="Payment Methods"
-              onClick={() => navigate('/user/manage-payment-methods')}
-            />
+
             <MenuItem
               icon={FiSettings}
               label="Settings"
