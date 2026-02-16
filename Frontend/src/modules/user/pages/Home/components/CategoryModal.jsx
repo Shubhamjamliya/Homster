@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { FiX, FiLayers } from 'react-icons/fi';
+import { FiX, FiLayers, FiArrowLeft, FiPlus } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { themeColors } from '../../../../../theme';
 import { publicCatalogService } from '../../../../../services/catalogService';
+import { useCart } from '../../../../../context/CartContext';
+import { toast } from 'react-hot-toast';
 
 const toAssetUrl = (url) => {
   if (!url) return '';
@@ -16,62 +18,120 @@ const toAssetUrl = (url) => {
 
 const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCount, currentCity }) => {
   const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [isClosing, setIsClosing] = useState(false);
-  const [services, setServices] = useState([]);
+
+  const [view, setView] = useState('brands'); // 'brands' | 'services'
+  const [brands, setBrands] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [services, setServices] = useState([]); // Sub-services
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const cityId = currentCity?._id || currentCity?.id;
-
-  useEffect(() => {
-    if (!isOpen) {
-      setIsClosing(false);
-    } else if (category?.id) {
-      // Fetch services for this category
-      const fetchServices = async () => {
-        try {
-          setLoading(true);
-          const response = await publicCatalogService.getServices({
-            categoryId: category.id,
-            cityId: cityId
-          });
-          if (response.success) {
-            setServices(response.services);
-          }
-        } catch (error) {
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchServices();
-    }
-  }, [isOpen, category?.id, cityId]);
-
-  const handleClose = () => {
-    setIsClosing(true);
-    onClose();
-    setTimeout(() => setIsClosing(false), 200);
-  };
-
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setIsClosing(false);
+      // Reset state on close
+      setTimeout(() => {
+        setView('brands');
+        setSelectedBrand(null);
+        setBrands([]);
+        setServices([]);
+      }, 300);
+    } else if (category?.id) {
+      // Fetch Brands for this category
+      fetchBrands();
+    }
+  }, [isOpen, category?.id, cityId]);
+
+  const fetchBrands = async () => {
+    try {
+      setLoading(true);
+      const response = await publicCatalogService.getBrands({
+        categoryId: category.id,
+        cityId: cityId
+      });
+      if (response.success) {
+        setBrands(response.brands || []);
+      }
+    } catch (error) {
+      console.error("Failed to load brands:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchServices = async (brandId) => {
+    try {
+      setLoading(true);
+      const response = await publicCatalogService.getServices({
+        brandId: brandId,
+        cityId: cityId // Optional if needed
+      });
+      if (response.success) {
+        setServices(response.services || []);
+      }
+    } catch (error) {
+      console.error("Failed to load services:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBrandClick = (brand) => {
+    setSelectedBrand(brand);
+    setView('services');
+    fetchServices(brand.id || brand._id);
+  };
+
+  const handleBackToBrands = () => {
+    setView('brands');
+    setSelectedBrand(null);
+    setServices([]);
+  };
+
+  const handleServiceClick = async (service) => {
+    // Add to cart logic
+    try {
+      const cartItemData = {
+        serviceId: service.id || service._id, // NEW service ID
+        categoryId: category?.id,
+        title: service.title,
+        description: service.description || '',
+        icon: toAssetUrl(service.imageUrl), // Assuming services have imageUrl or use brand icon?
+        // If service has no image, fallback to brand icon?
+        category: category?.title,
+        brand: selectedBrand?.title,
+        price: service.discountPrice || service.basePrice,
+        originalPrice: service.discountPrice ? service.basePrice : null,
+        unitPrice: service.discountPrice || service.basePrice,
+        serviceCount: 1,
+        rating: "4.8",
+        reviews: "1k+",
+        vendorId: service.vendorId || selectedBrand.vendorId || null
+      };
+
+      const response = await addToCart(cartItemData);
+      if (response.success) {
+        toast.success(`${service.title} added to cart`);
+        // Optional: Close modal or stay?
+        // onClose();
+      } else {
+        toast.error(response.message || 'Failed to add to cart');
+      }
+    } catch (error) {
+      toast.error('Failed to add to cart');
+    }
+  };
+
   if (!isOpen && !isClosing) return null;
   if (!mounted) return null;
-
-  const handleServiceClick = (service) => {
-    // Navigate to dynamic service page
-    if (service.slug) {
-      navigate(`/user/${service.slug}`);
-    }
-
-    // Close modal after navigation
-    setIsClosing(true);
-    onClose();
-    setTimeout(() => setIsClosing(false), 100);
-  };
 
   const modalContent = (
     <AnimatePresence>
@@ -94,7 +154,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
             }}
           />
 
-          {/* Modal Container with Close Button */}
+          {/* Modal Container */}
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
@@ -108,76 +168,113 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
               WebkitBackfaceVisibility: 'hidden',
             }}
           >
-            {/* Close Button - Above Modal */}
+            {/* Close Button */}
             <div className="absolute -top-12 right-4 z-[60]">
               <button
                 onClick={onClose}
                 className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 transition-colors"
-                title="Close"
               >
                 <FiX className="w-6 h-6 text-gray-800" />
               </button>
             </div>
 
-            {/* Modal */}
-            <div
-              className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Content */}
+            <div className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto min-h-[50vh]">
               <div className="px-4 py-6">
-                {/* Title */}
-                <div className="flex items-center justify-between mb-6">
-                  <h1 className="text-xl font-bold text-gray-900">{category?.title || 'Service Category'}</h1>
-                  {loading && <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: themeColors.button }}></div>}
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-6">
+                  {view === 'services' && (
+                    <button
+                      onClick={handleBackToBrands}
+                      className="p-1 rounded-full hover:bg-gray-100"
+                    >
+                      <FiArrowLeft className="w-6 h-6 text-gray-800" />
+                    </button>
+                  )}
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-900">
+                      {view === 'brands' ? (category?.title || 'Brands') : (selectedBrand?.title || 'Services')}
+                    </h1>
+                    {view === 'services' && <p className="text-xs text-gray-500">Select a service to add</p>}
+                  </div>
+                  {loading && <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin ml-auto"></div>}
                 </div>
 
-                {loading ? (
+                {/* Content */}
+                {loading && (view === 'brands' ? brands.length === 0 : services.length === 0) ? (
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 animate-pulse">
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
                       <div key={i} className="flex flex-col items-center">
                         <div className="w-20 h-20 bg-gray-200 rounded-2xl mb-2"></div>
                         <div className="h-3 w-16 bg-gray-200 rounded"></div>
                       </div>
                     ))}
                   </div>
-                ) : services.length > 0 ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                    {services.map((service) => (
-                      <div
-                        key={service.id}
-                        onClick={() => handleServiceClick(service)}
-                        className="flex flex-col items-center cursor-pointer group active:scale-95 transition-all"
-                      >
-                        <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center mb-2 group-hover:bg-gray-100 transition-colors shadow-sm overflow-hidden border border-gray-100">
-                          {service.icon ? (
-                            <img
-                              src={toAssetUrl(service.icon)}
-                              alt={service.title}
-                              className="w-14 h-14 object-contain group-hover:scale-110 transition-transform"
-                              loading="lazy"
-                              decoding="async"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                              <FiLayers className="w-5 h-5 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-[11px] font-bold text-gray-800 text-center leading-tight line-clamp-2 px-1">
-                          {service.title}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
                 ) : (
-                  <div className="py-12 flex flex-col items-center justify-center text-center px-6">
-                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                      <FiLayers className="w-8 h-8 text-gray-300" />
-                    </div>
-                    <h3 className="text-base font-bold text-gray-900 mb-1">No services found</h3>
-                    <p className="text-sm text-gray-500">We're working on bringing services to this category soon.</p>
-                  </div>
+                  <>
+                    {view === 'brands' ? (
+                      // Brands Grid
+                      brands.length > 0 ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                          {brands.map((brand) => (
+                            <div
+                              key={brand.id || brand._id}
+                              onClick={() => handleBrandClick(brand)}
+                              className="flex flex-col items-center cursor-pointer group active:scale-95 transition-all"
+                            >
+                              <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center mb-2 group-hover:bg-gray-100 transition-colors shadow-sm overflow-hidden border border-gray-100 relative">
+                                {brand.icon ? (
+                                  <img
+                                    src={toAssetUrl(brand.icon)}
+                                    alt={brand.title}
+                                    className="w-14 h-14 object-contain group-hover:scale-110 transition-transform"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <FiLayers className="w-8 h-8 text-gray-300" />
+                                )}
+                                {brand.badge && (
+                                  <span className="absolute top-0 right-0 bg-purple-100 text-purple-700 text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg">
+                                    {brand.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] font-bold text-gray-800 text-center leading-tight line-clamp-2 px-1">
+                                {brand.title}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12 text-gray-500">
+                          <p>No brands found in this category.</p>
+                        </div>
+                      )
+                    ) : (
+                      // Services List
+                      services.length > 0 ? (
+                        <div className="space-y-4">
+                          {services.map((svc) => (
+                            <div key={svc.id || svc._id} className="flex justify-between items-center p-3 border border-gray-100 rounded-xl hover:shadow-md transition-shadow">
+                              <div className="flex-1">
+                                <h3 className="font-bold text-gray-900">{svc.title}</h3>
+                                <p className="text-sm text-gray-500">₹{svc.basePrice}</p>
+                              </div>
+                              <button
+                                onClick={() => handleServiceClick(svc)}
+                                className="px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-green-100"
+                              >
+                                <FiPlus /> Add
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12 text-gray-500">
+                          <p>No services available for this brand yet.</p>
+                        </div>
+                      )
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -191,6 +288,4 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
 });
 
 CategoryModal.displayName = 'CategoryModal';
-
 export default CategoryModal;
-

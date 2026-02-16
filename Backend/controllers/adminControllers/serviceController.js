@@ -1,78 +1,35 @@
-const Service = require('../../models/Service');
-const Category = require('../../models/Category');
+const Service = require('../../models/UserService');
+const Brand = require('../../models/Brand');
 const { validationResult } = require('express-validator');
 const { SERVICE_STATUS } = require('../../utils/constants');
 
 /**
- * Get all services
+ * Get all services (with filter by brandId)
  * GET /api/admin/services
  */
 const getAllServices = async (req, res) => {
   try {
-    const { status, categoryId, cityId } = req.query;
+    const { status, brandId } = req.query;
 
-    // Build query
     const query = {};
     if (status) query.status = status;
-    if (categoryId) query.categoryIds = categoryId;
-    if (cityId) query.cityIds = cityId;
+    if (brandId) query.brandId = brandId;
 
     const services = await Service.find(query)
-      .populate('categoryIds', 'title slug')
-      .select('-__v')
-      .sort({ createdAt: -1 })
-      .lean();
-
-    // Helper function to clean MongoDB _id fields from nested objects
-    const cleanMongoIds = (obj) => {
-      if (!obj) return obj;
-      if (Array.isArray(obj)) {
-        return obj.map(item => cleanMongoIds(item));
-      }
-      if (typeof obj === 'object' && obj !== null) {
-        const cleaned = {};
-        for (const [key, value] of Object.entries(obj)) {
-          if (key === '_id') continue; // Skip _id fields
-          cleaned[key] = cleanMongoIds(value);
-        }
-        return cleaned;
-      }
-      return obj;
-    };
+      .populate('brandId', 'title')
+      .populate('categoryId', 'title')
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
       count: services.length,
-      services: services.map(svc => ({
-        id: svc._id.toString(),
-        title: svc.title,
-        slug: svc.slug,
-        cityIds: svc.cityIds || [],
-        categoryIds: (svc.categoryIds || []).map(cat => (cat && cat._id) ? cat._id.toString() : cat.toString()),
-        categoryTitles: (svc.categoryIds || []).map(cat => (cat && cat.title) ? cat.title : null).filter(Boolean),
-        categoryId: svc.categoryIds?.[0]?._id?.toString() || svc.categoryIds?.[0]?.toString(),
-        categoryTitle: svc.categoryIds?.[0]?.title || null,
-        iconUrl: svc.iconUrl,
-        badge: svc.badge,
-        routePath: svc.routePath,
-        basePrice: svc.basePrice,
-        discountPrice: svc.discountPrice,
-        status: svc.status,
-        isPopular: svc.isPopular,
-        isFeatured: svc.isFeatured,
-        rating: svc.rating,
-        totalBookings: svc.totalBookings,
-        page: cleanMongoIds(svc.page) || {},
-        sections: cleanMongoIds(svc.sections) || [],
-        createdAt: svc.createdAt,
-        updatedAt: svc.updatedAt
-      }))
+      services
     });
   } catch (error) {
     console.error('Get all services error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch services. Please try again.'
+      message: 'Failed to fetch services'
     });
   }
 };
@@ -83,12 +40,9 @@ const getAllServices = async (req, res) => {
  */
 const getServiceById = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const service = await Service.findById(id)
-      .populate('categoryIds', 'title slug')
-      .select('-__v')
-      .lean();
+    const service = await Service.findById(req.params.id)
+      .populate('brandId', 'title')
+      .populate('categoryId', 'title');
 
     if (!service) {
       return res.status(404).json({
@@ -97,54 +51,15 @@ const getServiceById = async (req, res) => {
       });
     }
 
-    // Helper function to clean MongoDB _id fields from nested objects
-    const cleanMongoIds = (obj) => {
-      if (!obj) return obj;
-      if (Array.isArray(obj)) {
-        return obj.map(item => cleanMongoIds(item));
-      }
-      if (typeof obj === 'object' && obj !== null) {
-        const cleaned = {};
-        for (const [key, value] of Object.entries(obj)) {
-          if (key === '_id') continue; // Skip _id fields
-          cleaned[key] = cleanMongoIds(value);
-        }
-        return cleaned;
-      }
-      return obj;
-    };
-
     res.status(200).json({
       success: true,
-      service: {
-        id: service._id.toString(),
-        title: service.title,
-        slug: service.slug,
-        categoryIds: (service.categoryIds || []).map(cat => cat._id?.toString() || cat.toString()),
-        categoryTitles: (service.categoryIds || []).map(cat => cat.title).filter(Boolean),
-        categoryId: service.categoryIds?.[0]?._id?.toString() || service.categoryIds?.[0]?.toString(),
-        categoryTitle: service.categoryIds?.[0]?.title || null,
-        iconUrl: service.iconUrl,
-        badge: service.badge,
-        routePath: service.routePath,
-        basePrice: service.basePrice,
-        discountPrice: service.discountPrice,
-        status: service.status,
-        isPopular: service.isPopular,
-        isFeatured: service.isFeatured,
-        rating: service.rating,
-        totalBookings: service.totalBookings,
-        page: cleanMongoIds(service.page) || {},
-        sections: cleanMongoIds(service.sections) || [],
-        createdAt: service.createdAt,
-        updatedAt: service.updatedAt
-      }
+      service
     });
   } catch (error) {
-    console.error('Get service by ID error:', error);
+    console.error('Get service error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch service. Please try again.'
+      message: 'Failed to fetch service'
     });
   }
 };
@@ -165,137 +80,56 @@ const createService = async (req, res) => {
     }
 
     const {
+      brandId,
+      categoryId,
       title,
-      slug,
-      categoryId, // backward compatibility
-      categoryIds: providedCategoryIds, // array
-      iconUrl,
-      badge,
       basePrice,
-      discountPrice,
-      page,
-      sections,
-      cityIds
+      gstPercentage,
+      description,
+      status,
+      iconUrl
     } = req.body;
 
-    // Validate cities if provided
-    if (cityIds && cityIds.length > 0) {
-      // Logic to validate cities could be added here
-      // For now we trust the ID list or rely on frontend
-    }
-
-    // Determine final category IDs
-    const categoryIds = providedCategoryIds || (categoryId ? [categoryId] : []);
-
-    if (categoryIds.length === 0) {
-      return res.status(400).json({
+    // Verify brand exists
+    const brand = await Brand.findById(brandId);
+    if (!brand) {
+      return res.status(404).json({
         success: false,
-        message: 'Please provide at least one category'
+        message: 'Brand not found'
       });
     }
 
-    // Validate categories exist
-    const categoriesCount = await Category.countDocuments({ _id: { $in: categoryIds } });
-    if (categoriesCount !== categoryIds.length) {
-      return res.status(400).json({
-        success: false,
-        message: 'One or more categories not found'
-      });
-    }
-
-    // Check if service with same title or slug exists
-    const existingService = await Service.findOne({
-      $or: [
-        { title: title.trim() },
-        { slug: slug?.trim().toLowerCase() }
-      ]
-    });
-
-    if (existingService) {
-      return res.status(400).json({
-        success: false,
-        message: 'Service with this title or slug already exists'
-      });
-    }
-
-    // Helper to sanitize targetCategoryId
-    const sanitizeId = (id) => id === '' ? null : id;
-
-    const sanitizedPage = page ? { ...page } : {
-      banners: [],
-      ratingTitle: title.trim(),
-      ratingValue: '',
-      bookingsText: '',
-      paymentOffersEnabled: true,
-      paymentOffers: [],
-      serviceCategoriesGrid: []
-    };
-
-    if (sanitizedPage.serviceCategoriesGrid) {
-      sanitizedPage.serviceCategoriesGrid = sanitizedPage.serviceCategoriesGrid.map(item => ({
-        ...item,
-        targetCategoryId: sanitizeId(item.targetCategoryId)
-      }));
-    }
-
-    const sanitizedSections = (sections || []).map(section => {
-      const newSection = { ...section };
-      if (Array.isArray(newSection.cards)) {
-        newSection.cards = newSection.cards.map(card => ({
-          ...card,
-          targetCategoryId: sanitizeId(card.targetCategoryId)
-        }));
-      }
-      return newSection;
-    });
-
+    // Try to create service
+    // If slug collision happens within same brand, mongoose throws duplicate key error
     const service = await Service.create({
-      title: title.trim(),
-      slug: slug?.trim().toLowerCase() || undefined,
-      categoryIds: categoryIds,
-      iconUrl: iconUrl || null,
-      badge: badge?.trim() || null,
-      routePath: `/user/${slug?.trim().toLowerCase() || title.trim().toLowerCase().replace(/\s+/g, '-')}`,
-      basePrice: basePrice || 0,
-      discountPrice: discountPrice || null,
-      page: sanitizedPage,
-      sections: sanitizedSections,
-      cityIds: cityIds || [],
-      status: SERVICE_STATUS.ACTIVE,
-      createdBy: req.user.id
+      brandId,
+      categoryId,
+      title,
+      basePrice,
+      gstPercentage: gstPercentage || 18,
+      description,
+      status: status || SERVICE_STATUS.ACTIVE,
+      iconUrl
     });
 
     res.status(201).json({
       success: true,
       message: 'Service created successfully',
-      service: {
-        id: service._id,
-        title: service.title,
-        slug: service.slug,
-        categoryIds: service.categoryIds.map(c => c.toString()),
-        iconUrl: service.iconUrl,
-        badge: service.badge,
-        routePath: service.routePath,
-        page: service.page,
-        sections: service.sections,
-        createdAt: service.createdAt,
-        updatedAt: service.updatedAt
-      }
+      service
     });
   } catch (error) {
-    console.error('Create service error:', error);
-
-    // Handle duplicate key error
-    if (error.code === 11000) {
-      return res.status(400).json({
+    // Handle duplicate slug error specifically
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.slug) {
+      return res.status(409).json({
         success: false,
-        message: 'Service with this title or slug already exists'
+        message: 'A service with this name already exists for this brand.'
       });
     }
 
+    console.error('Create service error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create service. Please try again.'
+      message: 'Failed to create service'
     });
   }
 };
@@ -306,35 +140,10 @@ const createService = async (req, res) => {
  */
 const updateService = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
     const { id } = req.params;
-    const {
-      title,
-      slug,
-      categoryId, // backward compatibility
-      categoryIds: providedCategoryIds, // array
-      iconUrl,
-      badge,
-      basePrice,
-      discountPrice,
-      page,
-      sections,
-      status,
-      cityIds: updateCityIds
-    } = req.body;
-
-    const categoryIds = providedCategoryIds || (categoryId ? [categoryId] : undefined);
+    const updates = req.body;
 
     const service = await Service.findById(id);
-
     if (!service) {
       return res.status(404).json({
         success: false,
@@ -342,117 +151,69 @@ const updateService = async (req, res) => {
       });
     }
 
-    // Validate categories if provided
-    if (categoryIds) {
-      const categoriesCount = await Category.countDocuments({ _id: { $in: categoryIds } });
-      if (categoriesCount !== categoryIds.length) {
-        return res.status(400).json({
+    // If brandId is being updated, verify it exists
+    if (updates.brandId) {
+      const brand = await Brand.findById(updates.brandId);
+      if (!brand) {
+        return res.status(404).json({
           success: false,
-          message: 'One or more categories not found'
-        });
-      }
-    }
-
-    // Check if title or slug conflicts with another service
-    if (title || slug) {
-      const existingService = await Service.findOne({
-        _id: { $ne: id },
-        $or: [
-          title ? { title: title.trim() } : {},
-          slug ? { slug: slug.trim().toLowerCase() } : {}
-        ]
-      });
-
-      if (existingService) {
-        return res.status(400).json({
-          success: false,
-          message: 'Service with this title or slug already exists'
+          message: 'Brand not found'
         });
       }
     }
 
     // Update fields
-    if (title !== undefined) service.title = title.trim();
-    if (slug !== undefined) {
-      service.slug = slug.trim().toLowerCase();
-      service.routePath = `/user/${slug.trim().toLowerCase()}`;
-    }
-    if (updateCityIds !== undefined) service.cityIds = updateCityIds;
-    if (categoryIds !== undefined) service.categoryIds = categoryIds;
-    if (iconUrl !== undefined) service.iconUrl = iconUrl || null;
-    if (badge !== undefined) service.badge = badge?.trim() || null;
-    if (basePrice !== undefined) service.basePrice = Number(basePrice) || 0;
-    if (discountPrice !== undefined) service.discountPrice = discountPrice ? Number(discountPrice) : null;
-    if (page !== undefined) service.page = page;
-    if (sections !== undefined) {
-      // Helper to sanitize targetCategoryId
-      const sanitizeId = (id) => id === '' ? null : id;
+    if (updates.title) service.title = updates.title;
+    if (updates.categoryId) service.categoryId = updates.categoryId;
+    if (updates.basePrice !== undefined) service.basePrice = updates.basePrice;
+    if (updates.gstPercentage !== undefined) service.gstPercentage = updates.gstPercentage;
+    if (updates.description !== undefined) service.description = updates.description;
+    if (updates.status) service.status = updates.status;
+    if (updates.iconUrl !== undefined) service.iconUrl = updates.iconUrl;
+    if (updates.brandId) service.brandId = updates.brandId;
 
-      if (Array.isArray(sections)) {
-        service.sections = sections.map(section => {
-          const newSection = { ...section };
-
-          // Sanitize card IDs in sections
-          if (Array.isArray(newSection.cards)) {
-            newSection.cards = newSection.cards.map(card => ({
-              ...card,
-              targetCategoryId: sanitizeId(card.targetCategoryId)
-            }));
-          }
-
-          return newSection;
-        });
-      } else {
-        service.sections = sections;
-      }
-    }
-    if (status !== undefined) service.status = status;
+    // Slugs are auto-updated if title changes via pre-save hook? 
+    // Wait, the pre-save hook only runs if slug is empty or we explicitly modify it?
+    // In Mongoose schemas, I usually rely on logic. 
+    // My previous Service.js schema had logic: if (this.isModified('title') && !this.slug)
+    // This implies slug is created once.
+    // If user changes title, slug might remain old? 
+    // If they want to regenerate usage, they should clear slug?
+    // UserService.js has: if (this.isModified('title') && !this.slug)
+    // So updating title WON'T update slug unless slug is cleared.
+    // This is generally safer for URLs.
 
     await service.save();
 
     res.status(200).json({
       success: true,
       message: 'Service updated successfully',
-      service: {
-        id: service._id,
-        title: service.title,
-        slug: service.slug,
-        categoryIds: service.categoryIds.map(c => c.toString()),
-        iconUrl: service.iconUrl,
-        badge: service.badge,
-        routePath: service.routePath,
-        page: service.page,
-        sections: service.sections,
-        createdAt: service.createdAt,
-        updatedAt: service.updatedAt
-      }
+      service
     });
   } catch (error) {
-    console.error('Update service error:', error);
-
-    // Handle duplicate key error
-    if (error.code === 11000) {
-      return res.status(400).json({
+    // Handle duplicate slug error specifically
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.slug) {
+      return res.status(409).json({
         success: false,
-        message: 'Service with this title or slug already exists'
+        message: 'A service with this name already exists for this brand.'
       });
     }
 
+    console.error('Update service error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update service. Please try again.'
+      message: 'Failed to update service'
     });
   }
 };
 
 /**
- * Delete service (soft delete - set status to deleted)
+ * Delete service
  * DELETE /api/admin/services/:id
  */
 const deleteService = async (req, res) => {
   try {
     const { id } = req.params;
-
     const service = await Service.findById(id);
 
     if (!service) {
@@ -462,7 +223,9 @@ const deleteService = async (req, res) => {
       });
     }
 
-    // Soft delete - set status to deleted
+    // Soft delete or Hard delete?
+    // Constants defines SERVICE_STATUS.DELETED.
+    // UserService schema has status.
     service.status = SERVICE_STATUS.DELETED;
     await service.save();
 
@@ -474,121 +237,7 @@ const deleteService = async (req, res) => {
     console.error('Delete service error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete service. Please try again.'
-    });
-  }
-};
-
-/**
- * Update service page content
- * PATCH /api/admin/services/:id/page
- */
-const updateServicePage = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { page } = req.body;
-
-    const service = await Service.findById(id);
-
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
-    }
-
-    if (page !== undefined) {
-      // Helper to sanitize targetCategoryId
-      const sanitizeId = (id) => id === '' ? null : id;
-
-      const sanitizedPage = { ...page };
-
-      if (sanitizedPage.serviceCategoriesGrid) {
-        sanitizedPage.serviceCategoriesGrid = sanitizedPage.serviceCategoriesGrid.map(item => ({
-          ...item,
-          targetCategoryId: sanitizeId(item.targetCategoryId)
-        }));
-      }
-
-      if (sanitizedPage.paymentOffers) {
-        sanitizedPage.paymentOffers = sanitizedPage.paymentOffers.map(item => ({
-          ...item,
-          targetCategoryId: sanitizeId(item.targetCategoryId)
-        }));
-      }
-
-      if (sanitizedPage.banners) {
-        sanitizedPage.banners = sanitizedPage.banners.map(item => ({
-          ...item,
-          targetCategoryId: sanitizeId(item.targetCategoryId)
-        }));
-      }
-
-      // Explicitly update fields to ensure Mongoose detects changes
-      if (sanitizedPage.ratingTitle !== undefined) service.page.ratingTitle = sanitizedPage.ratingTitle;
-      if (sanitizedPage.ratingValue !== undefined) service.page.ratingValue = sanitizedPage.ratingValue;
-      if (sanitizedPage.bookingsText !== undefined) service.page.bookingsText = sanitizedPage.bookingsText;
-      if (sanitizedPage.paymentOffersEnabled !== undefined) service.page.paymentOffersEnabled = sanitizedPage.paymentOffersEnabled;
-
-      if (sanitizedPage.banners) {
-        service.page.banners = sanitizedPage.banners;
-      }
-
-      if (sanitizedPage.paymentOffers) {
-        service.page.paymentOffers = sanitizedPage.paymentOffers;
-      }
-
-      if (sanitizedPage.serviceCategoriesGrid) {
-        service.page.serviceCategoriesGrid = sanitizedPage.serviceCategoriesGrid;
-      }
-
-      // Mark as modified to ensure saving
-      service.markModified('page');
-    }
-
-    await service.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Service page content updated successfully',
-      service: {
-        id: service._id,
-        page: service.page
-      }
-    });
-  } catch (error) {
-    console.error('Update service page error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update service page. Please try again.'
-    });
-  }
-};
-
-/**
- * Upload service image
- * POST /api/admin/services/upload-image
- */
-const uploadServiceImage = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No image file provided'
-      });
-    }
-
-    // req.file.path contains the full Cloudinary URL when using multer-storage-cloudinary
-    res.status(200).json({
-      success: true,
-      message: 'Image uploaded successfully',
-      imageUrl: req.file.path
-    });
-  } catch (error) {
-    console.error('Upload image error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to upload image'
+      message: 'Failed to delete service'
     });
   }
 };
@@ -598,8 +247,5 @@ module.exports = {
   getServiceById,
   createService,
   updateService,
-  deleteService,
-  updateServicePage,
-  uploadServiceImage
+  deleteService
 };
-

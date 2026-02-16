@@ -70,6 +70,14 @@ const SERVICE_STATUS = {
   DELETED: 'deleted'
 };
 
+// Bill Status
+const BILL_STATUS = {
+  DRAFT: 'draft',
+  GENERATED: 'generated',
+  PAID: 'paid',
+  CANCELLED: 'cancelled'
+};
+
 module.exports = {
   USER_ROLES,
   TOKEN_TYPES,
@@ -77,6 +85,6 @@ module.exports = {
   WORKER_STATUS,
   BOOKING_STATUS,
   PAYMENT_STATUS,
-  SERVICE_STATUS
+  SERVICE_STATUS,
+  BILL_STATUS
 };
-

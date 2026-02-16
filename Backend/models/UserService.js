@@ -2,14 +2,23 @@ const mongoose = require('mongoose');
 const { SERVICE_STATUS } = require('../utils/constants');
 
 /**
- * Service Model (New Structure)
+ * User Service Model
  * Represents individual services strictly under a Brand
+ * separate from internal services or global services
  */
-const serviceSchema = new mongoose.Schema({
+const userServiceSchema = new mongoose.Schema({
   brandId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Brand',
     required: [true, 'Please provide a brand ID'],
+    index: true
+  },
+  // Added based on user request "category -> brand -> service", 
+  // ensuring we can link if needed, though brand already links to category.
+  // Making it optional for now to avoid breaking existing flows if not sent.
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
     index: true
   },
   title: {
@@ -21,7 +30,7 @@ const serviceSchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true,
+    // Removed unique: true from here to allow same slug in different brands
     lowercase: true,
     index: true
   },
@@ -54,8 +63,11 @@ const serviceSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Compound index to ensure slug is unique PER BRAND
+userServiceSchema.index({ brandId: 1, slug: 1 }, { unique: true });
+
 // Generate slug from title before saving
-serviceSchema.pre('validate', async function (next) {
+userServiceSchema.pre('validate', async function (next) {
   if (this.isModified('title') && !this.slug) {
     this.slug = this.title
       .toLowerCase()
@@ -67,4 +79,4 @@ serviceSchema.pre('validate', async function (next) {
   next();
 });
 
-module.exports = mongoose.model('Service', serviceSchema);
+module.exports = mongoose.model('UserService', userServiceSchema);

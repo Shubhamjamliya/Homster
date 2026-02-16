@@ -81,11 +81,11 @@ const ServiceDynamic = () => {
     const fetchService = async () => {
       try {
         setLoading(true);
-        const response = await publicCatalogService.getServiceBySlug(slug, cityId);
+        const response = await publicCatalogService.getBrandBySlug(slug, cityId);
         if (response.success) {
-          setService(response.service);
+          setService(response.brand);
         } else {
-          toast.error(response.message || 'Service not found');
+          toast.error(response.message || 'Brand not found');
           navigate('/user');
         }
       } catch (error) {

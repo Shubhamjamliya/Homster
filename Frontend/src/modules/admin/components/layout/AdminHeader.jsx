@@ -48,7 +48,7 @@ const AdminHeader = ({ onMenuClick }) => {
       { path: '/admin/workers', title: 'Workers', description: 'Monitor and manage platform workers' },
       { path: '/admin/bookings', title: 'Bookings', description: 'Track and manage service bookings' },
       { path: '/admin/bookings/notifications', title: 'Order Notifications', description: 'Track booking alerts and updates' },
-      { path: '/admin/user-categories', title: 'Service Catalog', description: 'Manage platform services and categories' },
+      { path: '/admin/user-categories', title: 'User Catalog', description: 'Manage platform services and categories' },
       { path: '/admin/payments/users', title: 'User Transactions', description: 'Monitor customer financial transactions' },
       { path: '/admin/payments/vendors', title: 'Vendor Transactions', description: 'Monitor vendor earnings and payouts' },
       { path: '/admin/payments/workers', title: 'Worker Payments', description: 'Monitor and manage worker earnings and payouts' },

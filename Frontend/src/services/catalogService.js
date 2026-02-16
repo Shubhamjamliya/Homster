@@ -1,9 +1,9 @@
-import api from './api';
+import api, { apiCache } from './api';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 /**
  * Catalog Service
- * Handles all API calls for Categories, Services, and Home Content
+ * Handles all API calls for Categories, Brands (formerly Services), Services (Sub-services), and Home Content
  */
 
 /**
@@ -54,15 +54,78 @@ export const categoryService = {
 };
 
 /**
- * Service API calls
+ * Brand API calls (Formerly Service)
+ */
+export const brandService = {
+  // Get all brands
+  getAll: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.status) queryParams.append('status', params.status);
+    if (params.categoryId) queryParams.append('categoryId', params.categoryId);
+    if (params.cityId) queryParams.append('cityId', params.cityId);
+
+    const response = await api.get(`/admin/brands${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    return response.data;
+  },
+
+  // Get single brand by ID
+  getById: async (id) => {
+    const response = await api.get(`/admin/brands/${id}`);
+    return response.data;
+  },
+
+  // Create new brand
+  create: async (data) => {
+    const response = await api.post('/admin/brands', data);
+    return response.data;
+  },
+
+  // Update brand
+  update: async (id, data) => {
+    const response = await api.put(`/admin/brands/${id}`, data);
+    return response.data;
+  },
+
+  // Delete brand
+  delete: async (id) => {
+    const response = await api.delete(`/admin/brands/${id}`);
+    return response.data;
+  },
+
+  // Update brand page content
+  updatePage: async (id, page) => {
+    const response = await api.patch(`/admin/brands/${id}/page`, { page });
+    return response.data;
+  },
+
+  // Upload brand image/video directly to Cloudinary
+  uploadImage: async (file, folder = 'brands', onProgress) => {
+    try {
+      const url = await uploadToCloudinary(file, folder, onProgress);
+      return {
+        success: true,
+        imageUrl: url,
+        message: 'File uploaded successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to upload file',
+        error: error.message
+      };
+    }
+  }
+};
+
+/**
+ * Service API calls (New Service Model - Child of Brand)
  */
 export const serviceService = {
   // Get all services
   getAll: async (params = {}) => {
     const queryParams = new URLSearchParams();
     if (params.status) queryParams.append('status', params.status);
-    if (params.categoryId) queryParams.append('categoryId', params.categoryId);
-    if (params.cityId) queryParams.append('cityId', params.cityId);
+    if (params.brandId) queryParams.append('brandId', params.brandId);
 
     const response = await api.get(`/admin/services${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;
@@ -92,13 +155,7 @@ export const serviceService = {
     return response.data;
   },
 
-  // Update service page content
-  updatePage: async (id, page) => {
-    const response = await api.patch(`/admin/services/${id}/page`, { page });
-    return response.data;
-  },
-
-  // Upload service image/video directly to Cloudinary
+  // Upload service image directly to Cloudinary
   uploadImage: async (file, folder = 'services', onProgress) => {
     try {
       const url = await uploadToCloudinary(file, folder, onProgress);
@@ -114,6 +171,47 @@ export const serviceService = {
         error: error.message
       };
     }
+  }
+};
+
+/**
+ * Vendor Catalog API calls
+ */
+export const vendorCatalogService = {
+  // Services
+  getAllServices: async () => {
+    const response = await api.get('/admin/vendor-services');
+    return response.data;
+  },
+  createService: async (data) => {
+    const response = await api.post('/admin/vendor-services', data);
+    return response.data;
+  },
+  updateService: async (id, data) => {
+    const response = await api.put(`/admin/vendor-services/${id}`, data);
+    return response.data;
+  },
+  deleteService: async (id) => {
+    const response = await api.delete(`/admin/vendor-services/${id}`);
+    return response.data;
+  },
+
+  // Parts
+  getAllParts: async () => {
+    const response = await api.get('/admin/vendor-parts');
+    return response.data;
+  },
+  createPart: async (data) => {
+    const response = await api.post('/admin/vendor-parts', data);
+    return response.data;
+  },
+  updatePart: async (id, data) => {
+    const response = await api.put(`/admin/vendor-parts/${id}`, data);
+    return response.data;
+  },
+  deletePart: async (id) => {
+    const response = await api.delete(`/admin/vendor-parts/${id}`);
+    return response.data;
   }
 };
 
@@ -144,8 +242,6 @@ export const homeContentService = {
  * Public Catalog Service (for user app - no authentication required)
  * Now with caching for faster data retrieval
  */
-import { apiCache } from './api';
-
 export const publicCatalogService = {
   // Get all active categories (cached for 5 minutes)
   getCategories: async (cityId) => {
@@ -161,13 +257,31 @@ export const publicCatalogService = {
     return response.data;
   },
 
-  // Get all active services
-  getServices: async (params = {}) => {
+  // Get all active brands (formerly services)
+  getBrands: async (params = {}) => {
     const queryParams = new URLSearchParams();
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
     if (params.categorySlug) queryParams.append('categorySlug', params.categorySlug);
     if (params.search) queryParams.append('search', params.search);
     if (params.cityId) queryParams.append('cityId', params.cityId);
+
+    const cacheKey = `public:brands:${queryParams.toString()}`;
+    const cached = apiCache.get(cacheKey);
+    if (cached) return cached;
+
+    const response = await api.get(`/public/brands${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    if (response.data.success) {
+      apiCache.set(cacheKey, response.data, 120); // 2 minutes
+    }
+    return response.data;
+  },
+
+  // Alias for backward compatibility if needed, but preferable to use getBrands
+  getServices: async (params = {}) => {
+    // New Service model endpoint
+    const queryParams = new URLSearchParams();
+    if (params.brandId) queryParams.append('brandId', params.brandId);
+    if (params.brandSlug) queryParams.append('brandSlug', params.brandSlug);
 
     const cacheKey = `public:services:${queryParams.toString()}`;
     const cached = apiCache.get(cacheKey);
@@ -175,19 +289,19 @@ export const publicCatalogService = {
 
     const response = await api.get(`/public/services${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     if (response.data.success) {
-      apiCache.set(cacheKey, response.data, 120); // 2 minutes
+      apiCache.set(cacheKey, response.data, 120);
     }
     return response.data;
   },
 
-  // Get service by slug (cached for 1 minute)
-  getServiceBySlug: async (slug, cityId) => {
-    const cacheKey = `public:service:${slug}:${cityId || 'default'}`;
+  // Get brand by slug (cached for 1 minute)
+  getBrandBySlug: async (slug, cityId) => {
+    const cacheKey = `public:brand:${slug}:${cityId || 'default'}`;
     const cached = apiCache.get(cacheKey);
     if (cached) return cached;
 
     const query = cityId ? `?cityId=${cityId}` : '';
-    const response = await api.get(`/public/services/slug/${slug}${query}`);
+    const response = await api.get(`/public/brands/slug/${slug}${query}`);
     if (response.data.success) {
       apiCache.set(cacheKey, response.data, 60); // 1 minute
     }
@@ -213,4 +327,3 @@ export const publicCatalogService = {
     apiCache.invalidatePrefix('public:');
   }
 };
-
