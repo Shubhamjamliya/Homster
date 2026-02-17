@@ -1,4 +1,4 @@
-const Service = require('../../models/Service');
+const Service = require('../../models/UserService');
 const { validationResult } = require('express-validator');
 const { SERVICE_STATUS } = require('../../utils/constants');
 

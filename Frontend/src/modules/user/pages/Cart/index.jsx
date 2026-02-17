@@ -97,21 +97,16 @@ const Cart = () => {
   };
 
   const handleAddServices = (category) => {
-    // Navigate to dynamic service page using category slug
-    const slugMap = {
-      'Electrician': 'electrician-services',
-      'Electricity': 'electrician-services',
-      "Women's Salon & Spa": 'salon-for-women',
-      'Salon for Women': 'salon-for-women',
-      'Salon Prime': 'salon-for-women',
-      'Massage for Men': 'massage-for-men',
-      'Bathroom & Kitchen Cleaning': 'bathroom-kitchen-cleaning',
-      'Sofa & Carpet Cleaning': 'sofa-carpet-cleaning',
-      'AC Service and Repair': 'ac-service',
-      'AC & Appliance Repair': 'ac-service',
-    };
-    const slug = slugMap[category] || category.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    navigate(`/user/${slug}`);
+    // Navigate back to home with instructions to open the category modal
+    const itemsInCategory = groupedItems[category];
+    const categoryId = itemsInCategory?.[0]?.categoryId;
+
+    navigate('/user', {
+      state: {
+        openCategoryId: categoryId,
+        openCategoryName: category
+      }
+    });
   };
 
   const handleCategoryCheckout = (category) => {

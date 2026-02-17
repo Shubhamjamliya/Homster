@@ -269,8 +269,6 @@ const Checkout = () => {
         : firstItem.serviceId;
 
       const bookedItemsData = cartItems.map(item => ({
-        sectionTitle: item.sectionTitle || item.category || 'General',
-        sectionId: item.sectionId || null,
         card: {
           title: item.card?.title || item.title,
           subtitle: item.card?.subtitle || item.description || '',
@@ -455,9 +453,8 @@ const Checkout = () => {
         : firstItem.serviceId;
 
       // Prepare bookedItems array matching Service catalog structure
+      // Prepare bookedItems array matching Service catalog structure
       const bookedItemsData = cartItems.map(item => ({
-        sectionTitle: item.sectionTitle || item.category || 'General',
-        sectionId: item.sectionId || null,
         card: {
           title: item.card?.title || item.title || 'Unknown Service',
           subtitle: item.card?.subtitle || item.description || '',

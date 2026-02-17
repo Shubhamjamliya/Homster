@@ -279,6 +279,24 @@ const Home = () => {
 
     fetchData();
   }, [currentCity]);
+  // Open category modal from navigation state (e.g. from Cart 'Add Services')
+  useEffect(() => {
+    if (!loading && categories.length > 0 && (location.state?.openCategoryId || location.state?.openCategoryName)) {
+      const targetId = location.state.openCategoryId;
+      const targetName = location.state.openCategoryName;
+
+      const cat = categories.find(c =>
+        (targetId && (c.id === targetId || c._id === targetId)) ||
+        (targetName && c.title === targetName)
+      );
+
+      if (cat) {
+        handleCategoryClick(cat);
+        // Clear state to prevent reopening on subsequent renders/refreshes
+        window.history.replaceState({}, '', location.pathname);
+      }
+    }
+  }, [loading, categories, location.state]);
 
   const handleSearch = (query) => {
     // Navigate to search results page
@@ -290,18 +308,14 @@ const Home = () => {
   };
 
   const handlePromoClick = (promo) => {
-    if (promo.slug) {
-      navigate(`/user/${promo.slug}`);
-      return;
-    }
     if (promo.targetCategoryId) {
-      const cat = categories.find(c => c.id === promo.targetCategoryId);
+      const cat = categories.find(c => (c.id === promo.targetCategoryId || c._id === promo.targetCategoryId));
       if (cat) {
         handleCategoryClick(cat);
         return;
       }
     }
-    if (promo.route) {
+    if (promo.route && !promo.slug) {
       if (promo.scrollToSection) {
         navigate(promo.route, {
           state: { scrollToSection: promo.scrollToSection }
@@ -314,24 +328,14 @@ const Home = () => {
 
   const handleServiceClick = (service) => {
     if (!service) return;
-    if (service.slug) {
-      navigate(`/user/${service.slug}`);
-      return;
-    }
     if (service.targetCategoryId) {
-      const cat = categories.find(c => c.id === service.targetCategoryId);
+      const cat = categories.find(c => (c.id === service.targetCategoryId || c._id === service.targetCategoryId));
       if (cat) {
         handleCategoryClick(cat);
         return;
       }
     }
-    if (!service.title) return;
-    const slug = service.slug || service.title.toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-    navigate(`/user/${slug}`);
+    // Fallback if no targetCategoryId but has slug/title, we no longer navigate to slug
   };
 
   const handleAddClick = async (service) => {
@@ -364,17 +368,20 @@ const Home = () => {
         const response = await addToCart(cartItemData);
         if (response.success) {
           toast.success(`${service.title} added to cart!`);
+          navigate('/user/cart');
         } else {
           toast.error(response.message || 'Failed to add to cart');
         }
       } else {
-        if (service.slug) {
-          navigate(`/user/${service.slug}`);
-        } else if (service.targetCategoryId) {
-          const cat = categories.find(c => c.id === service.targetCategoryId);
-          if (cat) handleCategoryClick(cat);
+        if (service.targetCategoryId) {
+          const cat = categories.find(c => (c.id === service.targetCategoryId || c._id === service.targetCategoryId));
+          if (cat) {
+            handleCategoryClick(cat);
+          } else {
+            toast.error('Unable to add this service to cart.');
+          }
         } else {
-          toast.error('Unable to add this service to cart. Please browse the service page.');
+          toast.error('Unable to add this service to cart.');
         }
       }
     } catch (error) {
@@ -628,12 +635,8 @@ const Home = () => {
                         };
                       }) || []}
                       onSeeAllClick={() => {
-                        if (section.seeAllSlug) {
-                          navigate(`/user/${section.seeAllSlug}`);
-                          return;
-                        }
                         if (section.seeAllTargetCategoryId) {
-                          const cat = categories.find(c => c.id === section.seeAllTargetCategoryId);
+                          const cat = categories.find(c => (c.id === section.seeAllTargetCategoryId || c._id === section.seeAllTargetCategoryId));
                           if (cat) handleCategoryClick(cat);
                         }
                       }}
@@ -652,12 +655,8 @@ const Home = () => {
                       imageUrl={homeContent?.banners?.[1] ? toAssetUrl(homeContent.banners[1].imageUrl) : null}
                       onClick={() => {
                         const b = homeContent?.banners?.[1];
-                        if (b?.slug) {
-                          navigate(`/user/${b.slug}`);
-                          return;
-                        }
                         if (b?.targetCategoryId) {
-                          const cat = categories.find(c => c.id === b.targetCategoryId);
+                          const cat = categories.find(c => (c.id === b.targetCategoryId || c._id === b.targetCategoryId));
                           if (cat) handleCategoryClick(cat);
                         }
                       }}
@@ -697,6 +696,8 @@ const Home = () => {
       <SearchOverlay
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
+        categories={categories}
+        onCategoryClick={handleCategoryClick}
       />
 
       {/* Address Selection Modal */}

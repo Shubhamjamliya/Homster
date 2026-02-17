@@ -1,5 +1,5 @@
 const Cart = require('../../models/Cart');
-const Service = require('../../models/Service');
+const Service = require('../../models/UserService');
 const { validationResult } = require('express-validator');
 
 /**

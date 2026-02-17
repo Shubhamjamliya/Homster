@@ -59,14 +59,14 @@ const bookingSchema = new mongoose.Schema({
   // ==========================================
   serviceId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Service',
+    ref: 'UserService',
     required: [true, 'Service is required'],
     index: true
   },
   categoryId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
-    required: [true, 'Category is required'],
+    required: false,
     index: true
   },
   serviceName: {
@@ -86,8 +86,8 @@ const bookingSchema = new mongoose.Schema({
   }],
   // Booked Items (Section > Card snapshot)
   bookedItems: [{
-    sectionTitle: { type: String, default: 'General' },
-    sectionId: { type: String },
+    sectionTitle: { type: String, default: '' },
+    sectionId: { type: String, default: null },
     card: {
       title: { type: String },
       subtitle: { type: String },

@@ -56,7 +56,6 @@ const AboutHomster = lazyLoad(() => import('../pages/AboutHomster'));
 const UpdateProfile = lazyLoad(() => import('../pages/UpdateProfile'));
 const Login = lazyLoad(() => import('../pages/login'));
 const Signup = lazyLoad(() => import('../pages/signup'));
-const ServiceDynamic = lazyLoad(() => import('../pages/ServiceDynamic'));
 const Scrap = lazyLoad(() => import('../pages/Scrap'));
 const Notifications = lazyLoad(() => import('../pages/Notifications'));
 const HelpSupport = lazyLoad(() => import('../pages/HelpSupport'));
@@ -87,18 +86,6 @@ const UserRoutes = () => {
   const isBookingDetailsPage = location.pathname.match(/^\/user\/booking\/[a-zA-Z0-9]+(\/track)?$/);
   const isBookingConfirmationPage = location.pathname.includes('/booking-confirmation');
 
-  // Check if we are on dynamic service pages where we should hide the card
-  const staticUserPaths = [
-    '/user', '/user/', '/user/rewards', '/user/account', '/user/native', '/user/cart',
-    '/user/checkout', '/user/my-bookings', '/user/settings', '/user/manage-payment-methods',
-    '/user/manage-addresses', '/user/wallet', '/user/my-plan',
-    '/user/my-rating', '/user/about-homster', '/user/update-profile', '/user/scrap',
-    '/user/notifications', '/user/help-support'
-  ];
-  const isDynamicServicePage = !staticUserPaths.includes(location.pathname) &&
-    !isBookingDetailsPage &&
-    !isBookingConfirmationPage &&
-    location.pathname.startsWith('/user/');
 
   // Check if we are on public pages (login/signup) where we shouldn't fetch bookings
   const isPublicPage = location.pathname.includes('/login') || location.pathname.includes('/signup');
@@ -139,14 +126,13 @@ const UserRoutes = () => {
               <Route path="/notifications" element={<ProtectedRoute userType="user"><Notifications /></ProtectedRoute>} />
               <Route path="/help-support" element={<ProtectedRoute userType="user"><HelpSupport /></ProtectedRoute>} />
               <Route path="/cancellation-policy" element={<ProtectedRoute userType="user"><CancellationPolicy /></ProtectedRoute>} />
-              <Route path="/:slug" element={<ProtectedRoute userType="user"><ServiceDynamic /></ProtectedRoute>} />
             </Routes>
           </PageTransition>
         </Suspense>
       </div>
 
       {/* These components are OUTSIDE Suspense so they persist during page loads */}
-      {!isBookingDetailsPage && !isBookingConfirmationPage && !isDynamicServicePage && !isPublicPage && <LiveBookingCard hasBottomNav={shouldShowBottomNav} />}
+      {!isBookingDetailsPage && !isBookingConfirmationPage && !isPublicPage && <LiveBookingCard hasBottomNav={shouldShowBottomNav} />}
       {shouldShowBottomNav && <BottomNav />}
     </ErrorBoundary>
   );

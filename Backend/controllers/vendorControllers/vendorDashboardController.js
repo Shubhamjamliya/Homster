@@ -1,6 +1,6 @@
 const Booking = require('../../models/Booking');
 const Worker = require('../../models/Worker');
-const Service = require('../../models/Service');
+const Service = require('../../models/UserService');
 const { BOOKING_STATUS, PAYMENT_STATUS, WORKER_STATUS } = require('../../utils/constants');
 
 /**

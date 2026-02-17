@@ -104,7 +104,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
         categoryId: category?.id,
         title: service.title,
         description: service.description || '',
-        icon: toAssetUrl(service.imageUrl), // Assuming services have imageUrl or use brand icon?
+        icon: toAssetUrl(service.icon), // Correct field name from backend mapping
         // If service has no image, fallback to brand icon?
         category: category?.title,
         brand: selectedBrand?.title,
@@ -120,8 +120,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
       const response = await addToCart(cartItemData);
       if (response.success) {
         toast.success(`${service.title} added to cart`);
-        // Optional: Close modal or stay?
-        // onClose();
+        navigate('/user/cart');
       } else {
         toast.error(response.message || 'Failed to add to cart');
       }

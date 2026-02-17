@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const cartItemSchema = new mongoose.Schema({
   serviceId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Service',
+    ref: 'UserService',
     required: false
   },
   categoryId: {

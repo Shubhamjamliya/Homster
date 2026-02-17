@@ -10,7 +10,7 @@ const connectDB = require('../config/db');
 
 // Import models
 const Category = require('../models/Category');
-const Service = require('../models/Service');
+const Service = require('../models/UserService');
 const Booking = require('../models/Booking');
 
 const testModels = async () => {

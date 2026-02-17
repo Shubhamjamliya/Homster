@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const Booking = require('../../models/Booking');
-const Service = require('../../models/Service');
+const Service = require('../../models/UserService');
 const Category = require('../../models/Category');
 const Cart = require('../../models/Cart');
 const User = require('../../models/User');
@@ -47,8 +47,6 @@ const createBooking = async (req, res) => {
     } = req.body;
 
     let visitingCharges = reqVisitingCharges !== undefined ? reqVisitingCharges : (reqVisitationFee || 0);
-
-    console.log('[CreateBooking] bookedItems received:', JSON.stringify(bookedItems, null, 2));
 
     // Calculate total value from booked items or fallback to base (Move to top)
     let totalServiceValue = 0;
@@ -254,7 +252,8 @@ const createBooking = async (req, res) => {
     if (commissionPercentage > 50) commissionPercentage = 50;
 
     const commissionRate = commissionPercentage / 100;
-    let vendorEarnings, adminCommission;
+    let vendorEarnings = 0;
+    let adminCommission = 0;
 
     console.log(`[CreateBooking] Calculation Context: Payment=${paymentMethod}, TotalServiceValue=${totalServiceValue}, Commission=${commissionPercentage}%, Penalty=${pendingPenalty}`);
 
@@ -321,6 +320,7 @@ const createBooking = async (req, res) => {
       tax,
       visitingCharges,
       finalAmount,
+      userPayableAmount: finalAmount,
       vendorEarnings: vendorEarnings || 0,
       adminCommission: adminCommission || 0,
       address: {

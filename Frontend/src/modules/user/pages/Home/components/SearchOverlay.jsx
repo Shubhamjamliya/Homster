@@ -14,7 +14,7 @@ const toAssetUrl = (url) => {
   return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
-const SearchOverlay = ({ isOpen, onClose }) => {
+const SearchOverlay = ({ isOpen, onClose, categories = [], onCategoryClick }) => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -87,13 +87,19 @@ const SearchOverlay = ({ isOpen, onClose }) => {
     setRecentSearches(newRecent);
     localStorage.setItem('recent_searches', JSON.stringify(newRecent));
 
-    // Navigate
+    // Navigate to category
     onClose();
-    if (service.slug) {
-      navigate(`/user/${service.slug}`);
-    } else {
-      // Fallback or specific logic
-      navigate(`/user/${service.title.toLowerCase().replace(/\s+/g, '-')}`);
+    if (service.categoryId || service.targetCategoryId) {
+      const catId = service.categoryId || service.targetCategoryId;
+      const cat = categories.find(c => (c.id === catId || c._id === catId));
+      if (cat) {
+        onCategoryClick(cat);
+      }
+    } else if (service.category) {
+      const cat = categories.find(c => c.title === service.category);
+      if (cat) {
+        onCategoryClick(cat);
+      }
     }
   };
 

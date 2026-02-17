@@ -1,6 +1,6 @@
 const Category = require('../../models/Category');
 const Brand = require('../../models/Brand');
-const Service = require('../../models/Service');
+const Service = require('../../models/UserService');
 const HomeContent = require('../../models/HomeContent');
 
 /**
@@ -183,6 +183,26 @@ const getPublicBrandBySlug = async (req, res) => {
       return obj;
     };
 
+    // Fetch services associated with this brand
+    const brandServices = await Service.find({ brandId: brand._id, status: 'active' }).lean();
+
+    // Map services to a default section structure for the frontend
+    const servicesSection = {
+      title: brand.title,
+      subtitle: 'Available Services',
+      cards: brandServices.map(svc => ({
+        id: svc._id.toString(),
+        title: svc.title,
+        subtitle: svc.description || '',
+        price: svc.basePrice,
+        rating: "4.8", // Default rating
+        reviews: "1k+", // Default reviews
+        imageUrl: svc.iconUrl || brand.iconUrl || '',
+        features: svc.description ? [svc.description] : [],
+        duration: "60 min" // Default duration
+      }))
+    };
+
     const formattedBrand = {
       id: brand._id.toString(),
       title: brand.title,
@@ -201,8 +221,12 @@ const getPublicBrandBySlug = async (req, res) => {
         title: cat.title,
         slug: cat.slug
       })),
-      page: brand.page ? removeIds(brand.page) : null,
-      sections: brand.sections ? removeIds(brand.sections) : []
+      page: brand.page ? removeIds(brand.page) : {
+        banners: brand.iconUrl ? [{ imageUrl: brand.iconUrl, text: brand.title }] : [],
+        paymentOffers: [],
+        paymentOffersEnabled: false
+      },
+      sections: brandServices.length > 0 ? [servicesSection] : []
     };
 
     res.status(200).json({
@@ -244,7 +268,7 @@ const getPublicServices = async (req, res) => {
     res.status(200).json({
       success: true,
       services: services.map(svc => ({
-        id: svc._id,
+        id: svc._id.toString(),
         title: svc.title,
         slug: svc.slug,
         icon: svc.iconUrl,
@@ -287,40 +311,40 @@ const getPublicHomeContent = async (req, res) => {
     // Used for backwards compatibility, we might need to update this to refer to Brands?
     // For now keeping as is, but assuming targetServiceId will point to Brand ID essentially.
 
+    const contentObj = homeContent.toObject();
+
     const formattedContent = {
-      // ... same mapping as before ... 
-      // I'll copy the previous implementation mapping but ensure IDs are stringified
-      banners: (homeContent.banners || []).map(item => ({
-        ...item,
-        id: item._id ? item._id.toString() : item.id,
-        targetCategoryId: item.targetCategoryId?.toString() || null,
-        targetServiceId: item.targetServiceId?.toString() || null, // This effectively points to Brand ID now
-      })),
-      promos: (homeContent.promos || []).map(item => ({
+      banners: (contentObj.banners || []).map(item => ({
         ...item,
         id: item._id ? item._id.toString() : item.id,
         targetCategoryId: item.targetCategoryId?.toString() || null,
         targetServiceId: item.targetServiceId?.toString() || null,
       })),
-      curated: (homeContent.curated || []).map(item => ({
+      promos: (contentObj.promos || []).map(item => ({
         ...item,
         id: item._id ? item._id.toString() : item.id,
         targetCategoryId: item.targetCategoryId?.toString() || null,
         targetServiceId: item.targetServiceId?.toString() || null,
       })),
-      noteworthy: (homeContent.noteworthy || []).map(item => ({
+      curated: (contentObj.curated || []).map(item => ({
         ...item,
         id: item._id ? item._id.toString() : item.id,
         targetCategoryId: item.targetCategoryId?.toString() || null,
         targetServiceId: item.targetServiceId?.toString() || null,
       })),
-      booked: (homeContent.booked || []).map(item => ({
+      noteworthy: (contentObj.noteworthy || []).map(item => ({
         ...item,
         id: item._id ? item._id.toString() : item.id,
         targetCategoryId: item.targetCategoryId?.toString() || null,
         targetServiceId: item.targetServiceId?.toString() || null,
       })),
-      categorySections: (homeContent.categorySections || []).map(section => ({
+      booked: (contentObj.booked || []).map(item => ({
+        ...item,
+        id: item._id ? item._id.toString() : item.id,
+        targetCategoryId: item.targetCategoryId?.toString() || null,
+        targetServiceId: item.targetServiceId?.toString() || null,
+      })),
+      categorySections: (contentObj.categorySections || []).map(section => ({
         ...section,
         id: section._id ? section._id.toString() : section.id,
         seeAllTargetCategoryId: section.seeAllTargetCategoryId?.toString() || null,
@@ -332,13 +356,13 @@ const getPublicHomeContent = async (req, res) => {
           targetServiceId: card.targetServiceId?.toString() || null,
         }))
       })),
-      isBannersVisible: homeContent.isBannersVisible ?? true,
-      isPromosVisible: homeContent.isPromosVisible ?? true,
-      isCuratedVisible: homeContent.isCuratedVisible ?? true,
-      isNoteworthyVisible: homeContent.isNoteworthyVisible ?? true,
-      isBookedVisible: homeContent.isBookedVisible ?? true,
-      isCategorySectionsVisible: homeContent.isCategorySectionsVisible ?? true,
-      isCategoriesVisible: homeContent.isCategoriesVisible ?? true
+      isBannersVisible: contentObj.isBannersVisible ?? true,
+      isPromosVisible: contentObj.isPromosVisible ?? true,
+      isCuratedVisible: contentObj.isCuratedVisible ?? true,
+      isNoteworthyVisible: contentObj.isNoteworthyVisible ?? true,
+      isBookedVisible: contentObj.isBookedVisible ?? true,
+      isCategorySectionsVisible: contentObj.isCategorySectionsVisible ?? true,
+      isCategoriesVisible: contentObj.isCategoriesVisible ?? true
     };
 
     res.status(200).json({
