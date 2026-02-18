@@ -83,6 +83,14 @@ const CashCollectionModal = ({
     setExtraItems(extraItems.filter((_, i) => i !== index));
   };
 
+  // Auto-verify as last digit enters
+  useEffect(() => {
+    const otpValue = otp.join('');
+    if (otpValue.length === 4 && !submitting && !loading && step === 'otp') {
+      handleVerify();
+    }
+  }, [otp]);
+
   const handleOtpChange = (index, value) => {
     if (value.length > 1) return;
     const newOtp = [...otp];

@@ -367,6 +367,14 @@ const BookingTimeline = () => {
     return true;
   });
 
+  // Auto-verify as last digit enters
+  useEffect(() => {
+    const otpValue = otpInput.join('');
+    if (otpValue.length === 4 && !actionLoading && isVisitModalOpen) {
+      handleVerifyVisit();
+    }
+  }, [otpInput]);
+
   const handleOtpChange = (index, value) => {
     if (value.length > 1) return;
     const newOtp = [...otpInput];

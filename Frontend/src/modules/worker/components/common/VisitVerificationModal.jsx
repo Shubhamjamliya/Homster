@@ -17,6 +17,14 @@ const VisitVerificationModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
   const [otpInput, setOtpInput] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
 
+  // Auto-verify as last digit enters
+  React.useEffect(() => {
+    const otpValue = otpInput.join('');
+    if (otpValue.length === 4 && !loading && isOpen) {
+      handleVerify();
+    }
+  }, [otpInput]);
+
   const handleOtpChange = (index, value) => {
     const sanitized = value.replace(/[^0-9]/g, '');
     if (sanitized.length > 1) return;

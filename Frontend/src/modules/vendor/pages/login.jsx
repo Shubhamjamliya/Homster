@@ -108,8 +108,16 @@ const VendorLogin = () => {
     }
   };
 
+  // Auto-verify as last digit enters
+  useEffect(() => {
+    const otpValue = otp.join('');
+    if (otpValue.length === 6 && !isLoading && otpToken) {
+      handleOtpSubmit();
+    }
+  }, [otp]);
+
   const handleOtpSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
       toast.error('Please enter complete OTP');
