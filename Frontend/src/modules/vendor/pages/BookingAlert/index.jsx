@@ -16,7 +16,7 @@ const BookingAlert = () => {
     const loadBooking = () => {
       try {
         const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-        let foundBooking = pendingJobs.find(job => job.id === id);
+        let foundBooking = pendingJobs.find(job => String(job.id || job._id) === String(id));
 
         if (!foundBooking) {
           // If not found in any local lists, it's likely already processed

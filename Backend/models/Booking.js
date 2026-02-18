@@ -75,7 +75,7 @@ const bookingSchema = new mongoose.Schema({
   },
   serviceCategory: {
     type: String,
-    required: true
+    required: [true, 'Service category is required']
   },
   // Visual Identity (For easier UI access)
   categoryIcon: { type: String, default: null }, // URL to category icon
@@ -88,10 +88,11 @@ const bookingSchema = new mongoose.Schema({
   serviceImages: [{
     type: String
   }],
-  // Booked Items (Section > Card snapshot)
+  // Booked Items (Brand > Card snapshot)
   bookedItems: [{
-    sectionTitle: { type: String, default: '' },
-    sectionId: { type: String, default: null },
+    brandName: { type: String, default: '' },
+    brandIcon: { type: String, default: null },
+    serviceName: { type: String, default: '' },
     card: {
       title: { type: String },
       subtitle: { type: String },

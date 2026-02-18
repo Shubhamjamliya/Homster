@@ -31,6 +31,14 @@ const cartItemSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  categoryTitle: {
+    type: String,
+    default: ''
+  },
+  categoryIcon: {
+    type: String,
+    default: null
+  },
   price: {
     type: Number,
     required: true,
@@ -58,10 +66,14 @@ const cartItemSchema = new mongoose.Schema({
     type: String,
     default: '10k+'
   },
-  // Section info (from service catalog)
+  // Section / Brand info (from service catalog)
   sectionTitle: {
     type: String,
-    default: 'General'
+    default: ''
+  },
+  sectionIcon: {
+    type: String,
+    default: null
   },
   sectionId: {
     type: String,

@@ -58,8 +58,9 @@ const addToCart = async (req, res) => {
       rating,
       reviews,
       vendorId,
-      sectionTitle, // Capture section info
-      card // Capture card details
+      sectionTitle, // Brand name
+      sectionIcon,  // Brand logo URL
+      card          // Card details snapshot
     } = req.body;
 
     console.log(`[AddToCart] Request details - Title: ${title}, Section: ${sectionTitle}`);
@@ -113,7 +114,8 @@ const addToCart = async (req, res) => {
         rating: rating || '4.8',
         reviews: reviews || '10k+',
         vendorId: vendorId || null,
-        sectionTitle: sectionTitle || 'General',
+        sectionTitle: sectionTitle || '',
+        sectionIcon: sectionIcon || null,
         card: card || null
       };
 

@@ -301,18 +301,44 @@ const MyBookings = () => {
 
                   {/* Header Section */}
                   <div className="relative z-10 flex items-start justify-between mb-4 border-b border-slate-100 pb-4">
-                    <div className="pr-4">
+                    <div className="pr-4 flex-1">
                       <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-1.5 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
                         #{booking.bookingNumber || (booking._id || booking.id).substring(0, 8)}
                       </p>
-                      <h3 className="text-lg font-bold text-slate-800 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors">
-                        {booking.serviceName || booking.serviceCategory || 'Service Request'}
-                      </h3>
+
+                      {/* Detailed Booking Info */}
+                      <div className="space-y-1">
+                        {/* 1. Category */}
+                        {booking.serviceCategory && (
+                          <div className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 w-fit rounded-md uppercase tracking-wider mb-1">
+                            {booking.serviceCategory}
+                          </div>
+                        )}
+
+                        {/* 2. Brand / Section (if available from booked items) */}
+                        {booking.bookedItems && booking.bookedItems.length > 0 && booking.bookedItems[0].sectionTitle && (
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            {booking.bookedItems.map(item => item.sectionTitle).filter((v, i, a) => a.indexOf(v) === i).join(', ')}
+                          </div>
+                        )}
+
+                        {/* 3. Service Name */}
+                        <h3 className="text-lg font-bold text-slate-800 leading-tight line-clamp-2 group-hover:text-blue-600 transition-colors">
+                          {booking.serviceName || 'Service Request'}
+                        </h3>
+
+                        {/* Item Details (Preview) */}
+                        {booking.bookedItems && booking.bookedItems.length > 0 && (
+                          <p className="text-xs text-slate-400 line-clamp-1">
+                            {booking.bookedItems.map(item => item.card?.title || item.title).join(', ')}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Status Badge */}
-                    <div className={`px-3 py-1 pb-1.5 rounded-full border ring-1 ring-inset flex items-center gap-1.5 shadow-sm ${getStatusColor(booking.status)}`}>
+                    <div className={`shrink-0 px-3 py-1 pb-1.5 rounded-full border ring-1 ring-inset flex items-center gap-1.5 shadow-sm ${getStatusColor(booking.status)}`}>
                       {getStatusIcon(booking.status)}
                       <span className="text-[11px] font-bold uppercase tracking-wide">
                         {getStatusLabel(booking.status)}

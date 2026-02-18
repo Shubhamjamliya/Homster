@@ -376,48 +376,66 @@ const BookingConfirmation = () => {
 
           {/* Service Summary Card */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-4">
-            <h3 className="text-base font-bold text-black mb-3">Service Booked</h3>
+            <h3 className="text-base font-bold text-black mb-4">Order Summary</h3>
             <div className="space-y-3">
-              {/* Main Service */}
+              {/* Service Category */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
-                  <FiPackage className="w-5 h-5" style={{ color: themeColors.button }} />
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
+                  style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+                  {booking.categoryIcon ? (
+                    <img src={booking.categoryIcon} alt="" className="w-5 h-5 object-contain" />
+                  ) : (
+                    <FiPackage className="w-4 h-4" style={{ color: themeColors.button }} />
+                  )}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-black">{booking.serviceName || 'Service'}</p>
-                  <p className="text-xs text-gray-500">{booking.serviceCategory || 'General'}</p>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Service Category</p>
+                  <p className="text-sm font-bold text-gray-800">{booking.serviceCategory || booking.serviceName || 'Service'}</p>
                 </div>
               </div>
 
-              {/* Booked Items */}
-              {booking.bookedItems && booking.bookedItems.length > 0 ? (
-                <div className="space-y-3">
-                  {booking.bookedItems.map((item, idx) => (
-                    <div key={idx} className="bg-gray-50 rounded-lg p-3">
-                      {item.sectionTitle && (
-                        <p className="text-xs text-gray-500 font-medium mb-2">{item.sectionTitle}</p>
+              {/* Brand */}
+              {(() => {
+                const brandName = booking.brandName || booking.bookedItems?.[0]?.brandName;
+                const brandIcon = booking.brandIcon || booking.bookedItems?.[0]?.brandIcon;
+                if (!brandName) return null;
+                return (
+                  <div className="flex items-center gap-3 pt-3 border-t border-dashed border-gray-100">
+                    <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 overflow-hidden">
+                      {brandIcon ? (
+                        <img src={brandIcon} alt={brandName} className="w-6 h-6 object-contain" />
+                      ) : (
+                        <span className="text-base font-black text-slate-400">{brandName.charAt(0)}</span>
                       )}
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-gray-800">{item.card?.title || item.title}</p>
-                          {item.card?.subtitle && (
-                            <p className="text-xs text-gray-500 mt-0.5">{item.card.subtitle}</p>
-                          )}
-                          {item.card?.duration && (
-                            <p className="text-xs text-gray-400 mt-1">⏱ {item.card.duration}</p>
-                          )}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Brand</p>
+                      <p className="text-sm font-bold text-gray-800">{brandName}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Service Cards */}
+              {booking.bookedItems && booking.bookedItems.length > 0 ? (
+                <div className="pt-3 border-t border-dashed border-gray-100 space-y-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Services Booked</p>
+                  {booking.bookedItems.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-start bg-gray-50 rounded-xl p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded border"
+                            style={{ color: themeColors.button, backgroundColor: 'rgba(0,166,166,0.08)', borderColor: 'rgba(0,166,166,0.2)' }}>
+                            ×{item.quantity}
+                          </span>
+                          <span className="text-sm font-semibold text-gray-900 truncate">{item.card?.title || 'Service'}</span>
                         </div>
-                        <p className="text-sm font-bold text-gray-800 ml-3">₹{(item.card?.price || 0).toLocaleString('en-IN')}</p>
+                        {item.card?.subtitle && <p className="text-xs text-gray-400 mt-0.5 ml-8 line-clamp-1">{item.card.subtitle}</p>}
+                        {item.card?.duration && <p className="text-xs text-gray-400 mt-0.5 ml-8">⏱ {item.card.duration}</p>}
                       </div>
+                      <span className="text-sm font-bold text-gray-900 ml-3 shrink-0">₹{((item.card?.price || 0) * (item.quantity || 1)).toLocaleString('en-IN')}</span>
                     </div>
                   ))}
-                </div>
-              ) : booking.userNotes ? (
-                <div className="bg-gray-50 rounded-lg p-3 mt-2">
-                  <p className="text-xs text-gray-500 mb-1">Specific Service</p>
-                  <p className="text-sm font-medium text-gray-800">
-                    {booking.userNotes.replace('Items: ', '')}
-                  </p>
                 </div>
               ) : null}
             </div>

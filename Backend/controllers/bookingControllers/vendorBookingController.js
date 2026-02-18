@@ -986,53 +986,70 @@ const collectSelfCash = async (req, res) => {
     booking.paymentOtp = undefined;
 
     // Deduct from Vendor Wallet
-    const vendor = await Vendor.findById(vendorId);
-    if (vendor) {
-      // 1. Dues Increase (Cash Collected - owed to admin)
-      vendor.wallet.dues = (vendor.wallet.dues || 0) + booking.finalAmount;
+    // Use findByIdAndUpdate to avoid triggering full validation on unrelated fields (like Aadhar)
+    if (vendorId) {
+      const Vendor = require('../../models/Vendor');
 
-      // 2. Earnings Credit (Net income for this job)
-      vendor.wallet.earnings = (vendor.wallet.earnings || 0) + booking.vendorEarnings;
+      // Calculate updates first
+      // We need to fetch the vendor first to check current values if we need logic based on them 
+      // OR we can use $inc.
+      // logic:
+      // dues += finalAmount
+      // earnings += vendorEarnings
+      // totalCashCollected += finalAmount
 
-      vendor.wallet.totalCashCollected = (vendor.wallet.totalCashCollected || 0) + booking.finalAmount;
+      const vendorRef = await Vendor.findById(vendorId).select('wallet');
+      if (vendorRef) {
+        const currentDues = (vendorRef.wallet.dues || 0) + booking.finalAmount;
+        const cashLimit = vendorRef.wallet.cashLimit || 10000;
+        const isBlocked = currentDues > cashLimit;
 
-      // Check Auto-Blocking Logic
-      const cashLimit = vendor.wallet.cashLimit || 10000;
-      if (vendor.wallet.dues > cashLimit) {
-        vendor.wallet.isBlocked = true;
-        vendor.wallet.blockedAt = new Date();
-        vendor.wallet.blockReason = `Cash limit exceeded. Owed: ₹${vendor.wallet.dues}, Limit: ₹${cashLimit}`;
-      }
+        const updateQuery = {
+          $inc: {
+            'wallet.dues': booking.finalAmount,
+            'wallet.earnings': booking.vendorEarnings,
+            'wallet.totalCashCollected': booking.finalAmount
+          }
+        };
 
-      await vendor.save();
+        if (isBlocked) {
+          updateQuery.$set = {
+            'wallet.isBlocked': true,
+            'wallet.blockedAt': new Date(),
+            'wallet.blockReason': `Cash limit exceeded. Owed: ₹${currentDues}, Limit: ₹${cashLimit}`
+          };
+        }
 
-      // Create Transactions
-      const Transaction = require('../../models/Transaction');
+        await Vendor.findByIdAndUpdate(vendorId, updateQuery);
 
-      // Transaction 1: Cash Collected (Dues Increase)
-      await Transaction.create({
-        vendorId: vendor._id,
-        bookingId: booking._id,
-        type: 'cash_collected',
-        amount: booking.finalAmount,
-        status: 'completed',
-        paymentMethod: 'cash',
-        description: `Cash collected by vendor. Dues +${booking.finalAmount}`,
-        metadata: { type: 'dues_increase', collectedBy: 'vendor' }
-      });
+        // Create Transactions
+        const Transaction = require('../../models/Transaction');
 
-      // Transaction 2: Earnings Credit
-      if (booking.vendorEarnings > 0) {
+        // Transaction 1: Cash Collected (Dues Increase)
         await Transaction.create({
-          vendorId: vendor._id,
+          vendorId: vendorId,
           bookingId: booking._id,
-          type: 'earnings_credit',
-          amount: booking.vendorEarnings,
+          type: 'cash_collected',
+          amount: booking.finalAmount,
           status: 'completed',
-          paymentMethod: 'wallet',
-          description: `Earnings credited for self-job #${booking.bookingNumber}`,
-          metadata: { type: 'earnings_increase' }
+          paymentMethod: 'cash',
+          description: `Cash collected by vendor. Dues +${booking.finalAmount}`,
+          metadata: { type: 'dues_increase', collectedBy: 'vendor' }
         });
+
+        // Transaction 2: Earnings Credit
+        if (booking.vendorEarnings > 0) {
+          await Transaction.create({
+            vendorId: vendorId,
+            bookingId: booking._id,
+            type: 'earnings_credit',
+            amount: booking.vendorEarnings,
+            status: 'completed',
+            paymentMethod: 'wallet',
+            description: `Earnings credited for self-job #${booking.bookingNumber}`,
+            metadata: { type: 'earnings_increase' }
+          });
+        }
       }
     }
 

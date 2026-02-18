@@ -43,7 +43,12 @@ const createBooking = async (req, res) => {
       visitationFee: reqVisitationFee, // Backward compatibility
       basePrice: reqBasePrice,
       discount: reqDiscount,
-      tax: reqTax
+      tax: reqTax,
+      // Metadata from frontend
+      serviceCategory: reqServiceCategory,
+      categoryIcon: reqCategoryIcon,
+      brandName: reqBrandName,
+      brandIcon: reqBrandIcon
     } = req.body;
 
     let visitingCharges = reqVisitingCharges !== undefined ? reqVisitingCharges : (reqVisitationFee || 0);
@@ -302,19 +307,56 @@ const createBooking = async (req, res) => {
     // Create booking
     const bookingNumber = `BK${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
-    console.log('[CreateBooking] About to save with bookedItems:', JSON.stringify(bookedItems || [], null, 2));
+    // Improve Category Fetching if ID is missing (Fallback to title match)
+    let finalCategory = category;
+    if (!finalCategory && service.category) {
+      // Try finding by name if ID lookup failed
+      const Category = require('../../models/Category');
+      finalCategory = await Category.findOne({ title: service.category });
+    }
+
+    // Map booked items to new schema (sectionTitle -> brandName)
+    const formattedBookedItems = (Array.isArray(bookedItems) && bookedItems.length > 0) ? bookedItems.map(item => ({
+      brandName: item.brandName || item.sectionTitle || item.brand || '', // Robust fallback
+      brandIcon: item.brandIcon || item.sectionIcon || item.icon || null,
+      card: item.card || item,
+      quantity: item.quantity || 1
+    })) : [];
+
+    console.log('[CreateBooking] About to save with formatted items:', JSON.stringify(formattedBookedItems, null, 2));
+
+    // Extract Visual Identity Details
+    const categoryIcon = finalCategory?.icon || finalCategory?.image || service.iconUrl || 'https://cdn-icons-png.flaticon.com/512/3500/3500833.png';
+    let brandName = null;
+    let brandIcon = null;
+
+    if (formattedBookedItems.length > 0) {
+      // Try to find a distinct brand name
+      const distinctBrands = [...new Set(formattedBookedItems.map(item => item.brandName).filter(Boolean))];
+      if (distinctBrands.length > 0) {
+        brandName = distinctBrands.join(', ');
+      }
+
+      // Try to find brand icon
+      brandIcon = formattedBookedItems[0].brandIcon || null;
+    }
 
     const booking = await Booking.create({
       bookingNumber,
       userId,
       vendorId: null, // Will be assigned when vendor accepts
       serviceId,
-      categoryId,
+      categoryId: finalCategory?._id || categoryId,
       serviceName: service.title,
-      serviceCategory: category?.title || 'General',
+      serviceCategory: reqServiceCategory || finalCategory?.title || service.category || 'General',
+      // Visual Identity Fields
+      categoryIcon: reqCategoryIcon || categoryIcon,
+      brandName: reqBrandName || brandName,
+      brandIcon: reqBrandIcon || brandIcon,
+
       description: service.description,
       serviceImages: service.images || [],
-      bookedItems: (Array.isArray(bookedItems) && bookedItems.length > 0) ? bookedItems : [],
+      bookedItems: formattedBookedItems,
       basePrice,
       discount,
       tax,

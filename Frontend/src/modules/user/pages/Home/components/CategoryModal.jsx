@@ -100,21 +100,34 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
     // Add to cart logic
     try {
       const cartItemData = {
-        serviceId: service.id || service._id, // NEW service ID
+        serviceId: service.id || service._id,
         categoryId: category?.id,
         title: service.title,
         description: service.description || '',
-        icon: toAssetUrl(service.icon), // Correct field name from backend mapping
-        // If service has no image, fallback to brand icon?
+        icon: toAssetUrl(service.icon || ''),
         category: category?.title,
-        brand: selectedBrand?.title,
+        categoryTitle: category?.title || '', // Explicit field
+        categoryIcon: toAssetUrl(category?.homeIconUrl || category?.iconUrl || ''), // Explicit field
+        // Brand info — stored as sectionTitle/sectionIcon for booking flow
+        sectionTitle: selectedBrand?.title || '',
+        sectionIcon: toAssetUrl(selectedBrand?.iconUrl || selectedBrand?.icon || ''),
         price: service.discountPrice || service.basePrice,
         originalPrice: service.discountPrice ? service.basePrice : null,
         unitPrice: service.discountPrice || service.basePrice,
         serviceCount: 1,
         rating: "4.8",
         reviews: "1k+",
-        vendorId: service.vendorId || selectedBrand.vendorId || null
+        vendorId: service.vendorId || selectedBrand?.vendorId || null,
+        card: {
+          title: service.title,
+          subtitle: service.description || '',
+          price: service.discountPrice || service.basePrice,
+          originalPrice: service.discountPrice ? service.basePrice : null,
+          duration: service.duration || '',
+          description: service.description || '',
+          imageUrl: toAssetUrl(service.icon || ''),
+          features: service.features || []
+        }
       };
 
       const response = await addToCart(cartItemData);

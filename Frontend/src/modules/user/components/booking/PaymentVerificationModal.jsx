@@ -1,231 +1,254 @@
 import React from 'react';
-import { FiCheckCircle, FiShield, FiAlertCircle, FiPackage, FiPlusCircle, FiX } from 'react-icons/fi';
+import { FiCheckCircle, FiShield, FiAlertCircle, FiPackage, FiX, FiInfo } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => {
   if (!isOpen || !booking) return null;
 
-  // Calculate totals matching Vendor Billing logic
+  // --- 1. Total & Breakdown Calculations ---
+  const isPlanBenefit = booking.paymentMethod === 'plan_benefit';
+
+  // Base Logic (Services)
   const originalBase = parseFloat(booking.basePrice) || 0;
-  const originalGST = (originalBase * 18) / 100;
-  const baseAmount = originalBase; // Alias for legacy support
 
-  // Extra Services & Parts from vendor bill
+  // Extra Services (from Vendor Bill)
   const services = booking.bill?.services || [];
-  const parts = booking.bill?.parts || [];
-  const customItems = booking.bill?.customItems || [];
-
   let extraServiceBase = 0;
   let extraServiceGST = 0;
+
   services.forEach(s => {
-    const total = s.total || 0;
+    const total = parseFloat(s.total) || 0;
     const base = total / 1.18;
     const gst = total - base;
     extraServiceBase += base;
     extraServiceGST += gst;
   });
 
+  const totalServiceBase = originalBase + extraServiceBase;
+
+  // Parts & Custom Items (from Vendor Bill)
+  const parts = booking.bill?.parts || [];
+  const customItems = booking.bill?.customItems || [];
+
   let partsBase = 0;
   let partsGST = 0;
+
   parts.forEach(p => {
-    partsBase += ((p.price || 0) * (p.quantity || 1));
-    partsGST += (p.gstAmount || 0);
+    partsBase += ((parseFloat(p.price) || 0) * (parseFloat(p.quantity) || 1));
+    partsGST += (parseFloat(p.gstAmount) || 0);
   });
+
   customItems.forEach(c => {
-    partsBase += ((c.price || 0) * (c.quantity || 1));
-    partsGST += (c.gstAmount || 0);
+    partsBase += ((parseFloat(c.price) || 0) * (parseFloat(c.quantity) || 1));
+    partsGST += (parseFloat(c.gstAmount) || 0);
   });
 
+  // Tax Logic
+  // Original tax is usually 18% of originalBase
+  const originalGST = (originalBase * 0.18);
   const totalGST = originalGST + extraServiceGST + partsGST;
-  const finalTotal = (originalBase + originalGST) + (extraServiceBase + extraServiceGST) + (partsBase + partsGST);
 
-  const isPlanBenefit = booking.paymentMethod === 'plan_benefit';
+  // Final Total
+  // Ideally, use grandTotal from bill if available, else calculated sum, else booking.finalAmount
+  const calculatedTotal = (originalBase + originalGST) + (extraServiceBase + extraServiceGST) + (partsBase + partsGST);
+  const finalTotal = booking.bill?.grandTotal || calculatedTotal || booking.finalAmount || 0;
+
+  // --- 2. Identity Helpers ---
+  const categoryName = booking.serviceCategory || 'General';
+  // Use new field if present, else fallback
+  const brandName = booking.brandName || booking.bookedItems?.[0]?.sectionTitle || '';
+  const serviceName = booking.serviceName || 'Service Request';
+
+  // Dynamic Icon
+  const CategoryIcon = booking.categoryIcon ? (
+    <img src={booking.categoryIcon} alt={categoryName} className="w-full h-full object-cover" />
+  ) : (
+    <span className="text-2xl font-black uppercase text-white">{categoryName.charAt(0)}</span>
+  );
 
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col"
+          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          transition={{ type: "spring", bounce: 0.3 }}
+          className="bg-white w-full max-w-sm rounded-[2rem] overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col"
         >
           {/* Header */}
-          <div className="relative h-24 bg-gradient-to-br from-teal-600 to-emerald-700 flex items-center justify-center shrink-0">
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 left-0 w-20 h-20 bg-white rounded-full -translate-x-10 -translate-y-10" />
-              <div className="absolute bottom-0 right-0 w-32 h-32 bg-white rounded-full translate-x-10 translate-y-10" />
-            </div>
-            <div className="relative z-10 text-center flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/30">
-                <FiShield className="w-5 h-5 text-white" />
+          <div className="relative bg-slate-900 border-b border-slate-800 p-5 shrink-0">
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+            >
+              <FiX className="w-5 h-5 text-white/80" />
+            </button>
+
+            <div className="flex flex-col items-center text-center mt-2">
+              <div className="w-14 h-14 bg-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/30 mb-3 text-white overflow-hidden border-2 border-slate-800">
+                {CategoryIcon}
               </div>
-              <h3 className="text-white font-black text-lg tracking-tight">Payment & Verification</h3>
-            </div>
-            <div className="absolute top-4 right-4 flex gap-2">
-              <button
-                onClick={onClose}
-                title="Minimize"
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-md transition-colors border border-white/20"
-              >
-                <div className="w-5 h-1 bg-white rounded-full opacity-60"></div>
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-md transition-colors border border-white/20"
-              >
-                <FiX className="w-5 h-5 text-white" />
-              </button>
+              <h3 className="text-white font-bold text-lg">Payment Verification</h3>
+              <p className="text-slate-400 text-xs mt-1">Review bill and complete payment</p>
             </div>
           </div>
 
-          <div className="p-6 overflow-y-auto custom-scrollbar">
-            {/* Price Breakdown Section */}
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between items-end mb-2">
-                <h4 className="text-xs font-black text-gray-500 uppercase tracking-wider">Total Payable</h4>
-                <p className="text-3xl font-black text-gray-900">₹{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <div className="p-5 overflow-y-auto custom-scrollbar flex-1">
+
+            {/* Booking Identity Card */}
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-5 relative overflow-hidden">
+              <div className="flex flex-col gap-1 relative z-10">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
+                    {categoryName}
+                  </span>
+                  {brandName && (
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                      {booking.brandIcon && <img src={booking.brandIcon} alt={brandName} className="w-3 h-3 object-contain" />}
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        {brandName}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <h4 className="text-lg font-bold text-slate-800 leading-tight">
+                  {serviceName}
+                </h4>
+                <p className="text-xs text-slate-400 font-mono mt-1">
+                  ID: #{booking.bookingNumber || booking._id?.slice(-8).toUpperCase()}
+                </p>
+              </div>
+              {/* Decorative Icon */}
+              <FiPackage className="absolute -bottom-2 -right-2 w-16 h-16 text-slate-100 rotate-[-15deg] z-0" />
+            </div>
+
+            {/* Bill Details */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-end border-b border-slate-100 pb-2">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">Total Amount</p>
+                <p className="text-3xl font-black text-slate-900">
+                  ₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </p>
               </div>
 
-              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-4">
-
-                {/* 1. Services Section */}
-                <div>
-                  <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                    <FiCheckCircle className="w-3 h-3" /> Services
-                  </h5>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between text-gray-600">
-                      <span>Original Booking</span>
-                      {isPlanBenefit ? (
-                        <div className="flex items-center gap-1">
-                          <span className="line-through text-gray-400">₹{originalBase.toFixed(2)}</span>
-                          <span className="text-emerald-600 font-bold bg-emerald-50 px-1 rounded">FREE</span>
-                        </div>
-                      ) : (
-                        <span className="font-bold">₹{originalBase.toFixed(2)}</span>
-                      )}
-                    </div>
-                    {services.map((s, idx) => (
-                      <div key={idx} className="flex justify-between text-gray-600 pl-2 border-l-2 border-gray-200">
-                        <span>{s.name} <span className="text-gray-400">x{s.quantity}</span></span>
-                        <span className="font-mono">₹{(s.total / 1.18).toFixed(2)}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between font-bold text-gray-800 pt-1 border-t border-gray-200 border-dashed">
-                      <span>Total Service Base</span>
-                      <span>₹{(originalBase + extraServiceBase).toFixed(2)}</span>
-                    </div>
-                  </div>
+              {/* 1. Services */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <FiCheckCircle className="w-3.5 h-3.5 text-teal-500" />
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Services</span>
                 </div>
-
-                {/* 2. Parts Section */}
-                {(parts.length > 0 || customItems.length > 0) && (
-                  <div>
-                    <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1 mt-4">
-                      <FiPackage className="w-3 h-3" /> Parts & Material
-                    </h5>
-                    <div className="space-y-2 text-xs">
-                      {parts.map((p, idx) => (
-                        <div key={`p-${idx}`} className="flex justify-between text-gray-600">
-                          <span>{p.name} <span className="text-gray-400">x{p.quantity}</span></span>
-                          <span className="font-mono">₹{(p.price * p.quantity).toFixed(2)}</span>
-                        </div>
-                      ))}
-                      {customItems.map((c, idx) => (
-                        <div key={`c-${idx}`} className="flex justify-between text-gray-600">
-                          <div>
-                            <span>{c.name} <span className="text-gray-400">x{c.quantity}</span></span>
-                            {c.hsnCode && <span className="text-[8px] block text-gray-400">HSN: {c.hsnCode}</span>}
-                          </div>
-                          <span className="font-mono">₹{(c.price * c.quantity).toFixed(2)}</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between font-bold text-gray-800 pt-1 border-t border-gray-200 border-dashed">
-                        <span>Total Parts Base</span>
-                        <span>₹{partsBase.toFixed(2)}</span>
+                <div className="space-y-2 pl-1">
+                  {/* Base */}
+                  <div className="flex justify-between text-xs text-slate-600">
+                    <span>Base Charge</span>
+                    {isPlanBenefit ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="line-through text-slate-400">₹{originalBase.toFixed(2)}</span>
+                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 rounded">FREE</span>
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. Taxes */}
-                <div>
-                  <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1 mt-4">
-                    <FiAlertCircle className="w-3 h-3" /> Taxes
-                  </h5>
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span>Total GST (18%)</span>
-                    {isPlanBenefit && totalGST === 0 ? (
-                      <span className="text-emerald-600 font-bold">Included</span>
                     ) : (
-                      <span className="font-mono">₹{totalGST.toFixed(2)}</span>
+                      <span className="font-medium font-mono">₹{originalBase.toFixed(2)}</span>
                     )}
                   </div>
+                  {/* Extra Services */}
+                  {services.map((s, idx) => (
+                    <div key={`s-${idx}`} className="flex justify-between text-xs text-slate-600">
+                      <span>{s.name} <span className="text-slate-400">x{s.quantity}</span></span>
+                      <span className="font-medium font-mono">₹{(s.total / 1.18).toFixed(2)}</span>
+                    </div>
+                  ))}
+                  {/* Service Subtotal */}
+                  <div className="flex justify-between text-xs font-bold text-slate-800 pt-2 border-t border-dashed border-slate-200 mt-1">
+                    <span>Total Service Base</span>
+                    <span>₹{totalServiceBase.toFixed(2)}</span>
+                  </div>
                 </div>
+              </div>
 
-                {/* Final Total */}
-                <div className="pt-4 border-t-2 border-dashed border-gray-200 mt-2 flex justify-between items-center">
-                  <span className="text-sm font-black text-gray-900">Grand Total</span>
-                  <span className="text-xl font-black text-teal-700">₹{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              {/* 2. Parts (Conditional) */}
+              {(parts.length > 0 || customItems.length > 0) && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2 mt-4">
+                    <FiPackage className="w-3.5 h-3.5 text-orange-500" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Parts & Materials</span>
+                  </div>
+                  <div className="space-y-2 pl-1">
+                    {parts.map((p, idx) => (
+                      <div key={`p-${idx}`} className="flex justify-between text-xs text-slate-600">
+                        <span>{p.name} <span className="text-slate-400">x{p.quantity}</span></span>
+                        <span className="font-medium font-mono">₹{(p.price * p.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    {customItems.map((c, idx) => (
+                      <div key={`c-${idx}`} className="flex justify-between text-xs text-slate-600">
+                        <span>{c.name} <span className="text-slate-400">x{c.quantity}</span></span>
+                        <span className="font-medium font-mono">₹{(c.price * c.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-xs font-bold text-slate-800 pt-2 border-t border-dashed border-slate-200 mt-1">
+                      <span>Total Parts Base</span>
+                      <span>₹{partsBase.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Taxes */}
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex justify-between text-xs items-center">
+                  <span className="flex items-center gap-2 font-bold text-slate-500 uppercase tracking-wide">
+                    <FiAlertCircle className="w-3.5 h-3.5 text-slate-400" /> Taxes
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400">GST (18%)</span>
+                    <span className="font-mono text-slate-700 font-bold">₹{totalGST.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <h4 className="text-xs font-black text-gray-900 uppercase mb-3">Finalize Payment</h4>
-
-            <div className="space-y-4">
+            {/* Actions */}
+            <div className="mt-8 space-y-3">
               {booking.paymentStatus === 'success' ? (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-center shadow-inner">
-                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-emerald-100">
-                    <FiCheckCircle className="w-8 h-8 text-emerald-600" />
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-emerald-500 shadow-sm shrink-0">
+                    <FiCheckCircle className="w-5 h-5" />
                   </div>
-                  <h4 className="text-lg font-black text-emerald-900 mb-1">Payment Successful!</h4>
-                  <p className="text-xs text-emerald-600 font-medium">Your online payment of ₹{finalTotal.toLocaleString()} has been verified.</p>
+                  <div>
+                    <p className="text-emerald-900 font-bold text-sm">Payment Verified</p>
+                    <p className="text-emerald-700 text-xs">Transaction completed successfully.</p>
+                  </div>
                 </div>
               ) : (
                 <>
-                  {/* Option 2: Online */}
+                  {/* Online Pay */}
                   <button
                     onClick={onPayOnline}
-                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-700 text-white font-black flex items-center justify-center gap-3 shadow-xl shadow-teal-200 active:scale-[0.98] transition-all hover:shadow-teal-300 relative overflow-hidden group"
+                    className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
                   >
-                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
-                    <span className="relative">Pay Online Now</span>
-                    <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-black tracking-tight">FAST & SECURE</span>
+                    Pay Online Securely
                   </button>
 
-                  <div className="relative py-1 text-center">
-                    <span className="text-[10px] text-gray-400 font-bold bg-white px-3 relative z-10 uppercase tracking-widest">OR</span>
-                    <div className="absolute top-1/2 left-0 right-0 h-px bg-gray-100 z-0"></div>
+                  <div className="relative py-2 text-center">
+                    <span className="bg-white px-2 text-[10px] font-bold text-slate-400 relative z-10 uppercase tracking-wider">OR</span>
+                    <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-100 z-0"></div>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center relative overflow-hidden">
-                    <p className="text-sm font-black text-slate-800 mb-1 tracking-tight">Cash Payment</p>
-                    <p className="text-[10px] text-slate-500 mb-3 opacity-80 leading-relaxed">
-                      Pay cash to the professional. Share this code to complete validation:
-                    </p>
-
-                    {(booking.customerConfirmationOTP || booking.paymentOtp) && (
-                      <div className="bg-white border-2 border-dashed border-slate-300 rounded-xl p-3 mb-2 flex flex-col items-center justify-center">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Verification Code</span>
-                        <span className="text-3xl font-mono font-black text-slate-800 tracking-widest">
-                          {booking.customerConfirmationOTP || booking.paymentOtp}
-                        </span>
-                      </div>
-                    )}
-
-                    <p className="text-[10px] text-slate-400 italic">
-                      Only pay after work satisfaction.
-                    </p>
+                  {/* Cash Code */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                    <p className="text-xs font-bold text-slate-700 mb-2">Paying Cash? Share Code</p>
+                    <div className="bg-white border-2 border-dashed border-slate-300 rounded-lg py-2 px-4 inline-block mb-1">
+                      <span className="text-2xl font-black font-mono text-slate-900 tracking-[0.2em]">
+                        {booking.customerConfirmationOTP || booking.paymentOtp || '....'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Share with professional to confirm cash payment</p>
                   </div>
                 </>
               )}
             </div>
 
-            <button onClick={onClose} className="w-full mt-6 py-2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-widest">
-              Close Details
-            </button>
           </div>
         </motion.div>
       </div>

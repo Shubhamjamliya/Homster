@@ -269,6 +269,8 @@ const Checkout = () => {
         : firstItem.serviceId;
 
       const bookedItemsData = cartItems.map(item => ({
+        brandName: item.sectionTitle || item.brand || '',
+        brandIcon: item.sectionIcon || null,
         card: {
           title: item.card?.title || item.title,
           subtitle: item.card?.subtitle || item.description || '',
@@ -307,6 +309,12 @@ const Checkout = () => {
         discount: savings,
         tax: taxesAndFee,
         visitationFee: finalVisitedFee,
+
+        // Metadata for better data capture
+        serviceCategory: firstItem.categoryTitle || firstItem.category || 'General',
+        categoryIcon: firstItem.categoryIcon || firstItem.icon || null,
+        brandName: firstItem.sectionTitle || firstItem.brand || '',
+        brandIcon: firstItem.sectionIcon || null,
 
         contactDetails: {
           name: contactDetails.name,
@@ -455,6 +463,8 @@ const Checkout = () => {
       // Prepare bookedItems array matching Service catalog structure
       // Prepare bookedItems array matching Service catalog structure
       const bookedItemsData = cartItems.map(item => ({
+        brandName: item.sectionTitle || item.brand || '',
+        brandIcon: item.sectionIcon || null,
         card: {
           title: item.card?.title || item.title || 'Unknown Service',
           subtitle: item.card?.subtitle || item.description || '',
@@ -485,6 +495,12 @@ const Checkout = () => {
         discount: savings,
         tax: taxesAndFee,
         visitationFee: finalVisitedFee,
+
+        // Metadata for better data capture
+        serviceCategory: firstItem.categoryTitle || firstItem.category || 'General',
+        categoryIcon: firstItem.categoryIcon || firstItem.icon || null,
+        brandName: firstItem.sectionTitle || firstItem.brand || '',
+        brandIcon: firstItem.sectionIcon || null,
 
         bookedItems: bookedItemsData
       });

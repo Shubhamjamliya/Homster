@@ -742,26 +742,39 @@ const BillingPage = () => {
         )}
         {currentStep === 4 && (
           <>
-            <button onClick={() => setCurrentStep(3)} className="flex-1 py-3 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl">Back</button>
+            <button
+              onClick={() => setCurrentStep(3)}
+              disabled={submitting || otpLoading}
+              className="flex-1 py-3 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl disabled:opacity-50"
+            >
+              Back
+            </button>
+
             {booking.paymentMethod === 'cash' || booking.paymentMethod === 'pay_at_home' ? (
               isOtpSent ? (
                 <button
                   onClick={() => setShowOtpModal(true)}
-                  className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  disabled={otpLoading}
+                  className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 disabled:scale-100"
                 >
-                  <FiKey className="w-5 h-5" /> Enter OTP to Confirm
+                  <FiKey className="w-5 h-5" />
+                  {otpLoading ? 'Verifying...' : 'Enter OTP to Confirm'}
                 </button>
               ) : (
                 <button
                   onClick={handleSendOTP}
                   disabled={otpLoading}
-                  className="flex-[2] py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  className="flex-[2] py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 disabled:scale-100"
                 >
-                  {otpLoading ? 'Processing...' : <><FiDollarSign className="w-5 h-5" /> Send OTP to User</>}
+                  {otpLoading ? 'Sending...' : <><FiDollarSign className="w-5 h-5" /> Send OTP to User</>}
                 </button>
               )
             ) : (
-              <button onClick={handleSubmit} disabled={submitting} className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl shadow-xl flex items-center justify-center gap-2">
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl shadow-xl flex items-center justify-center gap-2 disabled:opacity-70"
+              >
                 {submitting ? 'Processing...' : <><FiCheck className="w-5 h-5" />Confirm & Generate Bill</>}
               </button>
             )}

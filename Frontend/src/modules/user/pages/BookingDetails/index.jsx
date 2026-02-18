@@ -1069,46 +1069,67 @@ const BookingDetails = () => {
 
           {/* Service Details */}
           <section className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+            <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50">
               <h3 className="font-bold text-gray-900">Order Summary</h3>
-              <span className="text-xs font-semibold px-2 py-1 bg-white border border-gray-200 rounded text-gray-500">
-                {booking.serviceCategory || 'Service'}
-              </span>
             </div>
 
-            <div className="p-5">
-              <div className="flex gap-4">
-                <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                  <FiPackage className="w-8 h-8 text-gray-400" />
+            <div className="p-5 space-y-4">
+              {/* 1. Service Category */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0 border border-teal-100 overflow-hidden">
+                  {booking.categoryIcon ? (
+                    <img src={booking.categoryIcon} alt="" className="w-6 h-6 object-contain" />
+                  ) : (
+                    <FiPackage className="w-5 h-5 text-teal-400" />
+                  )}
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-900">{booking.serviceName || 'Service'}</h4>
-                  {booking.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{booking.description}</p>}
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Service Category</p>
+                  <p className="text-sm font-bold text-gray-800">{booking.serviceCategory || booking.serviceName || 'Service'}</p>
                 </div>
               </div>
 
-              {/* Items List */}
-              {booking.bookedItems && booking.bookedItems.length > 0 ? (
-                <div className="mt-5 space-y-3">
+              {/* 2. Brand */}
+              {(() => {
+                const brandName = booking.brandName || booking.bookedItems?.[0]?.brandName;
+                const brandIcon = booking.brandIcon || booking.bookedItems?.[0]?.brandIcon;
+                if (!brandName) return null;
+                return (
+                  <div className="flex items-center gap-3 pt-3 border-t border-dashed border-gray-100">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 overflow-hidden">
+                      {brandIcon ? (
+                        <img src={brandIcon} alt={brandName} className="w-7 h-7 object-contain" />
+                      ) : (
+                        <span className="text-lg font-black text-slate-400">{brandName.charAt(0)}</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Brand</p>
+                      <p className="text-sm font-bold text-gray-800">{brandName}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 3. Service Cards */}
+              {booking.bookedItems && booking.bookedItems.length > 0 && (
+                <div className="pt-3 border-t border-dashed border-gray-100 space-y-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Services Booked</p>
                   {booking.bookedItems.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start pt-3 border-t border-dashed border-gray-100">
-                      <div>
+                    <div key={idx} className="flex justify-between items-start bg-gray-50 rounded-xl p-3">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-400">x{item.quantity}</span>
-                          <span className="text-sm font-medium text-gray-800">{item.card?.title || item.title}</span>
+                          <span className="text-xs font-bold text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-100">×{item.quantity}</span>
+                          <span className="text-sm font-semibold text-gray-900 truncate">{item.card?.title || 'Service'}</span>
                         </div>
-                        {(item.card?.subtitle) && <p className="text-xs text-gray-400 ml-6">{item.card.subtitle}</p>}
+                        {item.card?.subtitle && <p className="text-xs text-gray-400 mt-0.5 ml-8 line-clamp-1">{item.card.subtitle}</p>}
+                        {item.card?.duration && <p className="text-xs text-gray-400 mt-0.5 ml-8">⏱ {item.card.duration}</p>}
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">₹{(item.card?.price || 0).toLocaleString('en-IN')}</span>
+                      <span className="text-sm font-bold text-gray-900 ml-3 shrink-0">₹{((item.card?.price || 0) * (item.quantity || 1)).toLocaleString('en-IN')}</span>
                     </div>
                   ))}
                 </div>
-              ) : booking.userNotes ? (
-                <div className="mt-4 p-3 bg-gray-50 rounded-xl">
-                  <p className="text-xs font-bold text-gray-500 mb-1">Notes</p>
-                  <p className="text-sm text-gray-800">{booking.userNotes.replace('Items: ', '')}</p>
-                </div>
-              ) : null}
+              )}
             </div>
           </section>
 

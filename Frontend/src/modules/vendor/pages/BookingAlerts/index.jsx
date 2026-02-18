@@ -62,7 +62,7 @@ const BookingAlerts = () => {
           const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
           const currentVendorId = String(vendorData._id || vendorData.id || '');
 
-          bookings = rawData.filter(b => {
+          bookings = response.data.filter(b => {
             const status = b.status?.toLowerCase();
             const isRelevantStatus = status === 'searching' || status === 'requested';
             const bVendorId = b.vendorId?._id || b.vendorId;

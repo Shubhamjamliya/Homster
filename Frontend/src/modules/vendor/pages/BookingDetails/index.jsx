@@ -712,33 +712,74 @@ export default function BookingDetails() {
         {booking.items && booking.items.length > 0 && (
           <div
             className="bg-white rounded-xl p-4 mb-4 shadow-md"
-            style={{
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-            }}
+            style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}
           >
-            <p className="text-sm font-semibold text-gray-700 mb-3">Booked Services</p>
-            <div className="space-y-3">
-              {booking.items.map((item, index) => (
-                <div key={index} className="flex justify-between items-start border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-                  <div>
-                    <p className="font-medium text-gray-800">{item.card?.title || 'Service Item'}</p>
-                    <p className="text-xs text-gray-500">{item.sectionTitle || 'General'}</p>
-                    {item.card?.features && item.card.features.length > 0 && (
-                      <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">• {item.card.features.join(', ')}</p>
+            <p className="text-sm font-bold text-gray-700 mb-4">Order Summary</p>
+
+            {/* Service Category */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
+                style={{ backgroundColor: `${themeColors.button}15`, border: `1px solid ${themeColors.button}25` }}>
+                {booking.categoryIcon ? (
+                  <img src={booking.categoryIcon} alt="" className="w-5 h-5 object-contain" />
+                ) : (
+                  <FiTool className="w-4 h-4" style={{ color: themeColors.button }} />
+                )}
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Service Category</p>
+                <p className="text-sm font-bold text-gray-800">{booking.serviceCategory || booking.serviceType || 'Service'}</p>
+              </div>
+            </div>
+
+            {/* Brand */}
+            {(() => {
+              const brandName = booking.brandName || booking.items?.[0]?.brandName;
+              const brandIcon = booking.brandIcon || booking.items?.[0]?.brandIcon;
+              if (!brandName) return null;
+              return (
+                <div className="flex items-center gap-3 mb-3 pt-3 border-t border-dashed border-gray-100">
+                  <div className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 overflow-hidden">
+                    {brandIcon ? (
+                      <img src={brandIcon} alt={brandName} className="w-6 h-6 object-contain" />
+                    ) : (
+                      <span className="text-base font-black text-slate-400">{brandName.charAt(0)}</span>
                     )}
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-800">
-                      ₹{item.card?.price || 0} <span className="text-xs text-gray-500 font-normal">x {item.quantity}</span>
-                    </p>
-                    <p className="text-xs font-bold text-gray-900 mt-1">₹{((item.card?.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Brand</p>
+                    <p className="text-sm font-bold text-gray-800">{brandName}</p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Service Cards */}
+            <div className="pt-3 border-t border-dashed border-gray-100 space-y-2">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Services</p>
+              {booking.items.map((item, index) => (
+                <div key={index} className="flex justify-between items-start bg-gray-50 rounded-xl p-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded border"
+                        style={{ color: themeColors.button, backgroundColor: `${themeColors.button}10`, borderColor: `${themeColors.button}25` }}>
+                        ×{item.quantity}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900 truncate">{item.card?.title || 'Service Item'}</span>
+                    </div>
+                    {item.card?.subtitle && <p className="text-xs text-gray-400 mt-0.5 ml-8 line-clamp-1">{item.card.subtitle}</p>}
+                    {item.card?.duration && <p className="text-xs text-gray-400 mt-0.5 ml-8">⏱ {item.card.duration}</p>}
+                  </div>
+                  <div className="text-right ml-3 shrink-0">
+                    <p className="text-sm font-bold text-gray-900">₹{((item.card?.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
+                    {item.quantity > 1 && <p className="text-xs text-gray-400">₹{item.card?.price || 0} each</p>}
                   </div>
                 </div>
               ))}
-            </div>
-            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
-              <p className="font-semibold text-gray-700">Total Base Price</p>
-              <p className="font-bold text-lg" style={{ color: themeColors.button }}>₹{(booking.basePrice || 0).toFixed(2)}</p>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-100 mt-1">
+                <p className="text-sm font-semibold text-gray-700">Total Base Price</p>
+                <p className="text-base font-bold" style={{ color: themeColors.button }}>₹{(booking.basePrice || 0).toFixed(2)}</p>
+              </div>
             </div>
           </div>
         )}

@@ -15,19 +15,21 @@ const PendingBookings = memo(({ bookings, setPendingBookings, setActiveAlertBook
   const handleAcceptBooking = async (e, booking) => {
     e.stopPropagation();
     try {
-      await acceptBooking(booking.id);
+      const response = await acceptBooking(booking.id);
 
-      // Remove this booking from pending list
-      setPendingBookings(prev => prev.filter(b => b.id !== booking.id));
+      if (response.success) {
+        // Only remove if successful
+        setPendingBookings(prev => prev.filter(b => b.id !== booking.id));
 
-      // Sync localStorage
-      const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-      const updated = pendingJobs.filter(b => b.id !== booking.id);
-      localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+        // Sync localStorage
+        const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+        const updated = pendingJobs.filter(b => b.id !== booking.id);
+        localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
 
-      // Dispatch stats update event
-      window.dispatchEvent(new Event('vendorStatsUpdated'));
-      toast.success('Booking accepted successfully!');
+        // Dispatch stats update event
+        window.dispatchEvent(new Event('vendorStatsUpdated'));
+        toast.success('Booking accepted successfully!');
+      }
     } catch (error) {
       console.error('Error accepting:', error);
       toast.error('Failed to accept booking');
@@ -37,20 +39,20 @@ const PendingBookings = memo(({ bookings, setPendingBookings, setActiveAlertBook
   const handleRejectBooking = async (e, booking) => {
     e.stopPropagation();
     try {
-      await rejectBooking(booking.id, 'Vendor Dashboard Reject');
+      const response = await rejectBooking(booking.id, 'Vendor Dashboard Reject');
 
-      setPendingBookings(prev => prev.filter(b => b.id !== booking.id));
+      if (response.success) {
+        setPendingBookings(prev => prev.filter(b => b.id !== booking.id));
 
-      // Sync localStorage
-      const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-      const updated = pendingJobs.filter(b => b.id !== booking.id);
-      localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
-      toast.success('Booking rejected');
-      navigate('/vendor/jobs');
+        // Sync localStorage
+        const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+        const updated = pendingJobs.filter(b => b.id !== booking.id);
+        localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+        toast.success('Booking rejected');
+      }
     } catch (error) {
       console.error('Error rejecting:', error);
       toast.error('Failed to reject booking');
-      navigate('/vendor/jobs');
     }
   };
 

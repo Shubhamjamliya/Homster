@@ -133,7 +133,8 @@ const Dashboard = memo(() => {
         // If it was added recently (last 2 mins), keep it even if not in API yet
         const createdAt = localJob.createdAt ? new Date(localJob.createdAt).getTime() : Date.now();
         const age = Date.now() - createdAt;
-        if (age < 120000 && (localJob.status === 'REQUESTED' || localJob.status === 'searching')) {
+        const lowerStatus = String(localJob.status || '').toLowerCase();
+        if (age < 120000 && (lowerStatus === 'requested' || lowerStatus === 'searching')) {
           mergedPending.push(localJob);
         }
       }
