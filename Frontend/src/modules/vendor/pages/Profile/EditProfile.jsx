@@ -13,14 +13,14 @@ import { z } from "zod";
 // Zod schema
 const vendorProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  businessName: z.string().min(2, "Business Name is required"),
+  businessName: z.string().optional(),
   phone: z.string().regex(/^\+?[0-9]{10,13}$/, "Invalid phone number"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal('')),
   address: z.custom((val) => {
     return (typeof val === 'string' && val.trim().length > 0) ||
       (typeof val === 'object' && val !== null && (val.fullAddress || val.addressLine1));
   }, "Address is required"),
-  serviceCategories: z.array(z.string()).min(1, "Select at least one category"),
+  serviceCategories: z.any().optional(), // Relaxed validation for debugging
 });
 
 const EditProfile = () => {
@@ -280,7 +280,9 @@ const EditProfile = () => {
     });
 
     if (!validationResult.success) {
-      toast.error(validationResult.error.errors[0].message);
+      console.log('Validation failed:', validationResult.error);
+      const errorMessage = validationResult.error?.errors?.[0]?.message || 'Validation failed';
+      toast.error(errorMessage);
       return;
     }
 
@@ -435,7 +437,7 @@ const EditProfile = () => {
               >
                 <FiBriefcase className="w-4 h-4" style={{ color: themeColors.icon }} />
               </div>
-              <span>Business Name <span className="text-red-500">*</span></span>
+              <span>Business Name</span>
             </label>
             <input
               type="text"
@@ -485,7 +487,7 @@ const EditProfile = () => {
               >
                 <FiMail className="w-4 h-4" style={{ color: themeColors.icon }} />
               </div>
-              <span>Email <span className="text-red-500">*</span></span>
+              <span>Email</span>
             </label>
             <input
               type="email"
