@@ -284,8 +284,14 @@ export const SocketProvider = ({ children }) => {
         window.dispatchEvent(new Event('vendorStatsUpdated'));
         window.dispatchEvent(new Event('vendorNotificationsUpdated'));
 
-        // Navigate to Alert Page (using replace to avoid history loops)
-        navigate(`/vendor/booking-alert/${data.bookingId}`, { replace: true });
+        // If on Dashboard, show modal there instead of navigating
+        if (location.pathname === '/vendor/dashboard') {
+          const event = new CustomEvent('showDashboardBookingAlert', { detail: newJob });
+          window.dispatchEvent(event);
+        } else {
+          // Navigate to Alert Page (using replace to avoid history loops)
+          navigate(`/vendor/booking-alert/${data.bookingId}`, { replace: true });
+        }
       });
 
       // Listen for booking_taken - when another vendor accepts a job
@@ -310,6 +316,9 @@ export const SocketProvider = ({ children }) => {
 
         // Show toast notification
         toast.error(data.message || 'Job taken by another vendor', { icon: '⚡' });
+
+        // Dispatch specific remove event for instant UI update
+        window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: takenBookingId } }));
 
         // Notify app components to refresh
         window.dispatchEvent(new Event('vendorJobsUpdated'));

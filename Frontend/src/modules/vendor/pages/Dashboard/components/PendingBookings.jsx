@@ -26,6 +26,9 @@ const PendingBookings = memo(({ bookings, setPendingBookings, setActiveAlertBook
         const updated = pendingJobs.filter(b => b.id !== booking.id);
         localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
 
+        // Remove from everywhere immediately
+        window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: booking.id } }));
+
         // Dispatch stats update event
         window.dispatchEvent(new Event('vendorStatsUpdated'));
         toast.success('Booking accepted successfully!');
@@ -48,6 +51,9 @@ const PendingBookings = memo(({ bookings, setPendingBookings, setActiveAlertBook
         const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
         const updated = pendingJobs.filter(b => b.id !== booking.id);
         localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+
+        // Remove from everywhere immediately
+        window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: booking.id } }));
         toast.success('Booking rejected');
       }
     } catch (error) {

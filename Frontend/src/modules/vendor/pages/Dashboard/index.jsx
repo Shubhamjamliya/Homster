@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
@@ -50,6 +50,7 @@ const Dashboard = memo(() => {
   const [error, setError] = useState('');
   const [activeAlertBooking, setActiveAlertBooking] = useState(null);
   const [showGPSPermission, setShowGPSPermission] = useState(false);
+  const ignoredBookingIds = useRef(new Set());
 
   // Set background gradient
   useLayoutEffect(() => {
@@ -72,17 +73,25 @@ const Dashboard = memo(() => {
 
   // Check GPS on mount
   useEffect(() => {
+    const hasShownPrompt = sessionStorage.getItem('gpsPromptShown');
+    if (hasShownPrompt) return;
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        () => { }, // Success
+        () => {
+          // Success - no need to show modal
+          sessionStorage.setItem('gpsPromptShown', 'true');
+        },
         (error) => {
           console.error("GPS Error:", error);
           setShowGPSPermission(true);
+          sessionStorage.setItem('gpsPromptShown', 'true');
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
     } else {
       setShowGPSPermission(true);
+      sessionStorage.setItem('gpsPromptShown', 'true');
     }
   }, []);
 
@@ -141,15 +150,23 @@ const Dashboard = memo(() => {
       });
     });
 
+    // Filter out locally ignored bookings
+    const finalMap = new Map();
+    mergedMap.forEach((value, key) => {
+      if (!ignoredBookingIds.current.has(key)) {
+        finalMap.set(key, value);
+      }
+    });
+
     // Merge with local storage to avoid losing real-time updates that haven't hit API yet
     const localPending = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-    const apiPending = Array.from(mergedMap.values());
+    const apiPending = Array.from(finalMap.values());
     const mergedPending = [...apiPending];
 
     localPending.forEach(localJob => {
       const id = String(localJob.id || localJob._id);
-      if (!mergedPending.find(job => String(job.id || job._id) === id)) {
-        // If it was added recently (last 2 mins), keep it even if not in API yet
+      if (!mergedPending.find(job => String(job.id || job._id) === id) && !ignoredBookingIds.current.has(id)) {
+        // ... (existing logic) result of filter
         const createdAt = localJob.createdAt ? new Date(localJob.createdAt).getTime() : Date.now();
         const age = Date.now() - createdAt;
         const lowerStatus = String(localJob.status || '').toLowerCase();
@@ -231,12 +248,47 @@ const Dashboard = memo(() => {
     // Ask for notification permission and register FCM
     registerFCMToken('vendor', true).catch(err => console.error('FCM registration failed:', err));
 
+    // Listen for custom dashboard events from SocketContext
+    const handleShowAlert = (e) => {
+      // e.detail contains the new booking job
+      if (e.detail) {
+        setActiveAlertBooking(e.detail);
+        // Also add to pending if not present
+        setPendingBookings(prev => {
+          if (prev.find(b => b.id === e.detail.id)) return prev;
+          return [e.detail, ...prev];
+        });
+      }
+    };
+
+    const handleRemoveBooking = (e) => {
+      if (e.detail?.id) {
+        const idToRemove = String(e.detail.id);
+
+        // Add to ignored list so it doesn't come back on next fetch
+        ignoredBookingIds.current.add(idToRemove);
+
+        // Remove from pending bookings state immediately
+        setPendingBookings(prev => prev.filter(b => String(b.id || b._id) !== idToRemove));
+
+        // Remove from active alert if it's the one showing
+        setActiveAlertBooking(prev => (prev && String(prev.id || prev._id) === idToRemove) ? null : prev);
+
+        // Remove from recent jobs state
+        setRecentJobs(prev => prev.filter(b => String(b.id || b._id) !== idToRemove));
+      }
+    };
+
     window.addEventListener('vendorJobsUpdated', handleUpdate);
     window.addEventListener('vendorStatsUpdated', handleUpdate);
+    window.addEventListener('showDashboardBookingAlert', handleShowAlert);
+    window.addEventListener('removeVendorBooking', handleRemoveBooking);
 
     return () => {
       window.removeEventListener('vendorJobsUpdated', handleUpdate);
       window.removeEventListener('vendorStatsUpdated', handleUpdate);
+      window.removeEventListener('showDashboardBookingAlert', handleShowAlert);
+      window.removeEventListener('removeVendorBooking', handleRemoveBooking);
     };
   }, [loadDashboardData]);
 
@@ -726,8 +778,16 @@ const Dashboard = memo(() => {
           try {
             await acceptBooking(id);
             await assignWorker(id, 'SELF');
+
+            // Remove from local storage
+            const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+            const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(id));
+            localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+
+            // Dispatch remove event to update ignored list and UI
+            window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id } }));
+
             setActiveAlertBooking(null);
-            setPendingBookings(prev => prev.filter(b => b.id !== id));
             window.dispatchEvent(new Event('vendorStatsUpdated'));
             toast.success('Job claimed successfully! Assigned to you.');
           } catch (e) {
@@ -737,8 +797,16 @@ const Dashboard = memo(() => {
         onAssign={async (id) => {
           try {
             await acceptBooking(id);
+
+            // Remove from local storage
+            const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+            const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(id));
+            localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+
+            // Dispatch remove event
+            window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id } }));
+
             setActiveAlertBooking(null);
-            setPendingBookings(prev => prev.filter(b => b.id !== id));
             window.dispatchEvent(new Event('vendorJobsUpdated'));
             toast.success('Job claimed! Redirecting to assign...');
             navigate(`/vendor/booking/${id}/assign-worker`);
@@ -749,6 +817,15 @@ const Dashboard = memo(() => {
         onReject={async (id) => {
           try {
             await rejectBooking(id, 'Vendor Declined');
+
+            // Remove from local storage
+            const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+            const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(id));
+            localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+
+            // Dispatch remove event
+            window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id } }));
+
             setActiveAlertBooking(null);
             setPendingBookings(prev => prev.filter(b => b.id !== id));
           } catch (e) {
@@ -760,7 +837,6 @@ const Dashboard = memo(() => {
           // Sound is stopped inside the component
         }}
       />
-
 
       <GPSPermissionModal
         isOpen={showGPSPermission}

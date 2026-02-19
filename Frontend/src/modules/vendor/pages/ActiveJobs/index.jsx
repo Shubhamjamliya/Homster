@@ -14,7 +14,7 @@ const ActiveJobs = memo(() => {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, assigned, in_progress, completed
+  const [filter, setFilter] = useState('in_progress'); // Default to showing active jobs
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -115,6 +115,7 @@ const ActiveJobs = memo(() => {
     const colors = {
       'ACCEPTED': '#F59E0B',
       'ASSIGNED': '#3B82F6',
+      'JOURNEY_STARTED': '#F59E0B',
       'VISITED': '#8B5CF6',
       'WORK_DONE': '#10B981',
       'WORKER_PAID': '#06B6D4',
@@ -136,7 +137,7 @@ const ActiveJobs = memo(() => {
         // Jobs that are assigned but not yet in progress or completed
         matchesFilter = ['ASSIGNED', 'WORKER_ACCEPTED'].includes(status) || (!!job.assignedTo && ['ACCEPTED', 'CONFIRMED'].includes(status));
       } else if (filter === 'in_progress') {
-        matchesFilter = ['STARTED', 'REACHED', 'VISITED', 'WORK_DONE', 'IN_PROGRESS', 'ON_THE_WAY'].includes(status);
+        matchesFilter = ['ACCEPTED', 'ASSIGNED', 'STARTED', 'JOURNEY_STARTED', 'REACHED', 'VISITED', 'WORK_DONE', 'IN_PROGRESS', 'ON_THE_WAY'].includes(status);
       } else if (filter === 'completed') {
         matchesFilter = ['COMPLETED', 'WORKER_PAID', 'SETTLEMENT_PENDING', 'PAID', 'CLOSED'].includes(status);
       }

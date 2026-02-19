@@ -248,13 +248,13 @@ const Checkout = () => {
   const handleProceed = async () => {
     // Validation
     if (bookingType === 'instant') {
-      if (!addressDetails || !houseNumber) {
+      if (!addressDetails) {
         setShowAddressModal(true);
         return;
       }
     } else {
-      if (!addressDetails || !selectedDate || !selectedTime || !houseNumber) {
-        if (!addressDetails || !houseNumber) setShowAddressModal(true);
+      if (!addressDetails || !selectedDate || !selectedTime) {
+        if (!addressDetails) setShowAddressModal(true);
         else if (!selectedDate || !selectedTime) setShowTimeSlotModal(true);
         return;
       }
@@ -430,13 +430,17 @@ const Checkout = () => {
     try {
       // Validate required fields
       if (bookingType === 'scheduled') {
-        if (!selectedDate || !selectedTime || !houseNumber) {
-          toast.error('Please select address and time slot');
+        if (!selectedDate || !selectedTime) {
+          toast.error('Please select time slot');
+          return;
+        }
+        if (!addressDetails) {
+          toast.error('Please select address');
           return;
         }
       } else {
         // Instant
-        if (!houseNumber) {
+        if (!addressDetails) {
           toast.error('Please select address');
           return;
         }

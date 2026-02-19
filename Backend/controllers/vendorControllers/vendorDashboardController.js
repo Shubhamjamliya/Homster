@@ -45,10 +45,16 @@ const getDashboardStats = async (req, res) => {
       vendorId,
       status: {
         $in: [
+
           BOOKING_STATUS.AWAITING_PAYMENT,
+          BOOKING_STATUS.ACCEPTED,
           BOOKING_STATUS.PENDING,
           BOOKING_STATUS.CONFIRMED,
-          BOOKING_STATUS.IN_PROGRESS
+          BOOKING_STATUS.ASSIGNED,
+          BOOKING_STATUS.JOURNEY_STARTED,
+          BOOKING_STATUS.VISITED,
+          BOOKING_STATUS.IN_PROGRESS,
+          BOOKING_STATUS.WORK_DONE
         ]
       }
     });
