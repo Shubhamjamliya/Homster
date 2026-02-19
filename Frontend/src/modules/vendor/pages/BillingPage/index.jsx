@@ -80,6 +80,14 @@ const BillingPage = () => {
     return () => clearTimeout(timer);
   }, [id, viewMode, currentStep, loading]);
 
+  // Save draft data
+  useEffect(() => {
+    if (id && !loading) {
+      const data = { selectedServices, selectedParts, customItems };
+      localStorage.setItem(`billing_data_${id}`, JSON.stringify(data));
+    }
+  }, [id, selectedServices, selectedParts, customItems, loading]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -103,40 +111,65 @@ const BillingPage = () => {
       const pCats = ['All', ...new Set(parts.map(p => p.categoryId?.title || 'Uncategorized'))];
       setPartCategories(pCats.filter(Boolean));
 
-      // Load existing bill if any
-      let usedBillSettings = false;
-      try {
-        const billRes = await vendorBillService.getBill(id);
-        if (billRes.success && billRes.bill) {
-          // Filter out the original service (isOriginal: true) — it's already accounted for as originalBase
+      // 1. Try to load from Local Storage (Draft)
+      const savedDraft = localStorage.getItem(`billing_data_${id}`);
+      let hasDraft = false;
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          setSelectedServices(parsed.selectedServices || []);
+          setSelectedParts(parsed.selectedParts || []);
+          setCustomItems(parsed.customItems || []);
+          hasDraft = true;
+        } catch (e) {
+          console.error('Error parsing draft:', e);
+        }
+      }
+
+      // 2. Load from Backend (if no draft or to get config)
+      const billRes = await vendorBillService.getBill(id);
+
+      // If we used draft, we still might want payout settings from backend bill
+      // If NO draft, we use backend bill data
+      if (billRes.success && billRes.bill) {
+        if (!hasDraft) {
           setSelectedServices((billRes.bill.services || []).filter(s => !s.isOriginal));
           setSelectedParts(billRes.bill.parts || []);
           setCustomItems(billRes.bill.customItems || []);
-
-          // Use stored payout config if available
-          if (billRes.bill.payoutConfig) {
-            const pc = billRes.bill.payoutConfig;
-            setPayoutSettings({
-              serviceGstPct: pc.serviceGstPercentage ?? 18,
-              partsGstPct: pc.partsGstPercentage ?? 18,
-              servicePayoutPct: pc.serviceSplitPercentage ?? 70,
-              partsPayoutPct: pc.partsSplitPercentage ?? 10
-            });
-            usedBillSettings = true;
-          }
-
-          // Determine data-driven step progress
-          let reachedStep = 1;
-          if (billRes.bill.customItems?.length > 0) reachedStep = 4;
-          else if (billRes.bill.parts?.length > 0) reachedStep = 3;
-          else if (billRes.bill.services?.length > 0) reachedStep = 2;
-
-          setMaxStep(prev => Math.max(prev, reachedStep));
         }
-      } catch (err) { /* ignore */ }
 
-      // Fallback to global settings if no bill config found
-      if (!usedBillSettings) {
+        if (billRes.bill.payoutConfig) {
+          const pc = billRes.bill.payoutConfig;
+          setPayoutSettings({
+            serviceGstPct: pc.serviceGstPercentage ?? 18,
+            partsGstPct: pc.partsGstPercentage ?? 18,
+            servicePayoutPct: pc.serviceSplitPercentage ?? 70,
+            partsPayoutPct: pc.partsSplitPercentage ?? 10
+          });
+        }
+
+        // Update max step based on data (merged)
+        const currentData = hasDraft ? JSON.parse(savedDraft) : {
+          selectedServices: (billRes.bill.services || []).filter(s => !s.isOriginal),
+          selectedParts: billRes.bill.parts || [],
+          customItems: billRes.bill.customItems || []
+        };
+
+        let reachedStep = 1;
+        if (currentData.customItems?.length > 0) reachedStep = 4;
+        else if (currentData.selectedParts?.length > 0) reachedStep = 3;
+        else if (currentData.selectedServices?.length > 0) reachedStep = 2;
+
+        setMaxStep(prev => Math.max(prev, reachedStep));
+      } else if (!hasDraft) {
+        // Fallback settings if no bill and no draft
+        // ... (existing settings fetch)
+      } else {
+        // Has draft but no backend bill - ok
+      }
+
+      // Fallback settings logic (existing)
+      if (!billRes.success || !billRes.bill?.payoutConfig) {
         try {
           const token = localStorage.getItem('vendorToken');
           const res = await fetch('/api/vendors/settings', { headers: { Authorization: `Bearer ${token}` } });
@@ -150,9 +183,7 @@ const BillingPage = () => {
               partsPayoutPct: g.partsPayoutPercentage ?? 10
             });
           }
-        } catch (e) {
-          console.error('Error fetching global settings:', e);
-        }
+        } catch (e) { console.error('Error fetching global settings:', e); }
       }
 
     } catch (error) {
@@ -366,6 +397,7 @@ const BillingPage = () => {
         toast.success('Bill generated successfully!');
         localStorage.removeItem(`billing_step_${id}`);
         localStorage.removeItem(`billing_max_step_${id}`);
+        localStorage.removeItem(`billing_data_${id}`);
         navigate(`/vendor/booking/${id}`);
       } else {
         toast.error(res.message || 'Failed to generate bill');
@@ -424,6 +456,7 @@ const BillingPage = () => {
         toast.success('Payment verified successfully!');
         localStorage.removeItem(`billing_step_${id}`);
         localStorage.removeItem(`billing_max_step_${id}`);
+        localStorage.removeItem(`billing_data_${id}`);
         navigate(`/vendor/booking/${id}`);
       } else {
         toast.error(res.message || 'Invalid OTP');
@@ -628,7 +661,7 @@ const BillingPage = () => {
             return (
               <button key={step.id} onClick={() => isReached && setCurrentStep(step.id)}
                 className={`flex flex-col items-center gap-1 z-10 relative transition-all ${isActive ? 'opacity-100 scale-105' : isReached ? 'opacity-80' : 'opacity-40'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isReached ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-gray-100 text-gray-400'} ${isActive ? 'ring-4 ring-blue-50' : ''}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${(isActive || isCompleted) ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-gray-100 text-gray-400'} ${isActive ? 'ring-4 ring-blue-50' : ''}`}>
                   {isCompleted ? <FiCheck className="w-4 h-4" /> : <step.icon />}
                 </div>
                 <span className={`text-[10px] font-bold ${isReached ? 'text-gray-800' : 'text-gray-400'}`}>{step.label}</span>

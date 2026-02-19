@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { acceptBooking, rejectBooking } from '../../services/bookingService';
+import { acceptBooking, rejectBooking, assignWorker } from '../../services/bookingService';
 import BookingAlertModal from '../../components/bookings/BookingAlertModal';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../../context/SocketContext'; // Import socket context
@@ -57,6 +57,7 @@ const BookingAlert = () => {
   const handleAccept = async () => {
     try {
       await acceptBooking(id);
+      await assignWorker(id, 'SELF');
 
       // Update local storage states
       const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
@@ -64,7 +65,7 @@ const BookingAlert = () => {
       localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
 
       window.dispatchEvent(new Event('vendorJobsUpdated'));
-      toast.success('Booking accepted successfully!');
+      toast.success('Booking accepted & assigned to you!');
       navigate('/vendor/dashboard', { replace: true });
     } catch (error) {
       console.error('Error accepting:', error);

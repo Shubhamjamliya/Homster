@@ -763,14 +763,45 @@ const Checkout = () => {
     }
   };
 
-  const handleAddressSave = (savedHouseNumber, locationObj) => {
+  const handleAddressSave = async (savedHouseNumber, locationObj) => {
     setHouseNumber(savedHouseNumber);
     if (locationObj) {
       setAddress(locationObj.address);
       setAddressDetails(locationObj);
     }
     setShowAddressModal(false);
-    setShowTimeSlotModal(true);
+
+    // Save to profile
+    if (locationObj) {
+      try {
+        const getComp = (type) => locationObj.components?.find(c => c.types.includes(type))?.long_name || '';
+
+        const newAddress = {
+          type: 'home',
+          addressLine1: locationObj.address,
+          addressLine2: savedHouseNumber,
+          city: getComp('locality') || getComp('administrative_area_level_2') || 'City',
+          state: getComp('administrative_area_level_1') || 'State',
+          pincode: getComp('postal_code') || '000000',
+          lat: locationObj.lat,
+          lng: locationObj.lng,
+          isDefault: true
+        };
+
+        const response = await userAuthService.getProfile();
+        if (response.success && response.user) {
+          const updatedAddresses = [...(response.user.addresses || []), newAddress];
+          await userAuthService.updateProfile({ addresses: updatedAddresses });
+          toast.success('Address saved to profile!');
+        }
+      } catch (e) {
+        console.error('Failed to save address to profile', e);
+      }
+    }
+
+    if (bookingType === 'scheduled') {
+      setShowTimeSlotModal(true);
+    }
   };
 
   const handleTimeSlotSave = (date, time) => {

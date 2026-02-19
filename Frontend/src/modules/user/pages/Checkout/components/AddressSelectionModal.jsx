@@ -80,15 +80,16 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
         className={`fixed inset-0 bg-black/50 z-50 transition-opacity ${isClosing ? 'opacity-0' : 'opacity-100'}`}
         onClick={handleClose}
       />
-      <div className="fixed bottom-20 left-4 right-4 z-50">
+      <div className="fixed bottom-0 left-0 right-0 z-50">
         <div
-          className={`bg-white rounded-[32px] shadow-2xl ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
+          className={`bg-white rounded-t-[32px] shadow-2xl ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
           style={{
-            maxHeight: '80vh',
+            height: '85vh',
+            maxHeight: '90vh',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            border: '1px solid rgba(0,0,0,0.05)'
+            borderTop: '1px solid rgba(0,0,0,0.05)'
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -159,8 +160,16 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
                       placeholder="Search for area, street name..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-3 bg-gray-50 border-none rounded-xl text-sm focus:ring-1 focus:ring-primary-500 transition-all font-medium"
+                      className="w-full pl-9 pr-10 py-3 bg-gray-50 border-none rounded-xl text-sm focus:ring-1 focus:ring-primary-500 transition-all font-medium"
                     />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-all"
+                      >
+                        <FiX className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </Autocomplete>
               ) : (

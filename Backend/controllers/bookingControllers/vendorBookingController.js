@@ -1098,21 +1098,21 @@ const completeSelfJob = async (req, res) => {
     await booking.save();
 
     // ── Notify user ──
-    // const { createNotification } = require('../notificationControllers/notificationController');
-    // await createNotification({
-    //   userId: booking.userId,
-    //   type: 'work_completed',
-    //   title: 'Work Completed & Bill Ready',
-    //   message: `Work finished! Your total bill is ₹${grandTotal}. Please review and confirm.`,
-    //   relatedId: booking._id,
-    //   relatedType: 'booking',
-    //   priority: 'high',
-    //   pushData: {
-    //     type: 'work_completed',
-    //     bookingId: booking._id.toString(),
-    //     link: `/user/booking/${booking._id}`
-    //   }
-    // });
+    const { createNotification } = require('../notificationControllers/notificationController');
+    await createNotification({
+      userId: booking.userId,
+      type: 'work_completed',
+      title: 'Work Completed & Bill Ready',
+      message: `Work finished! Your total bill is ₹${grandTotal}. Please review and confirm.`,
+      relatedId: booking._id,
+      relatedType: 'booking',
+      priority: 'high',
+      pushData: {
+        type: 'work_completed',
+        bookingId: booking._id.toString(),
+        link: `/user/booking/${booking._id}`
+      }
+    });
 
     const io = req.app.get('io');
     if (io) {

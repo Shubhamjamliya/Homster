@@ -5,7 +5,7 @@ import { FaWallet } from 'react-icons/fa';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import { vendorDashboardService } from '../../services/dashboardService';
-import { acceptBooking, rejectBooking } from '../../services/bookingService';
+import { acceptBooking, rejectBooking, assignWorker } from '../../services/bookingService';
 import { BookingAlertModal } from '../../components/bookings';
 import { toast } from 'react-hot-toast';
 import { io } from 'socket.io-client';
@@ -706,10 +706,11 @@ const Dashboard = memo(() => {
         onAccept={async (id) => {
           try {
             await acceptBooking(id);
+            await assignWorker(id, 'SELF');
             setActiveAlertBooking(null);
             setPendingBookings(prev => prev.filter(b => b.id !== id));
             window.dispatchEvent(new Event('vendorStatsUpdated'));
-            toast.success('Job claimed successfully!');
+            toast.success('Job claimed successfully! Assigned to you.');
           } catch (e) {
             toast.error('Failed to claim job');
           }
