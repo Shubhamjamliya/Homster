@@ -9,14 +9,17 @@ import { motion } from 'framer-motion';
  *                            If false, uses transparent background (doesn't hide BottomNav).
  * @param {string} size - Size classes for the logo
  */
-const LogoLoader = ({ fullScreen = false, overlay = false, size = "w-20 h-20" }) => {
+const LogoLoader = ({ fullScreen = false, overlay = false, inline = false, size = "w-20 h-20" }) => {
   // For route transitions (default), use a non-blocking loader
   // For initial app load, use fullScreen with overlay
+  // For inline loading (e.g. buttons), use inline
   const containerClasses = fullScreen
     ? overlay
       ? "fixed inset-0 flex items-center justify-center bg-white z-[9999]"
       : "fixed inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm z-[100]"
-    : "flex items-center justify-center w-full min-h-[60vh] pb-20"; // Leave space for bottom nav
+    : inline
+      ? "flex items-center justify-center"
+      : "flex items-center justify-center w-full min-h-[60vh] pb-20"; // Leave space for bottom nav
 
   return (
     <div className={containerClasses}>

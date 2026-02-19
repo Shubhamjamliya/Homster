@@ -575,7 +575,7 @@ const VendorSignup = () => {
                 >
                   <span className="absolute inset-0 w-full h-full bg-white/10 group-hover:translate-x-full transition-transform duration-700 -translate-x-full" />
                   {isLoading ? (
-                    <LogoLoader fullScreen={false} size="w-6 h-6" />
+                    <LogoLoader fullScreen={false} inline={true} size="w-6 h-6" />
                   ) : (
                     <span className="flex items-center relative z-10">
                       {verificationToken ? 'Finish Application' : 'Proceed to Verify'}
@@ -651,7 +651,7 @@ const VendorSignup = () => {
                     <span className="absolute inset-0 w-full h-full bg-white/10 group-hover:translate-x-full transition-transform duration-700 -translate-x-full" />
                     <span className="relative z-10 flex items-center justify-center">
                       {isLoading ? (
-                        <LogoLoader fullScreen={false} size="w-6 h-6" />
+                        <LogoLoader fullScreen={false} inline={true} size="w-6 h-6" />
                       ) : (
                         'Verify & Register'
                       )}

@@ -14,6 +14,7 @@ import { registerFCMToken } from '../../../../services/pushNotificationService';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import StatsCards from './components/StatsCards';
 import PendingBookings from './components/PendingBookings';
+import GPSPermissionModal from '../../../../components/common/GPSPermissionModal';
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
 
@@ -48,6 +49,7 @@ const Dashboard = memo(() => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeAlertBooking, setActiveAlertBooking] = useState(null);
+  const [showGPSPermission, setShowGPSPermission] = useState(false);
 
   // Set background gradient
   useLayoutEffect(() => {
@@ -64,7 +66,24 @@ const Dashboard = memo(() => {
       if (html) html.style.background = '';
       if (body) body.style.background = '';
       if (root) root.style.background = '';
+
     };
+  }, []);
+
+  // Check GPS on mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        () => { }, // Success
+        (error) => {
+          console.error("GPS Error:", error);
+          setShowGPSPermission(true);
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    } else {
+      setShowGPSPermission(true);
+    }
   }, []);
 
   // Process API response - extracted to avoid duplication
@@ -740,6 +759,21 @@ const Dashboard = memo(() => {
           setActiveAlertBooking(null);
           // Sound is stopped inside the component
         }}
+      />
+
+
+      <GPSPermissionModal
+        isOpen={showGPSPermission}
+        onRequestLocation={() => {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              () => setShowGPSPermission(false),
+              () => toast.error('Please enable location access from browser settings'),
+              { enableHighAccuracy: true }
+            );
+          }
+        }}
+        onClose={() => setShowGPSPermission(false)}
       />
     </div>
   );
