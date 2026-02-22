@@ -353,7 +353,7 @@ const MyBookings = () => {
                       <FiCalendar className="w-4 h-4 text-blue-500" />
                     </div>
                     <div className="flex flex-col justify-center">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Scheduled For</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Slot</p>
                       <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
                         <span>{formatDate(booking.scheduledDate)}</span>
                         <span className="text-slate-300">•</span>

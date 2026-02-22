@@ -1379,13 +1379,13 @@ const Checkout = () => {
               onClick={() => setBookingType('instant')}
               className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${bookingType === 'instant' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
             >
-              <span className="text-yellow-500">⚡</span> Instant
+              <span className="text-yellow-500">⚡</span> Book
             </button>
             <button
               onClick={() => setBookingType('scheduled')}
               className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${bookingType === 'scheduled' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
             >
-              <span>📅</span> Scheduled
+              <span>📅</span> Slot
             </button>
           </div>
           {bookingType === 'instant' && (
