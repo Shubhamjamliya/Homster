@@ -112,6 +112,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
         categoryTitle: category?.title || '', // Explicit field
         categoryIcon: toAssetUrl(category?.homeIconUrl || category?.iconUrl || ''), // Explicit field
         // Brand info — stored as sectionTitle/sectionIcon for booking flow
+        sectionId: selectedBrand?.id || selectedBrand?._id || null, // VITAL: Added for plan benefits
         sectionTitle: selectedBrand?.title || '',
         sectionIcon: toAssetUrl(selectedBrand?.iconUrl || selectedBrand?.icon || ''),
         price: service.discountPrice || service.basePrice,

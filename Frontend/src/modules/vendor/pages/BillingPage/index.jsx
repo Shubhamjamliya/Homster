@@ -906,24 +906,34 @@ const BillingPage = () => {
                   </div>
                 )}
               </div>
-              <div className="bg-emerald-50 px-6 py-4 border-t border-emerald-100">
-                <div className="space-y-2 mb-3">
-                  <div className="flex justify-between items-center text-emerald-700 text-sm">
-                    <span>Service Earnings ({calculations.servicePayoutPct}%)</span>
-                    <span className="font-bold">₹{calculations.vendorServiceEarnings.toFixed(2)}</span>
-                  </div>
-                  {(calculations.vendorPartsEarnings > 0) && (
+              {/* Earnings Footer - ONLY SHOW WHEN COMPLETED */}
+              {booking.status === 'completed' ? (
+                <div className="bg-emerald-50 px-6 py-4 border-t border-emerald-100">
+                  <div className="space-y-2 mb-3">
                     <div className="flex justify-between items-center text-emerald-700 text-sm">
-                      <span>Parts Earnings ({calculations.partsPayoutPct}%)</span>
-                      <span className="font-bold">₹{calculations.vendorPartsEarnings.toFixed(2)}</span>
+                      <span>Service Earnings ({calculations.servicePayoutPct}%)</span>
+                      <span className="font-bold">₹{calculations.vendorServiceEarnings.toFixed(2)}</span>
                     </div>
-                  )}
+                    {(calculations.vendorPartsEarnings > 0) && (
+                      <div className="flex justify-between items-center text-emerald-700 text-sm">
+                        <span>Parts Earnings ({calculations.partsPayoutPct}%)</span>
+                        <span className="font-bold">₹{calculations.vendorPartsEarnings.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-emerald-200/50">
+                    <span className="text-emerald-800 font-bold text-xs uppercase tracking-wider">Total Net Earnings</span>
+                    <span className="text-emerald-700 font-black text-xl">₹{calculations.totalVendorEarnings.toFixed(2)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-emerald-200/50">
-                  <span className="text-emerald-800 font-bold text-xs uppercase tracking-wider">Total Estim. Earnings</span>
-                  <span className="text-emerald-700 font-black text-xl">₹{calculations.totalVendorEarnings.toFixed(2)}</span>
+              ) : (
+                <div className="bg-gray-50 px-6 py-4 border-t border-gray-100/50 text-center">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center justify-center gap-2">
+                    <FiClock className="w-3 h-3" />
+                    Net Earnings will be revealed after completion
+                  </p>
                 </div>
-              </div>
+              )}
 
             </div>
           </div>

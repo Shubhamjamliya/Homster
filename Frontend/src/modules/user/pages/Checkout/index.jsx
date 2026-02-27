@@ -794,9 +794,9 @@ const Checkout = () => {
 
         const response = await userAuthService.getProfile();
         if (response.success && response.user) {
-          const updatedAddresses = [...(response.user.addresses || []), newAddress];
+          const updatedAddresses = [newAddress]; // Always replace with single address
           await userAuthService.updateProfile({ addresses: updatedAddresses });
-          toast.success('Address saved to profile!');
+          toast.success('Address updated in profile!');
         }
       } catch (e) {
         console.error('Failed to save address to profile', e);
@@ -905,6 +905,7 @@ const Checkout = () => {
             setPlanBenefits({
               name: activePlan.name,
               freeCategories: activePlan.freeCategories || [],
+              freeBrands: activePlan.freeBrands || [],
               freeServices: activePlan.freeServices || []
             });
 
@@ -921,34 +922,39 @@ const Checkout = () => {
     }
   }, [plan]);
 
-  const [planBenefits, setPlanBenefits] = useState({ name: '', freeCategories: [], freeServices: [] });
+  const [planBenefits, setPlanBenefits] = useState({ name: '', freeCategories: [], freeBrands: [], freeServices: [] });
+
+  // Helper to normalize MongoDB IDs (handles strings, objects with _id, and $oid)
+  const normalizeId = (id) => {
+    if (!id) return null;
+    if (typeof id === 'string') return id;
+    if (id.$oid) return id.$oid;
+    if (id._id) return normalizeId(id._id);
+    return String(id);
+  };
 
   // Calculate totals with Plan Benefits
   const calculateItemPrice = (item) => {
     if (plan) return item.price || 0; // Plan purchase
 
+    const itemCatId = normalizeId(item.categoryId);
+    const itemBrandId = normalizeId(item.brandId || item.sectionId);
+    const itemServiceId = normalizeId(item.serviceId);
+
     // Check if free
-    const isFreeCategory = item.categoryId && planBenefits.freeCategories.some(cat => {
-      const catId = cat._id || cat;
-      return String(catId) === String(item.categoryId);
+    const isFreeCategory = itemCatId && planBenefits.freeCategories.some(cat => {
+      return normalizeId(cat) === itemCatId;
     });
 
-    // Determine serviceId
-    // item.serviceId could be populated object or ID string.
-    // If not present, fallback to item._id? No, item._id is likely CartItem ID.
-    // We strictly need the Service ID.
-    // Assuming cart items always have serviceId populated or as ID.
-    const serviceIdRaw = item.serviceId?._id || item.serviceId;
-
-    // If we can't find serviceId, we can't check benefit
-    if (!serviceIdRaw) return item.price || 0;
-
-    const isFreeService = planBenefits.freeServices.some(svc => {
-      const svcId = svc._id || svc;
-      return String(svcId) === String(serviceIdRaw);
+    const isFreeBrand = itemBrandId && planBenefits.freeBrands.some(brand => {
+      return normalizeId(brand) === itemBrandId;
     });
 
-    if (isFreeCategory || isFreeService) {
+    const isFreeService = itemServiceId && planBenefits.freeServices.some(svc => {
+      return normalizeId(svc) === itemServiceId;
+    });
+
+    if (isFreeCategory || isFreeBrand || isFreeService) {
       return 0;
     }
     return item.price || 0;

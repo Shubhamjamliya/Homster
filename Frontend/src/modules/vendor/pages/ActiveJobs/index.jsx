@@ -296,14 +296,14 @@ const ActiveJobs = memo(() => {
                         </div>
                       </div>
                       <div
-                        className="px-3 py-2 rounded-lg font-bold text-lg"
+                        className="px-3 py-2 rounded-lg font-bold text-lg flex items-center justify-center min-w-[80px]"
                         style={{
                           background: `linear-gradient(135deg, ${themeColors.button}15 0%, ${themeColors.button}10 100%)`,
                           color: themeColors.button,
                           border: `1px solid ${hexToRgba(themeColors.button, 0.2)}`,
                         }}
                       >
-                        ₹{job.price}
+                        {job.status?.toLowerCase() === 'completed' ? `₹${job.price}` : <FiClock className="w-5 h-5 opacity-40" title="Earnings visible after completion" />}
                       </div>
                     </div>
 

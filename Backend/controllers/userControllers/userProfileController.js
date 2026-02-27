@@ -119,9 +119,9 @@ const updateProfile = async (req, res) => {
       }
     }
 
-    // Update addresses
+    // Update addresses - ENFORCE SINGLE ADDRESS POLICY
     if (addresses && Array.isArray(addresses)) {
-      updateData.addresses = addresses;
+      updateData.addresses = addresses.slice(-1); // Only save the last one
     }
 
     // Update settings

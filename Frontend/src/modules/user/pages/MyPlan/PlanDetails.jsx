@@ -126,7 +126,7 @@ const PlanDetails = () => {
           <div className="space-y-6">
             <h3 className="font-bold text-gray-900 border-b border-gray-50 pb-3">Plan Benefits</h3>
             <ul className="grid grid-cols-1 gap-4">
-              {plan.services.map((service, index) => (
+              {(plan.highlights || plan.services || []).map((service, index) => (
                 <li key={index} className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
                   <div className={`mt-1 p-1.5 rounded-lg ${theme.bg} text-white shadow-md`}>
                     <FiCheck className="w-3.5 h-3.5" />
@@ -137,7 +137,7 @@ const PlanDetails = () => {
                   </div>
                 </li>
               ))}
-              {(!plan.services || plan.services.length === 0) && (
+              {(!(plan.highlights || plan.services) || (plan.highlights || plan.services).length === 0) && (
                 <p className="text-gray-400 text-sm italic py-4 text-center">Standard benefits are included with this plan.</p>
               )}
             </ul>
@@ -176,7 +176,7 @@ const PlanDetails = () => {
         </div>
 
         {/* Free Coverage Section */}
-        {((plan.freeCategories && plan.freeCategories.length > 0) || (plan.freeServices && plan.freeServices.length > 0)) && (
+        {((plan.freeCategories && plan.freeCategories.length > 0) || (plan.freeBrands && plan.freeBrands.length > 0) || (plan.freeServices && plan.freeServices.length > 0)) && (
           <div className="bg-gradient-to-br from-primary-50 to-white rounded-3xl p-8 mb-6 border border-primary-100 shadow-sm">
             <div className="flex items-center gap-2 mb-6">
               <div className="p-2 bg-primary-100 text-primary-600 rounded-xl">
@@ -197,6 +197,20 @@ const PlanDetails = () => {
                       <span key={idx} className="bg-white border border-primary-100 text-primary-700 px-4 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2">
                         <div className="w-1.5 h-1.5 bg-primary-500 rounded-full"></div>
                         {cat.title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {plan.freeBrands && plan.freeBrands.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Complimentary Brands</p>
+                  <div className="flex flex-wrap gap-2">
+                    {plan.freeBrands.map((brand, idx) => (
+                      <span key={idx} className="bg-white border border-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                        {brand.title}
                       </span>
                     ))}
                   </div>

@@ -34,7 +34,7 @@ const getCart = async (req, res) => {
 const addToCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { serviceId, title, category, price, unitPrice, serviceCount = 1, icon, description, categoryId, vendorId } = req.body;
+    const { serviceId, title, category, price, unitPrice, serviceCount = 1, icon, description, categoryId, vendorId, sectionId, brandId } = req.body;
 
     if (!title || !category || !price) {
       return res.status(400).json({
@@ -62,6 +62,8 @@ const addToCart = async (req, res) => {
       cart.items.push({
         serviceId: serviceId || null,
         categoryId: categoryId || null,
+        sectionId: sectionId || brandId || null, // Map either to sectionId
+        brandId: brandId || sectionId || null,   // Also keep brandId if needed for frontend consistency
         title,
         description: description || '',
         icon: icon || '',

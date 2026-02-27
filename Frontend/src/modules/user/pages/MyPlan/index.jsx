@@ -150,18 +150,18 @@ const MyPlan = () => {
                   <div className="flex-1">
                     <div className="w-full h-px bg-current opacity-10 mb-6"></div>
                     <ul className="space-y-4 mb-8">
-                      {plan.services.slice(0, 4).map((feature, idx) => (
+                      {(plan.highlights || plan.services || []).slice(0, 4).map((feature, idx) => (
                         <li key={idx} className="flex items-start">
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${style.icon}`}>
-                            <FiCheck className="w-3 h-3" />
+                            <FiCheck className="w-3.5 h-3.5" />
                           </div>
                           <p className="ml-3 text-sm font-medium opacity-90 line-clamp-1">{feature}</p>
                         </li>
                       ))}
-                      {plan.services.length > 4 && (
-                        <li className="text-xs opacity-60 font-bold ml-8">+ {plan.services.length - 4} more benefits</li>
+                      {(plan.highlights || plan.services || []).length > 4 && (
+                        <li className="text-xs opacity-60 font-bold ml-8">+ {(plan.highlights || plan.services || []).length - 4} more benefits</li>
                       )}
-                      {plan.services.length === 0 && (
+                      {(plan.highlights || plan.services || []).length === 0 && (
                         <li className="flex items-center justify-center text-sm opacity-60 italic">
                           Standard benefits included
                         </li>

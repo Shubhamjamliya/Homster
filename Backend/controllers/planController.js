@@ -1,9 +1,14 @@
 const Plan = require('../models/Plan');
+const Category = require('../models/Category');
+const Brand = require('../models/Brand');
+const UserService = require('../models/UserService');
+const Service = require('../models/Service');
 
 // Create Plan
 exports.createPlan = async (req, res) => {
   try {
-    const { name, price, services, freeCategories, freeServices } = req.body;
+    console.log('DEBUG: Create Plan Body:', JSON.stringify(req.body, null, 2));
+    const { name, price, highlights, validityDays, freeCategories, freeBrands, freeServices } = req.body;
 
     // Check if plan exists
     const existingPlan = await Plan.findOne({ name });
@@ -11,7 +16,7 @@ exports.createPlan = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Plan with this name already exists' });
     }
 
-    const plan = new Plan({ name, price, services, freeCategories, freeServices });
+    const plan = new Plan({ name, price, highlights, validityDays, freeCategories, freeBrands, freeServices });
     await plan.save();
     res.status(201).json({ success: true, data: plan });
   } catch (error) {
@@ -31,6 +36,7 @@ exports.getAllPlans = async (req, res) => {
 
     const plans = await Plan.find(filter)
       .populate('freeCategories', 'title')
+      .populate('freeBrands', 'title')
       .populate('freeServices', 'title')
       .sort({ price: 1 });
     res.status(200).json({ success: true, data: plans });
@@ -45,6 +51,7 @@ exports.getPlanById = async (req, res) => {
   try {
     const plan = await Plan.findById(req.params.id)
       .populate('freeCategories', 'title')
+      .populate('freeBrands', 'title')
       .populate('freeServices', 'title');
     if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
     res.status(200).json({ success: true, data: plan });
@@ -56,6 +63,8 @@ exports.getPlanById = async (req, res) => {
 // Update Plan
 exports.updatePlan = async (req, res) => {
   try {
+    console.log('DEBUG: Update Plan ID:', req.params.id);
+    console.log('DEBUG: Update Plan Body:', JSON.stringify(req.body, null, 2));
     const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
     res.status(200).json({ success: true, data: plan });

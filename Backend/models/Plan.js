@@ -11,17 +11,25 @@ const PlanSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Plan price is required']
   },
-  services: {
-    type: [String], // Array of service strings e.g. ["(1+1) basic services", "Support 24/7"]
+  highlights: {
+    type: [String], // Array of highlight strings e.g. ["Priority Support", "Genuine Parts"]
     default: []
+  },
+  validityDays: {
+    type: Number,
+    default: 30 // Default to 30 days if not specified
   },
   freeCategories: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category'
   }],
+  freeBrands: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Brand'
+  }],
   freeServices: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Service'
+    ref: 'UserService'
   }],
   isActive: {
     type: Boolean,

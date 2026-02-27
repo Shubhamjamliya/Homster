@@ -733,10 +733,11 @@ const verifyPlanPayment = async (req, res) => {
     const plan = await Plan.findById(planId);
     const user = await User.findById(req.user.id);
 
+    const validityDays = plan.validityDays || 30;
     user.plans = {
       isActive: true,
       name: plan.name,
-      expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      expiry: new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000),
       price: plan.price
     };
 

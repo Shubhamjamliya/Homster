@@ -40,6 +40,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  // ENFORCED POLICY: Only 1 address allowed. If user changes it, we replace.
   addresses: [{
     type: {
       type: String, // home, work, other

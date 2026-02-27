@@ -104,16 +104,8 @@ const ManageAddresses = () => {
         isDefault: addresses.length === 0 // Make first address default
       };
 
-      let updatedAddresses;
-      if (editingAddress) {
-        updatedAddresses = addresses.map(addr =>
-          (addr._id === editingAddress._id || addr.id === editingAddress.id)
-            ? { ...newAddress, _id: addr._id || addr.id } // Keep ID
-            : addr
-        );
-      } else {
-        updatedAddresses = [...addresses, newAddress];
-      }
+      // ENFORCE SINGLE ADDRESS: Replace existing if adding new
+      const updatedAddresses = [newAddress];
 
       // Call API
       toast.loading('Saving address...');
@@ -193,14 +185,16 @@ const ManageAddresses = () => {
 
         {/* Saved Addresses Section */}
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Saved Addresses</h2>
-          <button
-            onClick={handleAddAddress}
-            className="flex items-center gap-1.5 text-sm font-bold text-purple-600"
-          >
-            <FiPlus className="w-4 h-4" />
-            Add New
-          </button>
+          <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Saved Address</h2>
+          {addresses.length === 0 && (
+            <button
+              onClick={handleAddAddress}
+              className="flex items-center gap-1.5 text-sm font-bold text-purple-600"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Address
+            </button>
+          )}
         </div>
 
         {/* Loading State */}

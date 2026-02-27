@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getPlans, createPlan, updatePlan, deletePlan } from '../../services/planService';
-import { categoryService, serviceService } from '../../../../services/catalogService';
-import { FiPlus, FiEdit2, FiTrash2, FiCheck, FiX, FiList, FiPackage, FiTool, FiChevronRight } from 'react-icons/fi';
+import { categoryService, brandService, serviceService } from '../../../../services/catalogService';
+import { FiPlus, FiEdit2, FiTrash2, FiCheck, FiX, FiList, FiPackage, FiTool, FiChevronRight, FiBriefcase } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 
 const Plans = () => {
@@ -9,7 +9,8 @@ const Plans = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPlan, setCurrentPlan] = useState(null);
-  const [formData, setFormData] = useState({ name: 'Silver', price: '', services: [], freeCategories: [], freeServices: [] });
+  const [formData, setFormData] = useState({ name: 'Silver', price: '', highlights: [], validityDays: 30, freeCategories: [], freeBrands: [], freeServices: [] });
+  const [featureInput, setFeatureInput] = useState('');
 
   const PLAN_TYPES = ['Silver', 'Gold', 'Diamond', 'Platinum'];
 
@@ -63,9 +64,12 @@ const Plans = () => {
 
   // Catalog State
   const [categories, setCategories] = useState([]);
+  const [brandsList, setBrandsList] = useState([]); // All brands
   const [servicesList, setServicesList] = useState([]); // All services
-  const [filteredServices, setFilteredServices] = useState([]); // Services for selected category
+  const [filteredBrands, setFilteredBrands] = useState([]); // Brands for selected category
+  const [filteredServices, setFilteredServices] = useState([]); // Services for selected brand
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedService, setSelectedService] = useState('');
 
   useEffect(() => {
@@ -75,20 +79,39 @@ const Plans = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [plansRes, catsRes, servsRes] = await Promise.all([
+      const [plansRes, catsRes, brandsRes, servsRes] = await Promise.all([
         getPlans(),
-        categoryService.getAll({ status: 'active' }),
+        categoryService.getAll(),
+        brandService.getAll(),
         serviceService.getAll({ status: 'active' })
       ]);
 
+      console.log('DEBUG: catsRes', catsRes);
+      console.log('DEBUG: brandsRes', brandsRes);
+      console.log('DEBUG: servsRes', servsRes);
+
       if (plansRes.success) setPlans(plansRes.data);
-      if (catsRes.success) setCategories(catsRes.data || catsRes.categories || []); // Handle potentially different response structures
-      // Ensure we handle both {data: [...]} and just [...] or {services: [...]}
-      const servicesData = servsRes.data || servsRes.services || servsRes;
-      setServicesList(Array.isArray(servicesData) ? servicesData : []);
+
+      // Robust data extraction for categories
+      const categoriesData = catsRes.categories || catsRes.data || (Array.isArray(catsRes) ? catsRes : []);
+      const finalCats = Array.isArray(categoriesData) ? categoriesData : [];
+      console.log('DEBUG: finalCats', finalCats);
+      setCategories(finalCats);
+
+      // Robust data extraction for brands
+      const brandsData = brandsRes.brands || brandsRes.data || (Array.isArray(brandsRes) ? brandsRes : []);
+      const finalBrands = Array.isArray(brandsData) ? brandsData : [];
+      console.log('DEBUG: finalBrands', finalBrands);
+      setBrandsList(finalBrands);
+
+      // Robust data extraction for services
+      const servicesData = servsRes.services || servsRes.data || (Array.isArray(servsRes) ? servsRes : []);
+      const finalServices = Array.isArray(servicesData) ? servicesData : [];
+      console.log('DEBUG: finalServices', finalServices);
+      setServicesList(finalServices);
 
     } catch (error) {
-      console.error(error);
+      console.error('DEBUG: fetchInitialData error', error);
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -104,25 +127,54 @@ const Plans = () => {
     }
   };
 
-  // Filter services when category changes
+  // Filter brands when category changes
   useEffect(() => {
     if (!selectedCategory) {
+      setFilteredBrands([]);
+      return;
+    }
+    const filtered = brandsList.filter(b => {
+      if (!b) return false;
+      const bCatId = b.categoryId?._id || b.categoryId;
+      const directMatch = String(bCatId) === String(selectedCategory);
+      const idsMatch = Array.isArray(b.categoryIds) && b.categoryIds.some(cat => {
+        if (!cat) return false;
+        const catId = cat.id || cat._id || cat;
+        return String(catId) === String(selectedCategory);
+      });
+      return directMatch || idsMatch;
+    });
+    setFilteredBrands(filtered);
+    setSelectedBrand('');
+    setSelectedService('');
+  }, [selectedCategory, brandsList]);
+
+  // Filter services when brand (and category) changes
+  useEffect(() => {
+    if (!selectedBrand || !selectedCategory) {
       setFilteredServices([]);
       return;
     }
     const filtered = servicesList.filter(s => {
-      // Check if categoryId matches or is in categoryIds array
-      // categoryIds can be array of strings or array of objects depending on population
-      const directMatch = s.categoryId === selectedCategory;
-      const idsMatch = s.categoryIds && s.categoryIds.some(cat => {
-        const catId = typeof cat === 'object' ? (cat.id || cat._id) : cat;
-        return catId === selectedCategory;
-      });
-      return directMatch || idsMatch;
+      if (!s) return false;
+
+      // Check Brand Match
+      const bObj = s.brandId;
+      if (!bObj) return false;
+      const brandId = bObj._id || bObj.id || bObj;
+      const matchesBrand = String(brandId) === String(selectedBrand);
+
+      // Check Category Match
+      const cObj = s.categoryId;
+      if (!cObj) return false;
+      const categoryId = cObj._id || cObj.id || cObj;
+      const matchesCategory = String(categoryId) === String(selectedCategory);
+
+      return matchesBrand && matchesCategory;
     });
     setFilteredServices(filtered);
     setSelectedService('');
-  }, [selectedCategory, servicesList]);
+  }, [selectedBrand, selectedCategory, servicesList]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -132,7 +184,15 @@ const Plans = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = { ...formData };
+      // Create a clean payload with only IDs for benefit arrays
+      const payload = {
+        ...formData,
+        price: Number(formData.price),
+        freeCategories: formData.freeCategories.map(c => String(c?._id || c)),
+        freeBrands: formData.freeBrands.map(b => String(b?._id || b)),
+        freeServices: formData.freeServices.map(s => String(s?._id || s)),
+        highlights: formData.highlights 
+      };
 
       if (currentPlan) {
         await updatePlan(currentPlan._id, payload);
@@ -154,13 +214,34 @@ const Plans = () => {
     setFormData({
       name: plan.name,
       price: plan.price,
-      services: plan.services || [],
-      freeCategories: plan.freeCategories || [],
-      freeServices: plan.freeServices || []
+      highlights: plan.highlights || plan.services || [],
+      validityDays: plan.validityDays || 30,
+      freeCategories: (plan.freeCategories || []).map(c => c._id || c),
+      freeBrands: (plan.freeBrands || []).map(b => b._id || b),
+      freeServices: (plan.freeServices || []).map(s => s._id || s)
     });
+    setFeatureInput('');
     setIsModalOpen(true);
-    // Reset selections
-    setSelectedCategory('');
+    
+    // Auto-select first category/brand for easier editing
+    if (plan.freeCategories?.length > 0) {
+      const firstCatId = plan.freeCategories[0]?._id || plan.freeCategories[0];
+      setSelectedCategory(String(firstCatId));
+    } else if (plan.freeBrands?.length > 0) {
+      const firstBrandObj = plan.freeBrands[0];
+      const bCatId = firstBrandObj?.categoryId?._id || firstBrandObj?.categoryId;
+      if (bCatId) setSelectedCategory(String(bCatId));
+      setSelectedBrand(String(firstBrandObj?._id || firstBrandObj));
+    } else if (plan.freeServices?.length > 0) {
+      const firstSvcObj = plan.freeServices[0];
+      const sCatId = firstSvcObj?.categoryId?._id || firstSvcObj?.categoryId;
+      const sBrandId = firstSvcObj?.brandId?._id || firstSvcObj?.brandId;
+      if (sCatId) setSelectedCategory(String(sCatId));
+      if (sBrandId) setSelectedBrand(String(sBrandId));
+    } else {
+      setSelectedCategory('');
+      setSelectedBrand('');
+    }
     setSelectedService('');
   };
 
@@ -178,10 +259,11 @@ const Plans = () => {
 
   const openCreateModal = () => {
     setCurrentPlan(null);
-    setFormData({ name: 'Silver', price: '', services: [], freeCategories: [], freeServices: [] });
+    setFormData({ name: 'Silver', price: '', highlights: [], validityDays: 30, freeCategories: [], freeBrands: [], freeServices: [] });
     setIsModalOpen(true);
     // Reset selections
     setSelectedCategory('');
+    setSelectedBrand('');
     setSelectedService('');
   };
 
@@ -213,8 +295,9 @@ const Plans = () => {
                       {plan.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <div className={`text-2xl font-bold mb-4 ${style.price}`}>
-                    ₹{plan.price}
+                  <div className={`flex items-baseline gap-2 mb-4 ${style.price}`}>
+                    <span className="text-2xl font-bold">₹{plan.price}</span>
+                    <span className={`text-[10px] font-medium opacity-60`}>/ {plan.validityDays || 30} Days</span>
                   </div>
 
                   <div className="space-y-2 mb-4">
@@ -223,14 +306,33 @@ const Plans = () => {
                       {/* Display Free Categories First */}
                       {plan.freeCategories && plan.freeCategories.length > 0 && (
                         <div className={`flex flex-col gap-1 text-xs ${style.text}`}>
-                          {plan.freeCategories.map((catId, idx) => {
-                            const cat = categories.find(c => (c.id || c._id) === catId || (c.id || c._id) === (catId._id || catId));
-                            return cat ? (
-                              <div key={`c-${idx}`} className="flex items-center gap-2">
+                          {plan.freeCategories.map((catRef, idx) => {
+                            const catId = String(catRef?._id || catRef);
+                            const cat = categories.find(c => String(c.id || c._id) === catId);
+                            const displayTitle = cat ? cat.title : (catRef?.title || 'Unlimited Coverage');
+                            return (
+                              <div key={`c-v-${idx}`} className="flex items-center gap-2">
                                 <FiCheck className={`w-3.5 h-3.5 ${style.check} rounded-full p-0.5`} />
-                                <span>Unlimited {cat.title}</span>
+                                <span>{displayTitle === 'Unlimited Coverage' ? 'Unlimited Coverage' : `Unlimited ${displayTitle}`}</span>
                               </div>
-                            ) : null;
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Display Free Brands */}
+                      {plan.freeBrands && plan.freeBrands.length > 0 && (
+                        <div className={`flex flex-col gap-1 text-xs ${style.text}`}>
+                          {plan.freeBrands.map((brandRef, idx) => {
+                            const brandId = String(brandRef?._id || brandRef);
+                            const brand = brandsList.find(b => String(b.id || b._id) === brandId);
+                            const displayTitle = brand ? brand.title : (brandRef?.title || 'Unlimited Brand Coverage');
+                            return (
+                              <div key={`b-v-${idx}`} className="flex items-center gap-2">
+                                <FiCheck className={`w-3.5 h-3.5 ${style.check} rounded-full p-0.5`} />
+                                <span>{displayTitle === 'Unlimited Brand Coverage' ? 'Unlimited Brand Coverage' : `Unlimited ${displayTitle}`}</span>
+                              </div>
+                            );
                           })}
                         </div>
                       )}
@@ -238,19 +340,30 @@ const Plans = () => {
                       {/* Display Free Services */}
                       {plan.freeServices && plan.freeServices.length > 0 && (
                         <div className={`flex flex-col gap-1 text-xs ${style.text}`}>
-                          {plan.freeServices.map((svcId, idx) => {
-                            const svc = servicesList.find(s => (s.id || s._id) === svcId || (s.id || s._id) === (svcId._id || svcId));
-                            return svc ? (
-                              <div key={`s-${idx}`} className="flex items-center gap-2">
+                          {plan.freeServices.map((svcRef, idx) => {
+                            const svcId = String(svcRef?._id || svcRef);
+                            const svc = servicesList.find(s => String(s.id || s._id) === svcId);
+                            
+                            let displayTitle = 'Free Service';
+                            if (svc) {
+                              const brandTitle = svc.brandId?.title || '';
+                              const catTitle = svc.categoryId?.title || '';
+                              displayTitle = `Free ${brandTitle} ${catTitle} ${svc.title}`.replace(/\s+/g, ' ').trim();
+                            } else if (svcRef?.title) {
+                              displayTitle = `Free ${svcRef.title}`;
+                            }
+
+                            return (
+                              <div key={`s-v-${idx}`} className="flex items-center gap-2">
                                 <FiCheck className={`w-3.5 h-3.5 ${style.check} rounded-full p-0.5`} />
-                                <span>Free {svc.title}</span>
+                                <span>{displayTitle}</span>
                               </div>
-                            ) : null;
+                            );
                           })}
                         </div>
                       )}
 
-                      {(!plan.freeCategories?.length && !plan.freeServices?.length) && (
+                      {(!plan.freeCategories?.length && !plan.freeBrands?.length && !plan.freeServices?.length) && (
                         <span className={`text-xs italic ${style.subtext}`}>No benefits configured</span>
                       )}
                     </div>
@@ -304,7 +417,7 @@ const Plans = () => {
             <div className="p-8 overflow-y-auto custom-scrollbar space-y-8">
 
               {/* Basic Info Section */}
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-gray-700">Plan Type</label>
                   <select
@@ -334,6 +447,80 @@ const Plans = () => {
                       placeholder="999"
                       min="0"
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">Validity (Days)</label>
+                  <input
+                    type="number"
+                    name="validityDays"
+                    value={formData.validityDays}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all font-bold text-gray-800"
+                    required
+                    placeholder="30"
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              {/* Plan Highlights Section */}
+              <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+                  <span className="bg-amber-100 text-amber-600 p-2 rounded-lg">
+                    <FiList className="w-5 h-5" />
+                  </span>
+                  <div>
+                    <h3 className="font-bold text-gray-800">Plan Highlights</h3>
+                    <p className="text-xs text-gray-500">Marketing features shown to customers</p>
+                  </div>
+                </div>
+                <div className="p-6 bg-white space-y-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={featureInput}
+                      onChange={(e) => setFeatureInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && featureInput.trim()) {
+                          e.preventDefault();
+                          setFormData(p => ({ ...p, highlights: [...p.highlights, featureInput.trim()] }));
+                          setFeatureInput('');
+                        }
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                      placeholder="e.g. 24/7 Priority Support, Genuine Spare Parts..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (featureInput.trim()) {
+                          setFormData(p => ({ ...p, highlights: [...p.highlights, featureInput.trim()] }));
+                          setFeatureInput('');
+                        }
+                      }}
+                      className="px-6 py-2 bg-amber-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 min-h-[40px]">
+                    {formData.highlights.map((feature, idx) => (
+                      <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-100 rounded-full text-[11px] font-bold text-amber-700 shadow-sm animate-in fade-in slide-in-from-left-2 transition-all">
+                        <span>{feature}</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(p => ({ ...p, highlights: p.highlights.filter((_, i) => i !== idx) }))}
+                          className="w-4 h-4 flex items-center justify-center bg-white rounded-full text-amber-400 hover:text-red-500 transition-colors"
+                        >
+                          <FiX className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {formData.highlights.length === 0 && (
+                      <p className="text-gray-400 text-xs italic">No highlights added yet. Describe what makes this plan special.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -369,19 +556,34 @@ const Plans = () => {
                       </select>
                     </div>
 
+                    <div className="flex-1 w-full space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-500 uppercase">Brand</label>
+                      <select
+                        value={selectedBrand}
+                        onChange={(e) => setSelectedBrand(e.target.value)}
+                        disabled={!selectedCategory}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        <option value="">{selectedCategory ? 'All Brands / Select Brand...' : 'Select Category first'}</option>
+                        {filteredBrands.map(brand => (
+                          <option key={brand.id || brand._id} value={brand.id || brand._id}>{brand.title}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="flex items-center justify-center pb-3 text-gray-400">
                       <FiChevronRight className="w-5 h-5 hidden md:block" />
                     </div>
 
                     <div className="flex-1 w-full space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-500 uppercase">Specific Service (Optional)</label>
+                      <label className="text-xs font-semibold text-gray-500 uppercase">Service</label>
                       <select
                         value={selectedService}
                         onChange={(e) => setSelectedService(e.target.value)}
-                        disabled={!selectedCategory}
+                        disabled={!selectedBrand}
                         className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100 disabled:text-gray-400"
                       >
-                        <option value="">All Services in Category</option>
+                        <option value="">{selectedBrand ? 'All Services / Select...' : 'Select Brand first'}</option>
                         {filteredServices.map(service => (
                           <option key={service.id || service._id} value={service.id || service._id}>{service.title}</option>
                         ))}
@@ -392,16 +594,36 @@ const Plans = () => {
                       type="button"
                       disabled={!selectedCategory}
                       onClick={() => {
+                        let addedAny = false;
+                        
+                        // Most specific selection wins
                         if (selectedService) {
-                          if (!formData.freeServices.includes(selectedService)) {
+                          // Specific Service
+                          if (!formData.freeServices.some(s => String(s._id || s) === String(selectedService))) {
                             setFormData(p => ({ ...p, freeServices: [...p.freeServices, selectedService] }));
+                            addedAny = true;
                           }
-                        } else {
-                          if (!formData.freeCategories.includes(selectedCategory)) {
+                        } else if (selectedBrand) {
+                          // All Services for a Brand
+                          if (!formData.freeBrands.some(b => String(b._id || b) === String(selectedBrand))) {
+                            setFormData(p => ({ ...p, freeBrands: [...p.freeBrands, selectedBrand] }));
+                            addedAny = true;
+                          }
+                        } else if (selectedCategory) {
+                          // All Services for a Category
+                          if (!formData.freeCategories.some(c => String(c._id || c) === String(selectedCategory))) {
                             setFormData(p => ({ ...p, freeCategories: [...p.freeCategories, selectedCategory] }));
+                            addedAny = true;
                           }
                         }
-                        setSelectedService('');
+                        
+                        if (addedAny) {
+                          toast.success('Benefit added to list');
+                          setSelectedService('');
+                          // If we added a service, maybe keep brand/cat selected for adding next service
+                        } else {
+                          toast.error('Benefit already in list or nothing selected');
+                        }
                       }}
                       className="h-[42px] px-6 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-500/20 active:scale-95 transition-all w-full md:w-auto"
                     >
@@ -419,16 +641,39 @@ const Plans = () => {
                     <div className="flex flex-wrap gap-3">
                       {/* Categories */}
                       {formData.freeCategories.map((catId, idx) => {
-                        const cat = categories.find(c => (c.id || c._id) === catId);
+                        const targetId = String(catId?._id || catId);
+                        const cat = categories.find(c => String(c.id || c._id) === targetId);
+                        const displayTitle = cat ? cat.title : (catId?.title || 'Category');
                         return (
                           <div key={`c-tag-${idx}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full text-sm font-medium shadow-sm">
                             <FiPackage className="w-4 h-4" />
-                            <span>{cat ? cat.title : 'Category'}</span>
+                            <span>{displayTitle}</span>
                             <span className="bg-indigo-200 text-indigo-800 text-[10px] px-1.5 rounded-full uppercase">All Free</span>
                             <button
                               type="button"
-                              onClick={() => setFormData(p => ({ ...p, freeCategories: p.freeCategories.filter(id => id !== catId) }))}
+                              onClick={() => setFormData(p => ({ ...p, freeCategories: p.freeCategories.filter(id => String(id?._id || id) !== targetId) }))}
                               className="ml-1 p-0.5 hover:bg-white rounded-full transition-colors text-indigo-400 hover:text-red-500"
+                            >
+                              <FiX className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      {/* Brands */}
+                      {formData.freeBrands.map((brandId, idx) => {
+                        const targetId = String(brandId?._id || brandId);
+                        const brand = brandsList.find(b => String(b.id || b._id) === targetId);
+                        const displayTitle = brand ? brand.title : (brandId?.title || 'Brand');
+                        return (
+                          <div key={`b-tag-${idx}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-sky-50 text-sky-700 border border-sky-100 rounded-full text-sm font-medium shadow-sm">
+                            <FiBriefcase className="w-4 h-4" />
+                            <span>{displayTitle}</span>
+                            <span className="bg-sky-200 text-sky-800 text-[10px] px-1.5 rounded-full uppercase">All Brand Free</span>
+                            <button
+                              type="button"
+                              onClick={() => setFormData(p => ({ ...p, freeBrands: p.freeBrands.filter(id => String(id?._id || id) !== targetId) }))}
+                              className="ml-1 p-0.5 hover:bg-white rounded-full transition-colors text-sky-400 hover:text-red-500"
                             >
                               <FiX className="w-4 h-4" />
                             </button>
@@ -438,14 +683,25 @@ const Plans = () => {
 
                       {/* Services */}
                       {formData.freeServices.map((svcId, idx) => {
-                        const svc = servicesList.find(s => (s.id || s._id) === svcId);
+                        const targetId = String(svcId?._id || svcId);
+                        const svc = servicesList.find(s => String(s.id || s._id) === targetId);
+                        
+                        let displayTitle = 'Service';
+                        if (svc) {
+                          const brandTitle = svc.brandId?.title || '';
+                          const catTitle = svc.categoryId?.title || '';
+                          displayTitle = `${brandTitle} ${catTitle} ${svc.title}`.replace(/\s+/g, ' ').trim();
+                        } else if (svcId?.title) {
+                          displayTitle = svcId.title;
+                        }
+
                         return (
                           <div key={`s-tag-${idx}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-sm font-medium shadow-sm">
                             <FiTool className="w-4 h-4" />
-                            <span>{svc ? svc.title : 'Service'}</span>
+                            <span>{displayTitle}</span>
                             <button
                               type="button"
-                              onClick={() => setFormData(p => ({ ...p, freeServices: p.freeServices.filter(id => id !== svcId) }))}
+                              onClick={() => setFormData(p => ({ ...p, freeServices: p.freeServices.filter(id => String(id?._id || id) !== targetId) }))}
                               className="ml-1 p-0.5 hover:bg-white rounded-full transition-colors text-emerald-400 hover:text-red-500"
                             >
                               <FiX className="w-4 h-4" />
@@ -454,7 +710,7 @@ const Plans = () => {
                         );
                       })}
 
-                      {formData.freeCategories.length === 0 && formData.freeServices.length === 0 && (
+                      {formData.freeCategories.length === 0 && formData.freeBrands.length === 0 && formData.freeServices.length === 0 && (
                         <p className="text-gray-400 text-sm italic w-full">No benefits added yet. Select a category above to start.</p>
                       )}
                     </div>

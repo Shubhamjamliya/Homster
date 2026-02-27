@@ -376,7 +376,8 @@ const Home = () => {
           serviceCount: 1,
           rating: service.rating || "4.8",
           reviews: service.reviews || "10k+",
-          vendorId: service.vendorId || null
+          vendorId: service.vendorId || null,
+          sectionId: service.sectionId || null // VITAL: Added for plan benefits
         };
 
         const response = await addToCart(cartItemData);
