@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiMapPin, FiNavigation, FiX, FiCheckCircle, FiShield } from 'react-icons/fi';
 import { themeColors } from '../../theme';
 import { toast } from 'react-hot-toast';
+import flutterBridge from '../../utils/flutterBridge';
 
 const LocationAccessModal = ({
   isOpen,
@@ -32,72 +33,26 @@ const LocationAccessModal = ({
 
   const content = getContent();
 
-  const handleRequestLocation = () => {
+  const handleRequestLocation = async () => {
     setRequesting(true);
-
-    if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser");
+    try {
+      const location = await flutterBridge.getCurrentLocation();
       setRequesting(false);
-      return;
-    }
-
-    const options = {
-      enableHighAccuracy: false, // Start with lower accuracy for speed/indoors
-      timeout: 15000,
-      maximumAge: Infinity
-    };
-
-    const getPos = (opts) => {
-      return new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
-      });
-    };
-
-    (async () => {
-      try {
-        let position = await getPos(options);
-        handlePosSuccess(position);
-      } catch (err) {
-        console.warn("First location attempt failed, trying high accuracy fallback...", err);
-        try {
-          // Fallback to high accuracy if first attempt failed
-          let position = await getPos({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-          handlePosSuccess(position);
-        } catch (finalErr) {
-          handlePosError(finalErr);
-        }
-      }
-    })();
-  };
-
-  const handlePosSuccess = (position) => {
-    const coords = {
-      lat: position.coords.latitude,
-      lng: position.coords.longitude,
-      accuracy: position.coords.accuracy
-    };
-
-    setRequesting(false);
-    toast.success("Location access granted!");
-    if (onSuccess) onSuccess(coords);
-    if (onClose) onClose();
-  };
-
-  const handlePosError = (error) => {
-    setRequesting(false);
-    let errorMsg = "Failed to get location";
-    switch (error.code) {
-      case error.PERMISSION_DENIED:
-        errorMsg = "Location permission denied. Please enable it in browser settings.";
-        break;
-      case error.POSITION_UNAVAILABLE:
+      toast.success("Location access granted!");
+      if (onSuccess) onSuccess(location);
+      if (onClose) onClose();
+    } catch (error) {
+      setRequesting(false);
+      let errorMsg = "Failed to get location";
+      if (error.code === 1) {
+        errorMsg = "Location permission denied. Please enable it in browser/app settings.";
+      } else if (error.code === 2) {
         errorMsg = "Location information is unavailable. Check GPS.";
-        break;
-      case error.TIMEOUT:
+      } else if (error.code === 3) {
         errorMsg = "Request timed out. Please try again.";
-        break;
+      }
+      toast.error(errorMsg);
     }
-    toast.error(errorMsg);
   };
 
   if (!isOpen) return null;

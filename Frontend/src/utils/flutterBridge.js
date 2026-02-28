@@ -1,91 +1,136 @@
 /**
- * Flutter JS Bridge Utility
- * Handles communication between React (Frontend) and Flutter (Native)
- * via InAppWebView JavaScript Handlers.
+ * Production-Ready Flutter JS Bridge
+ * Handles secure and optimized communication with native mobile features.
  */
-
 class FlutterBridge {
   constructor() {
-    this.isFlutter = typeof window.flutter_inappwebview !== 'undefined' || !!window.navigator.userAgent.match(/Flutter/i);
-    this.ready = false;
-    this._init();
+    this.isFlutter =
+      typeof window !== "undefined" &&
+      window.flutter_inappwebview;
   }
 
-  _init() {
-    // Listen for the specific event dispatched by InAppWebView when it's ready
-    window.addEventListener('flutterInAppWebViewPlatformReady', () => {
-      this.ready = true;
-      this.isFlutter = true;
-      console.log('✅ Flutter Bridge Initialized');
+  /**
+   * Waits for the native WebView bride to be fully available.
+   */
+  waitForFlutter() {
+    return new Promise((resolve) => {
+      if (this.isFlutter) return resolve(true);
+
+      window.addEventListener(
+        "flutterInAppWebViewPlatformReady",
+        () => {
+          this.isFlutter = true;
+          resolve(true);
+        },
+        { once: true }
+      );
+
+      // 1-second timeout as safety
+      setTimeout(() => resolve(false), 1000);
     });
   }
 
   /**
-   * Universal call to any Flutter JS Handler
-   * @param {string} handlerName - Name of the handler registered in Flutter
-   * @param {any} args - Arguments to pass to Flutter
-   * @returns {Promise<any>}
+   * Universal call to any Flutter JS Handler with availability check.
    */
-  async callHandler(handlerName, args = null) {
+  async callHandler(handlerName, data = {}) {
+    await this.waitForFlutter();
+
     if (!this.isFlutter) {
-      console.warn(`Attempted to call ${handlerName} outside of Flutter environment.`);
-      return { success: false, error: 'NOT_FLUTTER' };
+      console.warn(`[FlutterBridge] Bridge not available for ${handlerName}`);
+      return { success: false, error: "Not inside Flutter WebView" };
     }
 
     try {
-      // Small delay to ensure bridge is fully linked if called immediately
-      if (!window.flutter_inappwebview?.callHandler) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      const result = await window.flutter_inappwebview.callHandler(handlerName, args);
-      return result;
+      return await window.flutter_inappwebview.callHandler(handlerName, data);
     } catch (error) {
-      console.error(`Flutter Handler [${handlerName}] failed:`, error);
+      console.error(`[FlutterBridge] Error calling native handler ${handlerName}:`, error);
       return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Simplified Camera Access
-   * Triggers native camera and returns a standard JS File object
-   * @returns {Promise<File|null>}
-   */
+  /* ================================
+        CAMERA (NATIVE)
+  ================================== */
   async openCamera() {
-    const response = await this.callHandler('openCamera');
+    try {
+      const result = await this.callHandler("openCamera");
 
-    if (response?.success && response.base64) {
-      // Convert Base64 string to a JS File object
-      return this.base64ToFile(
-        response.base64,
-        response.fileName || `camera_${Date.now()}.jpg`,
-        response.mimeType || 'image/jpeg'
-      );
+      if (result && result.success) {
+        const response = await fetch(
+          `data:${result.mimeType};base64,${result.base64}`
+        );
+        const blob = await response.blob();
+
+        return new File([blob], result.fileName || `cam_${Date.now()}.jpg`, {
+          type: result.mimeType || 'image/jpeg',
+        });
+      }
+      return null;
+    } catch (error) {
+      console.error("[FlutterBridge] Camera Error:", error);
+      return null;
     }
-    return null;
+  }
+
+  /* ================================
+        LOCATION (NATIVE + FALLBACK)
+  ================================== */
+  async getCurrentLocation() {
+    try {
+      const result = await this.callHandler("getLocation");
+
+      if (result && result.success) {
+        return {
+          latitude: result.latitude,
+          longitude: result.longitude,
+          source: 'flutter_native'
+        };
+      }
+
+      // If native bridge result is failure, throw to trigger fallback
+      throw new Error("Native location failed");
+    } catch (error) {
+      console.warn("[FlutterBridge] Flutter Location Error, falling back to browser GPS:", error);
+
+      // Browser fallback (Web Geolocation API)
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("Geolocation not supported by browser"));
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              source: 'browser_gps'
+            });
+          },
+          (err) => {
+            console.error("[FlutterBridge] Browser fallback also failed:", err.message);
+            reject(err);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      });
+    }
   }
 
   /**
-   * Utility: Convert Base64 to File
+   * Triggers native haptic feedback.
    */
-  base64ToFile(base64, filename, mimeType) {
-    const byteString = atob(base64.split(',')[1] || base64);
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) {
-      ia[i] = byteString.charCodeAt(i);
-    }
-    const blob = new Blob([ab], { type: mimeType });
-    return new File([blob], filename, { type: mimeType });
-  }
-
-  /**
-   * Utility: Trigger Haptic Feedback
-   */
-  async hapticFeedback(type = 'medium') {
-    return this.callHandler('haptic', { type });
+  async hapticFeedback(type = "medium") {
+    return this.callHandler("haptic", { type });
   }
 }
 
-export const flutterBridge = new FlutterBridge();
-export default flutterBridge;
+const bridgeInstance = new FlutterBridge();
+export default bridgeInstance;
+export const flutterBridge = bridgeInstance;

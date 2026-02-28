@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiCheckCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { verifySelfVisit } from '../../services/bookingService';
+import flutterBridge from '../../../../utils/flutterBridge';
 import LocationAccessModal from '../../../../components/common/LocationAccessModal';
 
 /**
@@ -56,30 +56,17 @@ const VisitVerificationModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
     }
   };
 
-  // Robust Geolocation Helper - PERMISSIVE MODE
-  const getPosition = () => {
-    return new Promise((resolve, reject) => {
-      // FASTEST STRATEGY: Prefer Wi-Fi/Cell (Low Accuracy) + Cached Positions
-      const options = {
-        enableHighAccuracy: false, // Disable GPS requirement for speed
-        timeout: 30000,            // 30s timeout
-        maximumAge: Infinity       // Accept any valid cached position
-      };
-
-      navigator.geolocation.getCurrentPosition(
-        resolve,
-        (error) => {
-          console.warn("Low accuracy geo failed, trying high accuracy fallback...", error);
-          // Emergency fallback: Try GPS
-          navigator.geolocation.getCurrentPosition(
-            resolve,
-            reject,
-            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-          );
-        },
-        options
-      );
-    });
+  /**
+   * Use robust Native Bridge with Browser Fallback
+   */
+  const getPosition = async () => {
+    try {
+      const location = await flutterBridge.getCurrentLocation();
+      return location;
+    } catch (error) {
+      console.error("[VisitVerification] Location fetching failed:", error);
+      throw error;
+    }
   };
 
   const handleVerify = async () => {
@@ -98,10 +85,10 @@ const VisitVerificationModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
     }
 
     try {
-      const position = await getPosition();
+      const locationData = await getPosition();
       const location = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
+        lat: locationData.latitude,
+        lng: locationData.longitude
       };
 
       const response = await verifySelfVisit(bookingId, otp, location);
@@ -141,7 +128,7 @@ const VisitVerificationModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
 
     setLoading(true);
     try {
-      const location = { lat: coords.lat, lng: coords.lng };
+      const location = { lat: coords.latitude || coords.lat, lng: coords.longitude || coords.lng };
       const response = await verifySelfVisit(bookingId, otp, location);
 
       if (response.success) {

@@ -1,6 +1,7 @@
 // Location Permission Checker Component for Homster
 import React, { useState, useEffect } from 'react';
 import LocationAccessModal from './LocationAccessModal';
+import flutterBridge from '../../utils/flutterBridge';
 
 export const LocationPermissionChecker = () => {
     const [showModal, setShowModal] = useState(false);
@@ -28,27 +29,18 @@ export const LocationPermissionChecker = () => {
 
             const hasGrantedPreviously = localStorage.getItem('location_granted') === 'true';
 
-            // 1. First, try a "silent" direct geolocation check with a very short timeout
-            // This is often more reliable than navigator.permissions in mobile WebViews
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        console.log('Location already granted (silent check success)');
-                        localStorage.setItem('location_granted', 'true');
-                        setShowModal(false);
-                    },
-                    (err) => {
-                        console.log('Silent check failed or permission needed:', err.code);
-                        // If we don't have permission, or it's turned off, show modal
-                        if (!hasGrantedPreviously || err.code === err.PERMISSION_DENIED) {
-                            setShowModal(true);
-                        }
-                    },
-                    { enableHighAccuracy: false, timeout: 2000, maximumAge: Infinity }
-                );
-            } else {
-                console.log('Geolocation API not supported');
-                setShowModal(true);
+            // 1. Silent check via Unified Bridge (prefers Native GPS)
+            try {
+                const location = await flutterBridge.getCurrentLocation();
+                console.log('Location already granted (bridge check success)');
+                localStorage.setItem('location_granted', 'true');
+                setShowModal(false);
+            } catch (err) {
+                console.log('Bridge check failed or permission needed:', err.message);
+                // If we don't have permission, or it's turned off, show modal
+                if (!hasGrantedPreviously || err.code === 1) { // 1 = PERMISSION_DENIED
+                    setShowModal(true);
+                }
             }
 
             // 2. Parallel check with Permissions API if available
