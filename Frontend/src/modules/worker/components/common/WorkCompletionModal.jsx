@@ -71,7 +71,7 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
   };
 
   const handleSubmit = () => {
-    if (workPhotos.length === 0) return;
+    // TEMPORARY: Photos are now optional
     onComplete(workPhotos);
   };
 
@@ -115,7 +115,7 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
               {/* Photo Upload Section */}
               <div>
                 <div className="flex justify-between items-center mb-3">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Work Photos <span className="text-red-500">*</span></p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Work Photos <span className="text-gray-300 font-normal">(Optional)</span></p>
                   <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-bold">
                     {workPhotos.length}/5 (Min 1)
                   </span>
@@ -165,7 +165,6 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
                   className="hidden"
                 />
 
-                {workPhotos.length === 0 && <p className="text-red-500 text-[10px] font-bold mt-2 ml-1">At least one photo required *</p>}
                 {isUploading && <p className="text-blue-500 text-[10px] font-bold mt-2 ml-1 animate-pulse">Uploading photos...</p>}
               </div>
 
