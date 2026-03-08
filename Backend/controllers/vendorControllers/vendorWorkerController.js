@@ -71,7 +71,6 @@ const addWorker = async (req, res) => {
       phone,
       aadhar,
       serviceCategories,
-      skills,
       address
     } = req.body;
 
@@ -98,7 +97,6 @@ const addWorker = async (req, res) => {
           };
         }
         if (serviceCategories) worker.serviceCategories = serviceCategories;
-        if (skills) worker.skills = skills;
         if (address) worker.address = address;
         worker.status = WORKER_STATUS.ACTIVE;
 
@@ -128,7 +126,6 @@ const addWorker = async (req, res) => {
       },
       vendorId,
       serviceCategories: serviceCategories || [],
-      skills: skills || [],
       address: address || {},
       status: WORKER_STATUS.ACTIVE
     });
@@ -230,7 +227,6 @@ const updateWorker = async (req, res) => {
     if (updateData.name) worker.name = updateData.name;
     if (updateData.email !== undefined) worker.email = updateData.email || null;
     if (updateData.serviceCategories) worker.serviceCategories = updateData.serviceCategories;
-    if (updateData.skills) worker.skills = updateData.skills;
     if (updateData.address) worker.address = { ...worker.address, ...updateData.address };
     if (updateData.status) worker.status = updateData.status;
 

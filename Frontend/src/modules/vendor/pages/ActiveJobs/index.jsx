@@ -41,22 +41,26 @@ const ActiveJobs = memo(() => {
   }, []);
 
   // Memoize loadJobs to prevent recreation
-  const loadJobs = useCallback(async () => {
+  const loadJobs = useCallback(async (currentFilter, currentSearch) => {
     try {
       setLoading(true);
-      const response = await getBookings();
+      const response = await getBookings({
+        status: currentFilter,
+        q: currentSearch,
+        limit: 50 // Fetch more than default since we removed client-side filter
+      });
       const jobsData = response.data || [];
       // Map API response to Component State structure
       const mappedJobs = jobsData.map(job => ({
         id: job._id || job.id,
-        serviceType: job.serviceId?.title || job.serviceType || 'Service',
+        serviceType: job.serviceName || 'Service',
         user: {
-          name: job.userId?.name || job.customerName || 'Customer'
+          name: job.userId?.name || 'Customer'
         },
         location: {
-          address: job.address?.addressLine1 || job.location?.address || 'Address not available'
+          address: job.address?.addressLine1 || 'Address not available'
         },
-        price: (job.vendorEarnings || (job.finalAmount ? job.finalAmount * 0.9 : 0)).toFixed(2),
+        price: (job.finalAmount ? job.finalAmount * 0.9 : 0).toFixed(2),
         status: job.status,
         assignedTo: job.workerId ? { name: job.workerId.name } : (job.assignedAt ? { name: 'You (Self)' } : null),
         timeSlot: {
@@ -67,21 +71,30 @@ const ActiveJobs = memo(() => {
       setJobs(mappedJobs);
     } catch (error) {
       console.error('Error loading jobs:', error);
+      toast.error('Failed to load jobs');
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Use a debounced search to avoid spamming the API
   useEffect(() => {
-    // Load immediately
-    loadJobs();
+    const timer = setTimeout(() => {
+      loadJobs(filter, searchQuery);
+    }, filter === 'all' && searchQuery === '' ? 0 : 500); // Only debounce if active searching
 
-    window.addEventListener('vendorJobsUpdated', loadJobs);
+    return () => clearTimeout(timer);
+  }, [filter, searchQuery, loadJobs]);
 
+  useEffect(() => {
+    window.addEventListener('vendorJobsUpdated', () => loadJobs(filter, searchQuery));
     return () => {
-      window.removeEventListener('vendorJobsUpdated', loadJobs);
+      window.removeEventListener('vendorJobsUpdated', () => loadJobs(filter, searchQuery));
     };
-  }, [loadJobs]);
+  }, [loadJobs, filter, searchQuery]);
+
+  // filteredJobs is now just the jobs from the server
+  const filteredJobs = jobs;
 
   const handleAssignToSelf = async (jobId) => {
     setConfirmDialog({
@@ -93,7 +106,8 @@ const ActiveJobs = memo(() => {
           const response = await assignWorkerApi(jobId, 'SELF');
           if (response && response.success) {
             toast.success("Assigned to yourself!");
-            window.location.reload();
+            // Refresh jobs list instead of full page reload
+            loadJobs(filter, searchQuery);
           }
         } catch (error) {
           console.error("Error assigning to self:", error);
@@ -103,8 +117,8 @@ const ActiveJobs = memo(() => {
     });
   };
 
-  // Memoize hexToRgba helper to prevent recreation
   const hexToRgba = useCallback((hex, alpha) => {
+    if (!hex || typeof hex !== 'string') return `rgba(0,0,0,${alpha})`;
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
@@ -122,33 +136,8 @@ const ActiveJobs = memo(() => {
       'SETTLEMENT_PENDING': '#F97316',
       'COMPLETED': '#059669',
     };
-    return colors[status] || '#6B7280';
+    return colors[status?.toUpperCase()] || '#6B7280';
   }, []);
-
-  // Memoize filtered jobs to prevent recalculation on every render
-  const filteredJobs = useMemo(() => {
-    return jobs.filter(job => {
-      const status = (job.status || '').toUpperCase();
-
-      let matchesFilter = false;
-      if (filter === 'all') {
-        matchesFilter = true;
-      } else if (filter === 'assigned') {
-        // Jobs that are assigned but not yet in progress or completed
-        matchesFilter = ['ASSIGNED', 'WORKER_ACCEPTED'].includes(status) || (!!job.assignedTo && ['ACCEPTED', 'CONFIRMED'].includes(status));
-      } else if (filter === 'in_progress') {
-        matchesFilter = ['ACCEPTED', 'ASSIGNED', 'STARTED', 'JOURNEY_STARTED', 'REACHED', 'VISITED', 'WORK_DONE', 'IN_PROGRESS', 'ON_THE_WAY'].includes(status);
-      } else if (filter === 'completed') {
-        matchesFilter = ['COMPLETED', 'WORKER_PAID', 'SETTLEMENT_PENDING', 'PAID', 'CLOSED'].includes(status);
-      }
-
-      const matchesSearch = searchQuery === '' ||
-        job.serviceType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.user?.name.toLowerCase().includes(searchQuery.toLowerCase());
-
-      return matchesFilter && matchesSearch;
-    });
-  }, [jobs, filter, searchQuery]);
 
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>

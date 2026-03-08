@@ -21,7 +21,7 @@ const { BILL_STATUS } = require('../../utils/constants');
 const createOrUpdateBill = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { services, parts, customItems, transportCharges } = req.body;
+    const { services, parts, customItems, transportCharges, applyPartsGST = true } = req.body;
 
     const booking = await Booking.findById(bookingId);
     if (!booking) {
@@ -116,13 +116,15 @@ const createOrUpdateBill = async (req, res) => {
         const pGstPct = catalogItem ? (catalogItem.gstPercentage || partsGstPct) : (Number(item.gstPercentage) || partsGstPct);
 
         const base = unitBasePrice * quantity;
-        const gst = parseFloat(((base * pGstPct) / 100).toFixed(2));
+        // Honour the worker's GST toggle — if applyPartsGST=false, force zero GST
+        const effectivePGstPct = applyPartsGST ? pGstPct : 0;
+        const gst = applyPartsGST ? parseFloat(((base * pGstPct) / 100).toFixed(2)) : 0;
 
         processedParts.push({
           catalogId: item.catalogId,
           name,
           price: unitBasePrice,
-          gstPercentage: pGstPct,
+          gstPercentage: effectivePGstPct,
           quantity,
           gstAmount: gst,
           total: parseFloat((base + gst).toFixed(2))
@@ -147,15 +149,19 @@ const createOrUpdateBill = async (req, res) => {
         const cGstPct = Number(item.gstPercentage) || partsGstPct;
 
         const base = unitBasePrice * quantity;
-        const gst = parseFloat(((base * cGstPct) / 100).toFixed(2));
+        // Honour the worker's GST toggle — if applyPartsGST=false, force zero GST on custom items too
+        const effectiveCGstPct = applyPartsGST ? cGstPct : 0;
+        const gst = applyPartsGST ? parseFloat(((base * cGstPct) / 100).toFixed(2)) : 0;
 
         processedCustomItems.push({
           name,
           price: unitBasePrice,
-          gstPercentage: cGstPct,
+          gstPercentage: effectiveCGstPct,
           quantity,
           gstAmount: gst,
-          total: parseFloat((base + gst).toFixed(2))
+          total: parseFloat((base + gst).toFixed(2)),
+          hsnCode: item.hsnCode || '',
+          gstApplicable: applyPartsGST
         });
 
         // Add to PARTS totals

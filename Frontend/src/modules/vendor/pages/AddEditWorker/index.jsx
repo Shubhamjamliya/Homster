@@ -15,7 +15,6 @@ const addWorkerSchema = z.object({
   name: z.string().min(2, "Name is required"),
   phone: z.string().regex(/^\d{10}$/, "Enter valid 10-digit phone number"),
   serviceCategories: z.array(z.string()).min(1, "Select at least one category"),
-  skills: z.array(z.string()).min(1, "Select at least one skill"),
   aadhar: z.object({
     number: z.string().regex(/^\d{12}$/, "Aadhar must be 12 digits"),
     // document: z.any() 
@@ -27,7 +26,6 @@ const editWorkerSchema = z.object({
   name: z.string().min(2, "Name is required"),
   phone: z.string().regex(/^\d{10}$/, "Enter valid 10-digit phone number"),
   serviceCategories: z.array(z.string()).min(1, "Select at least one category"),
-  skills: z.array(z.string()).min(1, "Select at least one skill"),
 });
 
 const AddEditWorker = () => {
@@ -49,7 +47,6 @@ const AddEditWorker = () => {
       number: '',
       document: '' // Base64 string ideally
     },
-    skills: [],
     serviceCategories: [],
     address: {
       addressLine1: '',
@@ -110,7 +107,6 @@ const AddEditWorker = () => {
                 number: w.aadhar?.number || '',
                 document: w.aadhar?.document || ''
               },
-              skills: w.skills || [],
               serviceCategories: w.serviceCategories || (w.serviceCategory ? [w.serviceCategory] : []),
               address: {
                 addressLine1: w.address?.addressLine1 || '',
@@ -203,19 +199,9 @@ const AddEditWorker = () => {
         ? prev.serviceCategories.filter(c => c !== val)
         : [...prev.serviceCategories, val];
 
-      // Keep only skills that belong to the remaining categories
-      // We'll need the categories data for this
-      const remainingSkills = prev.skills.filter(skill => {
-        return categories.some(cat =>
-          serviceCategories.includes(cat.title) &&
-          cat.subServices.some(s => (typeof s === 'string' ? s : (s.name || s.title)) === skill)
-        );
-      });
-
       return {
         ...prev,
-        serviceCategories,
-        skills: remainingSkills
+        serviceCategories
       };
     });
   };
@@ -250,14 +236,7 @@ const AddEditWorker = () => {
     setIsAddressModalOpen(false);
   };
 
-  const toggleSkill = (skill) => {
-    setFormData(prev => {
-      const skills = prev.skills.includes(skill)
-        ? prev.skills.filter(s => s !== skill)
-        : [...prev.skills, skill];
-      return { ...prev, skills };
-    });
-  };
+  // toggleSkill removed
 
 
   const handleSubmit = async () => {
@@ -269,7 +248,6 @@ const AddEditWorker = () => {
       name: formData.name,
       phone: formData.phone,
       serviceCategories: formData.serviceCategories,
-      skills: formData.skills,
       ...(isEdit ? {} : { aadhar: { number: formData.aadhar.number } })
     };
 
@@ -372,21 +350,7 @@ const AddEditWorker = () => {
     }
   };
 
-  // Get selected category objects for skills
-  const selectedCategoriesData = Array.isArray(categories)
-    ? categories.filter(c => formData.serviceCategories.includes(c?.title))
-    : [];
-
-  // Aggregate all sub-services from selected categories
-  const allAvailableSkills = selectedCategoriesData.reduce((acc, cat) => {
-    if (cat.subServices) {
-      cat.subServices.forEach(s => {
-        const sName = typeof s === 'string' ? s : (s.name || s.title);
-        if (!acc.includes(sName)) acc.push(sName);
-      });
-    }
-    return acc;
-  }, []);
+  // selectedCategoriesData and allAvailableSkills removed as they are no longer needed
 
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
@@ -630,75 +594,6 @@ const AddEditWorker = () => {
                 {errors.serviceCategories && <p className="text-red-500 text-[10px] mt-1">Required</p>}
               </div>
 
-              {/* Services (Skills) Dropdown */}
-              {formData.serviceCategories.length > 0 && (
-                <div>
-                  <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">Services (Skills)</label>
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsServicesOpen(!isServicesOpen)}
-                      className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    >
-                      <span className={`font-medium truncate ${formData.skills.length > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
-                        {formData.skills.length > 0 ? `${formData.skills.length} Selected` : 'Select Services'}
-                      </span>
-                      <FiChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isServicesOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isServicesOpen && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-10 bg-transparent"
-                          onClick={() => setIsServicesOpen(false)}
-                        />
-                        <div className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto">
-                          {allAvailableSkills.length > 0 ? (
-                            allAvailableSkills.map((sName, idx) => {
-                              const isSelected = formData.skills.includes(sName);
-                              return (
-                                <button
-                                  key={idx}
-                                  onClick={() => toggleSkill(sName)}
-                                  className="w-full text-left px-4 py-3 hover:bg-gray-50 font-medium text-gray-700 border-b border-gray-50 last:border-0 flex items-center justify-between"
-                                >
-                                  {sName}
-                                  {isSelected && (
-                                    <div className="w-2 h-2 rounded-full" style={{ background: themeColors.button }} />
-                                  )}
-                                </button>
-                              );
-                            })
-                          ) : (
-                            <div className="px-4 py-3 text-gray-400 text-sm">No services available</div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Selected Services Tags */}
-                  {formData.skills.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.skills.map((skill, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700"
-                        >
-                          {skill}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleSkill(skill); }}
-                            className="ml-2 text-gray-500 hover:text-red-500 focus:outline-none"
-                          >
-                            <FiX className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {errors.skills && <p className="text-red-500 text-[10px] mt-1">Select at least one service</p>}
-                </div>
-              )}
             </div>
 
             {/* Documents (Simplified) */}

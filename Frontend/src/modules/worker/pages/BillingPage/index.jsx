@@ -49,6 +49,7 @@ const BillingPage = () => {
   const [selectedParts, setSelectedParts] = useState([]);
   const [customItems, setCustomItems] = useState([]);
   const [transportCharges, setTransportCharges] = useState(0);
+  const [applyPartsGST, setApplyPartsGST] = useState(true); // Parts GST toggle (Final Review step)
 
   // Search
   const [serviceSearch, setServiceSearch] = useState('');
@@ -290,14 +291,19 @@ const BillingPage = () => {
     let partsGST = 0;
     selectedParts.forEach(p => {
       partsBase += (p.price * p.quantity);
-      partsGST += p.gstAmount;
+      // Only add parts GST if the worker has ticked the GST checkbox
+      if (applyPartsGST) {
+        partsGST += p.gstAmount;
+      }
     });
 
     let customBase = 0;
     let customGST = 0;
     customItems.forEach(c => {
       customBase += (c.price * c.quantity);
-      customGST += c.gstAmount;
+      if (applyPartsGST) {
+        customGST += c.gstAmount;
+      }
     });
 
     const visitingCharges = Number(job.visitingCharges) || 0;
@@ -333,7 +339,7 @@ const BillingPage = () => {
       servicePayoutPct,
       partsPayoutPct
     };
-  }, [job, selectedServices, selectedParts, customItems, transportCharges, payoutSettings]);
+  }, [job, selectedServices, selectedParts, customItems, transportCharges, payoutSettings, applyPartsGST]);
 
 
   const handleSubmit = async () => {
@@ -343,7 +349,8 @@ const BillingPage = () => {
         services: selectedServices,
         parts: selectedParts,
         customItems,
-        transportCharges
+        transportCharges,
+        applyPartsGST
       });
 
       if (res.success) {
@@ -370,7 +377,8 @@ const BillingPage = () => {
         services: selectedServices,
         parts: selectedParts,
         customItems,
-        transportCharges
+        transportCharges,
+        applyPartsGST
       });
 
       if (res.success) {
@@ -395,7 +403,8 @@ const BillingPage = () => {
         services: selectedServices,
         parts: selectedParts,
         customItems,
-        transportCharges
+        transportCharges,
+        applyPartsGST
       });
 
       const res = await workerService.initiateCashCollection(id, calculations.finalBillAmount, [...selectedParts, ...customItems]);
@@ -861,6 +870,27 @@ const BillingPage = () => {
                       <span className="w-6 h-6 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-xs"><FiPackage /></span>
                       Parts
                     </h4>
+
+                    {/* Parts GST toggle */}
+                    <label className="flex items-center gap-2.5 cursor-pointer mb-3 p-2.5 rounded-xl border border-dashed border-orange-200 bg-orange-50/50 hover:bg-orange-50 transition-colors">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          id="partsGstToggle"
+                          checked={applyPartsGST}
+                          onChange={e => setApplyPartsGST(e.target.checked)}
+                          className="sr-only"
+                        />
+                        <div className={`w-10 h-5 rounded-full transition-colors duration-200 ${applyPartsGST ? 'bg-orange-500' : 'bg-gray-300'}`}>
+                          <div className={`w-4 h-4 bg-white rounded-full shadow-sm absolute top-0.5 transition-all duration-200 ${applyPartsGST ? 'left-5' : 'left-0.5'}`} />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-800">Apply Parts GST ({calculations.partsGstPct}%)</p>
+                        <p className="text-[10px] text-gray-400">{applyPartsGST ? `GST included: ₹${calculations.totalPartsGST.toFixed(2)}` : 'GST not charged on parts'}</p>
+                      </div>
+                    </label>
+
                     <div className="space-y-2 text-sm pl-2">
                       {selectedParts.map(p => <div key={p.catalogId} className="flex justify-between text-gray-600"><span>{p.name} x {p.quantity}</span><span>₹{(p.price * p.quantity).toFixed(2)}</span></div>)}
                       {customItems.map((c, i) => (
@@ -873,8 +903,8 @@ const BillingPage = () => {
                         </div>
                       ))}
 
-                      <div className="flex justify-between text-xs text-gray-500 border-t border-dashed border-gray-100 pt-1 mt-1">
-                        <span>Parts GST ({calculations.partsGstPct}%)</span>
+                      <div className={`flex justify-between text-xs border-t border-dashed border-gray-100 pt-1 mt-1 ${applyPartsGST ? 'text-gray-500' : 'text-gray-300 line-through'}`}>
+                        <span>Parts GST ({applyPartsGST ? calculations.partsGstPct : 0}%)</span>
                         <span>₹{calculations.totalPartsGST.toFixed(2)}</span>
                       </div>
 

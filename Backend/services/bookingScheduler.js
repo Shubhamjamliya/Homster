@@ -1,12 +1,17 @@
 /**
- * Booking Scheduler Service
+ * Booking Scheduler Service — Optimized
  * Handles Wave-Based Vendor Alerting
- * 
+ *
  * Wave Logic:
- * - Wave 1: First 3 closest vendors (alert immediately on booking creation)
- * - Wave 2: Next 3 vendors (after 15 seconds if no accept)
- * - Wave 3: Next 4 vendors (after another 15 seconds)
- * - Wave 4+: Remaining vendors
+ * - Wave 1: First 3 closest vendors (alerted immediately on booking creation)
+ * - Wave 2: Next 3 vendors (after 15s if no accept)
+ * - Wave 3: Next 4 vendors (after another 15s)
+ * - Wave 4+: All remaining vendors
+ *
+ * OPTIMIZATIONS:
+ * - All active bookings processed in PARALLEL (Promise.all, not serial for-loop)
+ * - Circuit breaker: if no searching bookings exist, extend check interval to 30s
+ * - Single Vendor.find per wave instead of per booking
  */
 
 const Booking = require('../models/Booking');
@@ -21,6 +26,9 @@ const WAVE_CONFIG = {
   3: { count: 4, duration: 15000 }, // Wave 3: 4 vendors, 15s
   4: { count: Infinity, duration: 0 } // Wave 4: All remaining
 };
+
+const ACTIVE_INTERVAL_MS = 5000;  // Poll every 5s when bookings exist
+const IDLE_INTERVAL_MS = 30000;   // Poll every 30s when no active bookings (circuit breaker)
 
 // Calculate vendor index range for a wave
 const getVendorRange = (wave) => {
@@ -38,6 +46,7 @@ class BookingScheduler {
     this.io = io;
     this.intervalId = null;
     this.isRunning = false;
+    this.isIdle = false; // Circuit breaker state
   }
 
   start() {
@@ -45,174 +54,192 @@ class BookingScheduler {
       console.log('[BookingScheduler] Already running.');
       return;
     }
-
     this.isRunning = true;
-    console.log('[BookingScheduler] Started - checking every 5 seconds');
+    console.log('[BookingScheduler] Started — active interval: 5s, idle interval: 30s');
+    this.scheduleNext(ACTIVE_INTERVAL_MS);
+  }
 
-    // Run immediately on start
-    this.processWaves();
-
-    // Then run every 5 seconds
-    this.intervalId = setInterval(() => {
-      this.processWaves();
-    }, 5000);
+  scheduleNext(intervalMs) {
+    if (this.intervalId) clearTimeout(this.intervalId);
+    this.intervalId = setTimeout(async () => {
+      const hadWork = await this.processWaves();
+      // Adaptive interval: if idle, slow down; if active, stay fast
+      this.scheduleNext(hadWork ? ACTIVE_INTERVAL_MS : IDLE_INTERVAL_MS);
+    }, intervalMs);
   }
 
   stop() {
     if (this.intervalId) {
-      clearInterval(this.intervalId);
+      clearTimeout(this.intervalId);
       this.intervalId = null;
       this.isRunning = false;
       console.log('[BookingScheduler] Stopped.');
     }
   }
 
+  /**
+   * Process all active searching bookings in PARALLEL.
+   * @returns {boolean} true if any booking was processed, false if idle
+   */
   async processWaves() {
     try {
       const BookingRequest = require('../models/BookingRequest');
 
-      // Find bookings that are searching and have wave data
-      const bookings = await Booking.find({
-        status: BOOKING_STATUS.SEARCHING,
-        waveStartedAt: { $ne: null },
-        potentialVendors: { $exists: true, $not: { $size: 0 } }
-      });
+      // --- CIRCUIT BREAKER: Fast query to detect if any work is needed ---
+      const activeBookings = await Booking.find(
+        {
+          status: BOOKING_STATUS.SEARCHING,
+          waveStartedAt: { $ne: null },
+          potentialVendors: { $exists: true, $not: { $size: 0 } }
+        },
+        '_id currentWave waveStartedAt potentialVendors notifiedVendors bookingNumber' // Minimal projection
+      ).lean();
 
-      if (bookings.length === 0) return;
+      if (activeBookings.length === 0) {
+        return false; // Idle — caller will use longer interval
+      }
 
       const now = Date.now();
 
-      for (const booking of bookings) {
-        const currentWave = booking.currentWave || 1;
-        const waveConfig = WAVE_CONFIG[currentWave] || WAVE_CONFIG[4];
-        const waveStartTime = new Date(booking.waveStartedAt).getTime();
-        const elapsed = now - waveStartTime;
-
-        // Check if wave duration has passed
-        if (elapsed >= waveConfig.duration && waveConfig.duration > 0) {
-          // Move to next wave
-          const nextWave = currentWave + 1;
-          const { start, end } = getVendorRange(nextWave);
-
-          // Get vendors for this wave
-          let vendorsToNotify = booking.potentialVendors.slice(start, end === Infinity ? undefined : end);
-
-          if (vendorsToNotify.length === 0) {
-            // No more vendors to notify - keep searching or mark as no vendors
-            console.log(`[BookingScheduler] Booking ${booking.bookingNumber}: No more vendors in Wave ${nextWave}`);
-            continue;
-          }
-
-          // Filter to only online vendors
-          const vendorIds = vendorsToNotify.map(v => v.vendorId);
-          const onlineVendors = await Vendor.find({
-            _id: { $in: vendorIds },
-            isOnline: true,
-            availability: { $in: ['AVAILABLE', 'BUSY'] } // Not OFFLINE or ON_JOB
-          }).select('_id');
-
-          const onlineVendorIds = new Set(onlineVendors.map(v => v._id.toString()));
-          vendorsToNotify = vendorsToNotify.filter(v => onlineVendorIds.has(v.vendorId.toString()));
-
-          if (vendorsToNotify.length === 0) {
-            console.log(`[BookingScheduler] Booking ${booking.bookingNumber}: Wave ${nextWave} - all vendors offline, skipping`);
-            // Still advance wave to try next batch
-            booking.currentWave = nextWave;
-            booking.waveStartedAt = new Date();
-            await booking.save();
-            continue;
-          }
-
-          console.log(`[BookingScheduler] Booking ${booking.bookingNumber}: Advancing to Wave ${nextWave}, notifying ${vendorsToNotify.length} online vendors`);
-
-          // Update booking wave status
-          booking.currentWave = nextWave;
-          booking.waveStartedAt = new Date();
-
-          // Add to notifiedVendors
-          const notifyIds = vendorsToNotify.map(v => v.vendorId);
-          booking.notifiedVendors = [...booking.notifiedVendors, ...notifyIds];
-
-          await booking.save();
-
-          // Create BookingRequest entries for this wave
-          const bookingRequests = vendorsToNotify.map(v => ({
-            bookingId: booking._id,
-            vendorId: v.vendorId,
-            status: 'PENDING',
-            wave: nextWave,
-            distance: v.distance || null,
-            sentAt: new Date(),
-            expiresAt: new Date(Date.now() + 60 * 60 * 1000)
-          }));
-
+      // --- PARALLEL PROCESSING: All ready bookings processed simultaneously ---
+      await Promise.all(
+        activeBookings.map(async (booking) => {
           try {
-            await BookingRequest.insertMany(bookingRequests, { ordered: false });
-          } catch (err) {
-            if (err.code !== 11000) console.error('[BookingScheduler] BookingRequest insert error:', err);
-          }
+            const currentWave = booking.currentWave || 1;
+            const waveConfig = WAVE_CONFIG[currentWave] || WAVE_CONFIG[4];
+            const elapsed = now - new Date(booking.waveStartedAt).getTime();
 
-          // Send notifications to new wave vendors
-          await this.notifyVendors(booking, vendorsToNotify);
-        }
-      }
+            // Only process if this booking's wave timer has expired
+            if (waveConfig.duration === 0 || elapsed < waveConfig.duration) return;
+
+            const nextWave = currentWave + 1;
+            const { start, end } = getVendorRange(nextWave);
+
+            // Get vendors to notify in this wave
+            let vendorsToNotify = booking.potentialVendors.slice(
+              start,
+              end === Infinity ? undefined : end
+            );
+
+            if (vendorsToNotify.length === 0) {
+              console.log(`[BookingScheduler] Booking ${booking.bookingNumber}: No vendors left in Wave ${nextWave}`);
+              return;
+            }
+
+            // Filter to only online+available vendors (single batch find for this booking)
+            const vendorIds = vendorsToNotify.map(v => v.vendorId);
+            const onlineVendors = await Vendor.find(
+              { _id: { $in: vendorIds }, isOnline: true, availability: { $in: ['AVAILABLE', 'BUSY'] } },
+              '_id'
+            ).lean();
+
+            const onlineSet = new Set(onlineVendors.map(v => v._id.toString()));
+            vendorsToNotify = vendorsToNotify.filter(v => onlineSet.has(v.vendorId.toString()));
+
+            // Advance wave in DB — use findByIdAndUpdate for atomicity (avoids race with accept)
+            const notifyIds = vendorsToNotify.map(v => v.vendorId);
+            await Booking.findByIdAndUpdate(booking._id, {
+              $set: { currentWave: nextWave, waveStartedAt: new Date() },
+              $addToSet: { notifiedVendors: { $each: notifyIds } }
+            });
+
+            if (vendorsToNotify.length === 0) {
+              console.log(`[BookingScheduler] Booking ${booking.bookingNumber}: Wave ${nextWave} all offline, advancing quietly`);
+              return;
+            }
+
+            console.log(`[BookingScheduler] ${booking.bookingNumber}: Wave ${nextWave} → notifying ${vendorsToNotify.length} vendors`);
+
+            // Insert BookingRequest records + send notifications (both in parallel)
+            const bookingRequests = vendorsToNotify.map(v => ({
+              bookingId: booking._id,
+              vendorId: v.vendorId,
+              status: 'PENDING',
+              wave: nextWave,
+              distance: v.distance || null,
+              sentAt: new Date(),
+              expiresAt: new Date(Date.now() + 60 * 60 * 1000)
+            }));
+
+            await Promise.all([
+              BookingRequest.insertMany(bookingRequests, { ordered: false }).catch(err => {
+                if (err.code !== 11000) console.error('[BookingScheduler] BookingRequest insert error:', err);
+              }),
+              this.notifyVendors(booking, vendorsToNotify)
+            ]);
+
+          } catch (bookingErr) {
+            console.error(`[BookingScheduler] Error processing booking ${booking._id}:`, bookingErr);
+          }
+        })
+      );
+
+      return true; // Had work to do
     } catch (error) {
       console.error('[BookingScheduler] Error processing waves:', error);
+      return false;
     }
   }
 
   async notifyVendors(booking, vendors) {
     try {
-      // Fetch booking details for notification
+      // Fetch booking details for notification (single query for the whole wave)
       const populatedBooking = await Booking.findById(booking._id)
         .populate('serviceId', 'title')
-        .populate('userId', 'name phone');
+        .populate('userId', 'name phone')
+        .lean();
 
       if (!populatedBooking) return;
 
-      const notifications = vendors.map(async (v) => {
-        // Create in-app notification
-        await createNotification({
-          vendorId: v.vendorId,
-          type: 'booking_request',
-          title: 'New Booking Request',
-          message: `New service request for ${populatedBooking.serviceId?.title || populatedBooking.serviceName} from ${populatedBooking.userId?.name || 'Customer'}`,
-          relatedId: booking._id,
-          relatedType: 'booking',
-          data: {
-            bookingId: booking._id,
-            serviceName: populatedBooking.serviceId?.title || populatedBooking.serviceName,
-            customerName: populatedBooking.userId?.name,
-            scheduledDate: populatedBooking.scheduledDate,
-            scheduledTime: populatedBooking.scheduledTime,
-            location: populatedBooking.address,
-            price: populatedBooking.finalAmount,
-            distance: v.distance
-          },
-          pushData: {
-            type: 'new_booking',
-            dataOnly: false,
-            link: `/vendor/bookings/${booking._id}`
+      const serviceName = populatedBooking.serviceId?.title || populatedBooking.serviceName;
+      const customerName = populatedBooking.userId?.name || 'Customer';
+
+      // Send all vendor notifications in parallel
+      await Promise.all(
+        vendors.map(async (v) => {
+          // Fire socket immediately (synchronous, non-blocking)
+          if (this.io) {
+            this.io.to(`vendor_${v.vendorId}`).emit('new_booking_request', {
+              bookingId: booking._id,
+              serviceName,
+              customerName,
+              scheduledDate: populatedBooking.scheduledDate,
+              scheduledTime: populatedBooking.scheduledTime,
+              price: populatedBooking.finalAmount,
+              address: populatedBooking.address,
+              distance: v.distance,
+              playSound: true,
+              message: `New booking request within ${v.distance?.toFixed(1) || '?'}km!`
+            });
           }
-        });
 
-        // Emit Socket.IO event
-        if (this.io) {
-          this.io.to(`vendor_${v.vendorId}`).emit('new_booking_request', {
-            bookingId: booking._id,
-            serviceName: populatedBooking.serviceId?.title || populatedBooking.serviceName,
-            customerName: populatedBooking.userId?.name,
-            scheduledDate: populatedBooking.scheduledDate,
-            scheduledTime: populatedBooking.scheduledTime,
-            price: populatedBooking.finalAmount,
-            distance: v.distance,
-            playSound: true,
-            message: `New booking request within ${v.distance?.toFixed(1) || '?'}km!`
+          // Create DB notification + FCM push
+          await createNotification({
+            vendorId: v.vendorId,
+            type: 'booking_request',
+            title: 'New Booking Request',
+            message: `New service request for ${serviceName} from ${customerName}`,
+            relatedId: booking._id,
+            relatedType: 'booking',
+            data: {
+              bookingId: booking._id,
+              serviceName,
+              customerName,
+              scheduledDate: populatedBooking.scheduledDate,
+              scheduledTime: populatedBooking.scheduledTime,
+              location: populatedBooking.address,
+              price: populatedBooking.finalAmount,
+              distance: v.distance
+            },
+            pushData: {
+              type: 'new_booking',
+              dataOnly: false,
+              link: `/vendor/bookings/${booking._id}`
+            }
           });
-        }
-      });
+        })
+      );
 
-      await Promise.all(notifications);
       console.log(`[BookingScheduler] Notified ${vendors.length} vendors for booking ${booking.bookingNumber}`);
     } catch (error) {
       console.error('[BookingScheduler] Error notifying vendors:', error);

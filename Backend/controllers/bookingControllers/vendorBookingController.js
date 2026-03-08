@@ -12,46 +12,119 @@ const { sendNotificationToUser, sendNotificationToVendor, sendNotificationToWork
 const getVendorBookings = async (req, res) => {
   try {
     const vendorId = req.user.id;
-    const { status, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const { status, q, page = 1, limit = 20 } = req.query;
 
-    const vendor = await require('../../models/Vendor').findById(vendorId);
-    const vendorCategories = vendor?.service || [];
+    // ── Get vendor categories from req.user (set in auth middleware) ──
+    let vendorCategories = req.user.categories || req.user.service || [];
+    if (!vendorCategories.length) {
+      const Vendor = require('../../models/Vendor');
+      const v = await Vendor.findById(vendorId, 'service').lean();
+      vendorCategories = v?.service || [];
+    }
 
-    // Build query
+    const vId = new mongoose.Types.ObjectId(vendorId);
+
+    // ── Build Base Query ──
+    // This Or condition ensures vendors see their own jobs OR relevant unassigned alerts
     const query = {
       $or: [
-        { vendorId, status: { $ne: BOOKING_STATUS.AWAITING_PAYMENT } }, // Assigned to this vendor but not awaiting payment
+        { vendorId: vId, status: { $ne: BOOKING_STATUS.AWAITING_PAYMENT } },
         {
           vendorId: null,
           status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] },
-          serviceCategory: { $in: vendorCategories } // Only show relevant ones
+          serviceCategory: { $in: vendorCategories }
         }
       ]
     };
-    if (status) {
-      query.status = status;
-    }
-    if (startDate || endDate) {
-      query.scheduledDate = {};
-      if (startDate) query.scheduledDate.$gte = new Date(startDate);
-      if (endDate) query.scheduledDate.$lte = new Date(endDate);
+
+    // ── Apply Status Group Filters ──
+    if (status && status !== 'all') {
+      if (status === 'in_progress') {
+        query.status = {
+          $in: [
+            BOOKING_STATUS.ACCEPTED,
+            BOOKING_STATUS.ASSIGNED,
+            BOOKING_STATUS.CONFIRMED,
+            BOOKING_STATUS.JOURNEY_STARTED,
+            BOOKING_STATUS.VISITED,
+            BOOKING_STATUS.IN_PROGRESS,
+            BOOKING_STATUS.WORK_DONE,
+            'started', 'reached', 'on_the_way' // Supporting minor variants if they exist
+          ]
+        };
+      } else if (status === 'completed') {
+        query.status = {
+          $in: [
+            BOOKING_STATUS.COMPLETED,
+            'worker_paid', 'settlement_pending', 'paid', 'closed'
+          ]
+        };
+      } else if (status === 'assigned') {
+        query.status = { $in: [BOOKING_STATUS.ASSIGNED, 'worker_accepted'] };
+      } else {
+        query.status = status;
+      }
     }
 
-    // Pagination
+    // ── Apply Search Filter (Simple regex on serviceName or bookingNumber) ──
+    if (q) {
+      query.$and = [
+        {
+          $or: [
+            { serviceName: { $regex: q, $options: 'i' } },
+            { bookingNumber: { $regex: q, $options: 'i' } }
+          ]
+        }
+      ];
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get bookings
-    const bookings = await Booking.find(query)
-      .populate('userId', 'name phone email')
-      .populate('serviceId', 'title iconUrl')
-      .populate('categoryId', 'title slug')
-      .populate('workerId', 'name phone rating')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    // ── Single DB round-trip: list + total via $facet ──
+    const [result] = await Booking.aggregate([
+      { $match: query },
+      {
+        $facet: {
+          data: [
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: parseInt(limit) },
+            {
+              $project: {
+                _id: 1,
+                bookingNumber: 1,
+                status: 1,
+                paymentMethod: 1,
+                finalAmount: 1,
+                scheduledDate: 1,
+                scheduledTime: 1,
+                serviceName: 1,
+                serviceCategory: 1,
+                categoryIcon: 1,
+                createdAt: 1,
+                'address.addressLine1': 1,
+                'address.city': 1,
+                userId: 1,
+                workerId: 1,
+                serviceId: 1,
+                acceptedAt: 1,
+                assignedAt: 1
+              }
+            }
+          ],
+          total: [{ $count: 'n' }]
+        }
+      }
+    ]);
 
-    // Get total count
-    const total = await Booking.countDocuments(query);
+    const bookings = result.data || [];
+    const total = result.total?.[0]?.n || 0;
+
+    // ── Populate only required fields ──
+    await Booking.populate(bookings, [
+      { path: 'userId', select: 'name phone', options: { lean: true } },
+      { path: 'workerId', select: 'name', options: { lean: true } }
+    ]);
 
     res.status(200).json({
       success: true,
@@ -71,6 +144,7 @@ const getVendorBookings = async (req, res) => {
     });
   }
 };
+
 
 /**
  * Get booking details by ID

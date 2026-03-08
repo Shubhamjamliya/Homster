@@ -56,9 +56,6 @@ const workerSchema = new mongoose.Schema({
   serviceCategories: [{
     type: String
   }],
-  skills: [{
-    type: String
-  }],
   status: {
     type: String,
     enum: Object.values(WORKER_STATUS),

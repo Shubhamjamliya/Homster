@@ -362,11 +362,21 @@ bookingSchema.pre('save', async function (next) {
   next();
 });
 
-// Indexes
+// Core compound indexes
 bookingSchema.index({ userId: 1, status: 1, createdAt: -1 });
 bookingSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
 bookingSchema.index({ workerId: 1, status: 1, createdAt: -1 });
 bookingSchema.index({ scheduledDate: 1, status: 1 });
 bookingSchema.index({ paymentStatus: 1, status: 1 });
+
+// ── PERFORMANCE INDEXES (added for wave-scheduler & dashboard queries) ──
+// Scheduler: Booking.find({ status: 'searching', waveStartedAt: { $ne: null } })
+bookingSchema.index({ status: 1, waveStartedAt: 1 });
+// Reject/Accept: Booking.findOne({ notifiedVendors: vendorId, status: ... })
+bookingSchema.index({ notifiedVendors: 1, status: 1 });
+// Wave filter: potentialVendors.vendorId lookup
+bookingSchema.index({ 'potentialVendors.vendorId': 1 });
+// Dashboard: $or on { vendorId: null, serviceCategory: ..., status: ... }
+bookingSchema.index({ vendorId: 1, serviceCategory: 1, status: 1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);

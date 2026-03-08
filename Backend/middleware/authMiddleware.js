@@ -43,10 +43,10 @@ const authenticate = async (req, res, next) => {
     // console.log('Role from token:', decoded.role); // Debug
     switch (decoded.role) {
       case USER_ROLES.USER:
-        user = await User.findById(decoded.userId).select('-password');
+        user = await User.findById(decoded.userId).select('-password').lean();
         break;
       case USER_ROLES.VENDOR:
-        user = await Vendor.findById(decoded.userId).select('-password');
+        user = await Vendor.findById(decoded.userId).select('-password').lean();
         if (user && user.approvalStatus !== 'approved') {
           return res.status(403).json({
             success: false,
@@ -55,13 +55,13 @@ const authenticate = async (req, res, next) => {
         }
         break;
       case USER_ROLES.WORKER:
-        user = await Worker.findById(decoded.userId).select('-password');
+        user = await Worker.findById(decoded.userId).select('-password').lean();
         break;
       case USER_ROLES.ADMIN:
       case 'super_admin':
       case 'admin':
       case 'ADMIN':
-        user = await Admin.findById(decoded.userId).select('-password');
+        user = await Admin.findById(decoded.userId).select('-password').lean();
         break;
       default:
         console.error('Role mismatch in middleware:', decoded.role);
@@ -80,7 +80,8 @@ const authenticate = async (req, res, next) => {
     }
 
     // Attach user to request
-    req.user = user;
+    // NOTE: .lean() removes the virtual .id getter — restore it manually
+    req.user = { ...user, id: user._id.toString() };
     req.userId = decoded.userId;
     req.userRole = decoded.role;
 

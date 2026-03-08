@@ -336,233 +336,202 @@ const createBooking = async (req, res) => {
       // notifiedVendors will be set after wave sorting
     });
 
-    // If Plus membership was added, update user status
-    if (isPlusAdded) {
-      const expiryDate = new Date();
-      expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year membership
-      user.plans = {
-        isActive: true,
-        name: 'Plus Membership',
-        expiry: expiryDate,
-        price: 999 // Or fetch based on constants if needed, hardcoding placeholder or 0
-      };
-      await user.save();
-      console.log(`User ${userId} upgraded to Plus Membership until ${expiryDate}`);
-    }
-
-    // Nearby vendors already found above
-    // WAVE-BASED ALERTING: Sort by distance and only notify first wave
-    const sortedVendors = nearbyVendors.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-
-    // Wave 1: First 3 vendors
-    const WAVE_1_COUNT = 3;
-    const wave1Vendors = sortedVendors.slice(0, WAVE_1_COUNT);
-
-    // Store all potential vendors in booking for scheduler to use
-    booking.potentialVendors = sortedVendors.map(v => ({
-      vendorId: v._id,
-      distance: v.distance || 0
-    }));
-    booking.currentWave = 1;
-    booking.waveStartedAt = new Date();
-    booking.notifiedVendors = wave1Vendors.map(v => v._id);
-    await booking.save();
-
-    if (wave1Vendors.length > 0) {
-      console.log(`[CreateBooking] Wave 1: Alerting ${wave1Vendors.length} closest vendors (of ${sortedVendors.length} total)`);
-
-      // Create BookingRequest entries for Wave 1 vendors
-      const BookingRequest = require('../../models/BookingRequest');
-      const bookingRequests = wave1Vendors.map(vendor => ({
-        bookingId: booking._id,
-        vendorId: vendor._id,
-        status: 'PENDING',
-        wave: 1,
-        distance: vendor.distance || null,
-        sentAt: new Date(),
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000) // Expires in 1 hour
-      }));
-
-      try {
-        await BookingRequest.insertMany(bookingRequests, { ordered: false });
-        console.log(`[CreateBooking] Created ${bookingRequests.length} BookingRequest entries`);
-      } catch (err) {
-        // Ignore duplicate key errors (if retrying)
-        if (err.code !== 11000) console.error('[CreateBooking] BookingRequest insert error:', err);
-      }
-    } else {
-      console.warn(`[CreateBooking] NO VENDORS FOUND nearby! Push notifications will not be sent.`);
-    }
-
-    // Send notifications to Wave 1 vendors ONLY
-    const vendorNotifications = wave1Vendors.map(vendor =>
-      createNotification({
-        vendorId: vendor._id,
-        type: 'booking_request',
-        title: 'New Booking Request',
-        message: `New service request for ${service.title} from ${user.name}`,
-        relatedId: booking._id,
-        relatedType: 'booking',
-        data: {
-          bookingId: booking._id,
-          serviceName: service.title,
-          customerName: user.name,
-          customerPhone: user.phone,
-          scheduledDate: scheduledDate,
-          scheduledTime: scheduledTime,
-          location: address,
-          price: finalAmount, // Keep price for info
-          distance: vendor.distance // Distance in km
-        },
-        // Ensure proper push notification style for booking request
-        pushData: {
-          type: 'new_booking', // Triggers "Accept/Reject" buttons in SW
-          dataOnly: false,
-          link: `/vendor/bookings/${booking._id}`
-        }
-      })
-    );
-
-    await Promise.all(vendorNotifications);
-
-    // Emit Socket.IO event to Wave 1 vendors for real-time notification with sound
-    const io = req.app.get('io');
-    if (io) {
-      console.log('Socket.IO instance found, emitting Wave 1 events...');
-      wave1Vendors.forEach(vendor => {
-        console.log(`[Wave 1] Emitting to vendor_${vendor._id} (dist: ${vendor.distance?.toFixed(1)}km)`);
-        io.to(`vendor_${vendor._id}`).emit('new_booking_request', {
-          bookingId: booking._id,
-          serviceName: service.title,
-          customerName: user.name,
-          customerPhone: user.phone,
-          scheduledDate: scheduledDate,
-          scheduledTime: scheduledTime,
-          price: finalAmount,
-          address: address, // Add this
-          distance: vendor.distance,
-          playSound: true,
-          message: `New booking request within ${vendor.distance?.toFixed(1) || '?'}km!`
-        });
-      });
-    } else {
-      console.error('CRITICAL: Socket.IO instance NOT found on req.app!');
-    }
-
-    // Populate booking details
-    const populatedBooking = await Booking.findById(booking._id)
-      .populate('userId', 'name phone email')
-      .populate('serviceId', 'title iconUrl')
-      .populate('categoryId', 'title slug');
-
-    // NOTIFY USER: Send actionable notification so they can track status
-
-    // Send notification to user
-    await createNotification({
-      userId,
-      type: 'booking_requested',
-      title: 'Booking Created',
-      message: `Your booking ${booking.bookingNumber} has been created successfully.`,
-      relatedId: booking._id,
-      relatedType: 'booking',
-      pushData: {
-        type: 'booking_requested',
-        bookingId: booking._id.toString(),
-        link: `/user/booking/${booking._id}`
-        // dataOnly: true // Removed to ensure User sees the visual notification
-      }
-    });
-
-    // Clear user's cart (both category and main carts if applicable, generally all items for the user)
-    // Ensures cart is empty after successful booking
-    await Cart.findOneAndUpdate(
-      { userId },
-      { $set: { items: [] } }
-    );
-
-    // Send notification to vendor only if assigned (Direct Booking)
-    let vendorObj = null;
-    if (vendorId) {
-      await createNotification({
-        vendorId,
-        type: 'booking_created',
-        title: 'New Booking Received',
-        message: `You have received a new booking ${booking.bookingNumber} for ${service.title}.`,
-        relatedId: booking._id,
-        relatedType: 'booking'
-      });
-      // Fetch vendor details for email
-      const Vendor = require('../../models/Vendor');
-      vendorObj = await Vendor.findById(vendorId);
-    }
-
-    // SEND EMAILS (Confirmation)
-    const { sendBookingEmails } = require('../../services/emailService');
-    // Run in background (no await) to speed up response
-    sendBookingEmails(populatedBooking, user, vendorObj, service).catch(err => console.error(err));
-
-    // Clear booked items from user's cart
-    try {
-      if (bookedItems && bookedItems.length > 0) {
-        const userCart = await Cart.findOne({ userId });
-        if (userCart && userCart.items.length > 0) {
-          console.log(`[CreateBooking] Clearing ${bookedItems.length} booked items from cart...`);
-
-          // Identify items to remove by title
-          const bookedTitles = new Set(bookedItems.map(item => item.card?.title || item.title));
-
-          const originalCount = userCart.items.length;
-          userCart.items = userCart.items.filter(item => {
-            const itemTitle = item.title;
-            const itemCardTitle = item.card?.title;
-            // Remove if title matches
-            const shouldRemove = bookedTitles.has(itemTitle) || (itemCardTitle && bookedTitles.has(itemCardTitle));
-            return !shouldRemove;
-          });
-
-          if (userCart.items.length < originalCount) {
-            await userCart.save();
-            console.log(`[CreateBooking] Removed ${originalCount - userCart.items.length} items from cart. Remaining: ${userCart.items.length}`);
-          }
-        }
-      } else if (serviceId) {
-        // Fallback: if no bookedItems passed, check if this service is in cart and remove it.
-        const userCart = await Cart.findOne({ userId });
-        if (userCart) {
-          const originalCount = userCart.items.length;
-          userCart.items = userCart.items.filter(item => {
-            // Check if item.serviceId matches the booked serviceId
-            if (item.serviceId && item.serviceId.toString() === serviceId.toString()) return false;
-            return true;
-          });
-
-          if (userCart.items.length < originalCount) {
-            await userCart.save();
-            console.log(`[CreateBooking] Removed service ${serviceId} from cart.`);
-          }
-        }
-      }
-    } catch (cartError) {
-      console.error('[CreateBooking] Failed to clear cart items:', cartError);
-      // specific error shouldn't fail the booking response
-    }
-
-    // Clear user's cart COMPLETELY after booking setup (if vendors were found)
-    // This addresses the user's request while allowing retries if no vendors found
-    try {
-      if (wave1Vendors.length > 0) {
-        await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
-      }
-    } catch (e) {
-      console.error('Final cart clear failed:', e);
-    }
-
+    // --- IMMEDIATE RESPONSE ---
+    // Send immediate response to the client. All subsequent operations will run in the background.
     res.status(201).json({
       success: true,
-      message: wave1Vendors.length > 0 ? 'Booking created successfully' : 'No vendors found nearby',
-      noVendorsFound: wave1Vendors.length === 0,
-      data: populatedBooking
+      message: 'Booking created successfully. We are finding vendors for you.',
+      data: {
+        _id: booking._id,
+        bookingNumber: booking.bookingNumber,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        finalAmount: booking.finalAmount,
+        scheduledDate: booking.scheduledDate,
+        scheduledTime: booking.scheduledTime,
+        address: booking.address,
+        serviceName: booking.serviceName,
+        categoryIcon: booking.categoryIcon,
+        brandName: booking.brandName,
+        brandIcon: booking.brandIcon,
+      }
     });
+
+    // --- DEFERRED POST-BOOKING OPERATIONS ---
+    // All operations below will run non-blocking after the HTTP response has been sent.
+    setImmediate(async () => {
+      try {
+        // Re-fetch user and booking for background tasks to ensure latest state
+        const userForBackground = await User.findById(userId);
+        const bookingForBackground = await Booking.findById(booking._id)
+          .populate('userId', 'name phone email')
+          .populate('serviceId', 'title iconUrl')
+          .populate('categoryId', 'title slug');
+        const serviceForBackground = await Service.findById(serviceId); // Re-fetch service if needed
+
+        if (!userForBackground || !bookingForBackground || !serviceForBackground) {
+          console.error('[CreateBooking] Background task failed: User, Booking or Service not found after initial creation.');
+          return;
+        }
+
+        // If Plus membership was added, update user status
+        if (isPlusAdded) {
+          const expiryDate = new Date();
+          expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year membership
+          userForBackground.plans = {
+            isActive: true,
+            name: 'Plus Membership',
+            expiry: expiryDate,
+            price: 999 // Or fetch based on constants if needed, hardcoding placeholder or 0
+          };
+          await userForBackground.save();
+          console.log(`User ${userId} upgraded to Plus Membership until ${expiryDate}`);
+        }
+
+        // Nearby vendors already found above
+        // WAVE-BASED ALERTING: Sort by distance and only notify first wave
+        const sortedVendors = nearbyVendors.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+
+        // Wave 1: First 3 vendors
+        const WAVE_1_COUNT = 3;
+        const wave1Vendors = sortedVendors.slice(0, WAVE_1_COUNT);
+
+        // Store all potential vendors in booking for scheduler to use
+        bookingForBackground.potentialVendors = sortedVendors.map(v => ({
+          vendorId: v._id,
+          distance: v.distance || 0
+        }));
+        bookingForBackground.currentWave = 1;
+        bookingForBackground.waveStartedAt = new Date();
+        bookingForBackground.notifiedVendors = wave1Vendors.map(v => v._id);
+        await bookingForBackground.save();
+
+        if (wave1Vendors.length > 0) {
+          console.log(`[CreateBooking] Wave 1: Alerting ${wave1Vendors.length} closest vendors (of ${sortedVendors.length} total)`);
+
+          // Create BookingRequest entries for Wave 1 vendors
+          const BookingRequest = require('../../models/BookingRequest');
+          const bookingRequests = wave1Vendors.map(vendor => ({
+            bookingId: bookingForBackground._id,
+            vendorId: vendor._id,
+            status: 'PENDING',
+            wave: 1,
+            distance: vendor.distance || null,
+            sentAt: new Date(),
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000) // Expires in 1 hour
+          }));
+
+          try {
+            await BookingRequest.insertMany(bookingRequests, { ordered: false });
+            console.log(`[CreateBooking] Created ${bookingRequests.length} BookingRequest entries`);
+          } catch (err) {
+            // Ignore duplicate key errors (if retrying)
+            if (err.code !== 11000) console.error('[CreateBooking] BookingRequest insert error:', err);
+          }
+        } else {
+          console.warn(`[CreateBooking] NO VENDORS FOUND nearby! Push notifications will not be sent.`);
+          // Update booking status if no vendors found
+          bookingForBackground.status = BOOKING_STATUS.NO_VENDORS;
+          await bookingForBackground.save();
+        }
+
+        // Send notifications to Wave 1 vendors ONLY
+        const vendorNotifications = wave1Vendors.map(vendor =>
+          createNotification({
+            vendorId: vendor._id,
+            type: 'booking_request',
+            title: 'New Booking Request',
+            message: `New service request for ${serviceForBackground.title} from ${userForBackground.name}`,
+            relatedId: bookingForBackground._id,
+            relatedType: 'booking',
+            data: {
+              bookingId: bookingForBackground._id,
+              serviceName: serviceForBackground.title,
+              customerName: userForBackground.name,
+              customerPhone: userForBackground.phone,
+              scheduledDate: scheduledDate,
+              scheduledTime: scheduledTime,
+              location: address,
+              price: finalAmount, // Keep price for info
+              distance: vendor.distance // Distance in km
+            },
+            // Ensure proper push notification style for booking request
+            pushData: {
+              type: 'new_booking', // Triggers "Accept/Reject" buttons in SW
+              dataOnly: false,
+              link: `/vendor/bookings/${bookingForBackground._id}`
+            }
+          })
+        );
+
+        await Promise.all(vendorNotifications);
+
+        // Emit Socket.IO event to Wave 1 vendors for real-time notification with sound
+        const io = req.app.get('io');
+        if (io) {
+          console.log('Socket.IO instance found, emitting Wave 1 events...');
+          wave1Vendors.forEach(vendor => {
+            console.log(`[Wave 1] Emitting to vendor_${vendor._id} (dist: ${vendor.distance?.toFixed(1)}km)`);
+            io.to(`vendor_${vendor._id}`).emit('new_booking_request', {
+              bookingId: bookingForBackground._id,
+              serviceName: serviceForBackground.title,
+              customerName: userForBackground.name,
+              customerPhone: userForBackground.phone,
+              scheduledDate: scheduledDate,
+              scheduledTime: scheduledTime,
+              price: finalAmount,
+              address: address, // Add this
+              distance: vendor.distance,
+              playSound: true,
+              message: `New booking request within ${vendor.distance?.toFixed(1) || '?'}km!`
+            });
+          });
+        } else {
+          console.error('CRITICAL: Socket.IO instance NOT found on req.app!');
+        }
+
+        // NOTIFY USER: Send actionable notification so they can track status
+        await createNotification({
+          userId,
+          type: 'booking_requested',
+          title: 'Booking Created',
+          message: `Your booking ${bookingForBackground.bookingNumber} has been created successfully.`,
+          relatedId: bookingForBackground._id,
+          relatedType: 'booking',
+          pushData: {
+            type: 'booking_requested',
+            bookingId: bookingForBackground._id.toString(),
+            link: `/user/booking/${bookingForBackground._id}`
+            // dataOnly: true // Removed to ensure User sees the visual notification
+          }
+        });
+        // Clear cart — single atomic operation
+        await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
+        console.log(`[CreateBooking][bg] Cart cleared for user ${userId}`);
+
+        // Send vendor notification if it was a direct booking (vendorId provided)
+        if (vendorId) {
+          await createNotification({
+            vendorId,
+            type: 'booking_created',
+            title: 'New Booking Received',
+            message: `You have received a new booking ${bookingForBackground.bookingNumber} for ${serviceForBackground.title}.`,
+            relatedId: bookingForBackground._id,
+            relatedType: 'booking'
+          });
+        }
+
+        // Send confirmation emails (fire-and-forget — never blocks)
+        const vendorObj = vendorId ? await require('../../models/Vendor').findById(vendorId).lean() : null;
+        const { sendBookingEmails } = require('../../services/emailService');
+        sendBookingEmails(bookingForBackground, userForBackground, vendorObj, serviceForBackground)
+          .catch(err => console.error('[CreateBooking][bg] Email error:', err));
+
+      } catch (bgErr) {
+        console.error('[CreateBooking][bg] Background task failed:', bgErr);
+      }
+    });
+
   } catch (error) {
     console.error('Create booking error:', error);
     res.status(500).json({

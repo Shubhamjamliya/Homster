@@ -21,23 +21,39 @@ const createNotification = async ({
   priority = null
 }) => {
   try {
-    // Check for duplicate notification within short window (5 seconds) to prevent spam
-    const duplicateQuery = {
-      type,
-      title,
-      createdAt: { $gt: new Date(Date.now() - 5000) }
-    };
+    // ── DEDUP CHECK: Redis-first (< 1ms), DB fallback ──────────────────────
+    let isDuplicate = false;
+    const { getRedis, isRedisConnected } = require('../../services/redisService');
 
-    if (userId) duplicateQuery.userId = userId;
-    if (vendorId) duplicateQuery.vendorId = vendorId;
-    if (workerId) duplicateQuery.workerId = workerId;
-    if (adminId) duplicateQuery.adminId = adminId;
-    if (relatedId) duplicateQuery.relatedId = relatedId;
+    // Build a deterministic dedup key from the notification fingerprint
+    const dedupTarget = userId || vendorId || workerId || adminId || 'unknown';
+    const dedupKey = `notif:dedup:${type}:${String(relatedId || '')}:${String(dedupTarget)}`;
 
-    const existingNotification = await Notification.findOne(duplicateQuery);
-    if (existingNotification) {
-      console.log(`[Notification] Duplicate suppression: ${type} for ${relatedId}`);
-      return existingNotification;
+    if (isRedisConnected()) {
+      // Redis NX (set-if-not-exists) with 5s TTL — atomic, zero extra reads
+      const set = await getRedis().set(dedupKey, '1', 'EX', 5, 'NX');
+      isDuplicate = set === null; // null means key already existed
+    } else {
+      // Fallback: DB query (original behaviour when Redis is down)
+      const duplicateQuery = {
+        type,
+        title,
+        createdAt: { $gt: new Date(Date.now() - 5000) }
+      };
+      if (userId) duplicateQuery.userId = userId;
+      if (vendorId) duplicateQuery.vendorId = vendorId;
+      if (workerId) duplicateQuery.workerId = workerId;
+      if (adminId) duplicateQuery.adminId = adminId;
+      if (relatedId) duplicateQuery.relatedId = relatedId;
+
+      const existing = await Notification.findOne(duplicateQuery);
+      isDuplicate = !!existing;
+      if (isDuplicate) return existing;
+    }
+
+    if (isDuplicate) {
+      console.log(`[Notification] Dedup hit (Redis): ${type} for ${relatedId}`);
+      return null;
     }
 
     const notification = await Notification.create({
