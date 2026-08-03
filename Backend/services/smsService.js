@@ -96,9 +96,9 @@ const sendSMS = async (phone, message) => {
  */
 const sendOTP = async (phone, otp) => {
   // DLT-compliant message format (must match registered template)
-  // Template: "Welcome to the ##var## powered by SMSINDIAHUB. Your OTP for registration is ##var##"
+  // Template: "Welcome to the ##var## powered by Appzeto.Your OTP for registration is ##var##.BGADEC"
   const appName = 'HOMECARE';
-  const message = `Welcome to the ${appName} powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+  const message = `Welcome to the ${appName} powered by Appzeto.Your OTP for registration is ${otp}.BGADEC`;
 
   console.log(`[SMS] Attempting to send OTP to ${phone}`);
   console.log(`[SMS] Message: ${message}`);
@@ -116,3 +116,4 @@ module.exports = {
   sendSMS,
   sendOTP
 };
+
