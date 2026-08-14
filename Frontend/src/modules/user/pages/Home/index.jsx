@@ -2,7 +2,6 @@ import React, { useState, useEffect, useLayoutEffect, lazy, Suspense } from 'rea
 import { useNavigate, useLocation } from 'react-router-dom';
 import { themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
-import BottomNav from '../../components/layout/BottomNav';
 import SearchBar from './components/SearchBar';
 import ServiceCategories from './components/ServiceCategories';
 import { publicCatalogService } from '../../../../services/catalogService';
@@ -29,6 +28,21 @@ import ScrapPromotionCard from './components/ScrapPromotionCard';
 import DebugConsole from '../../components/common/DebugConsole';
 
 
+
+const getLocalIcon = (title) => {
+  if (!title) return null;
+  const t = title.toLowerCase();
+  const origin = window.location.origin;
+  if (t.includes('microwave')) return `${origin}/ServiceIcon/microwave.jpeg`;
+  if (t.includes('r.o') || t.includes('purifier') || t.includes('prufier')) return `${origin}/ServiceIcon/RpPurifier.jpeg`;
+  if (t.includes('led') || t.includes('tv')) return `${origin}/ServiceIcon/LED.jpeg`;
+  if (t.includes('dish washer') || t.includes('dishwasher')) return `${origin}/ServiceIcon/kitchen.jpeg`;
+  if (t.includes('chimney')) return `${origin}/ServiceIcon/chiminy.jpeg`;
+  if (t.includes('cooler')) return `${origin}/ServiceIcon/cooler.jpeg`;
+  if (t.includes('washing machine')) return `${origin}/ServiceIcon/washing machine.jpeg`;
+  if (t.includes('ac ') || t === 'ac') return `${origin}/ServiceIcon/AC.jpeg`;
+  return null;
+};
 
 const toAssetUrl = (url) => {
   if (!url) return '';
@@ -261,7 +275,7 @@ const Home = () => {
               id: cat.id,
               title: cat.title,
               slug: cat.slug,
-              icon: toAssetUrl(cat.icon),
+              icon: getLocalIcon(cat.title) || toAssetUrl(cat.icon),
               hasSaleBadge: cat.hasSaleBadge,
               badge: cat.badge
             }));
@@ -430,29 +444,9 @@ const Home = () => {
   }
 
   return (
-    <div className="min-h-screen pb-20 relative bg-white">
+    <div className="min-h-screen relative bg-white">
       {/* Refined Brand Mesh Gradient Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0"
-          style={{
-            background: `
-              radial-gradient(at 0% 0%, ${themeColors?.brand?.teal || '#347989'}25 0%, transparent 70%),
-              radial-gradient(at 100% 0%, ${themeColors?.brand?.yellow || '#D68F35'}20 0%, transparent 70%),
-              radial-gradient(at 100% 100%, ${themeColors?.brand?.orange || '#BB5F36'}15 0%, transparent 75%),
-              radial-gradient(at 0% 100%, ${themeColors?.brand?.teal || '#347989'}10 0%, transparent 70%),
-              radial-gradient(at 50% 50%, ${themeColors?.brand?.teal || '#347989'}03 0%, transparent 100%),
-              #FFFFFF
-            `
-          }}
-        />
-        {/* Elegant Dot Grid Pattern */}
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: `radial-gradient(${themeColors?.brand?.teal || '#347989'} 0.8px, transparent 0.8px)`,
-            backgroundSize: '32px 32px'
-          }}
-        />
-      </div>
+        <div className="absolute inset-0 bg-[#F8F9FA]" />
 
       <motion.div
         className="relative z-10"
@@ -462,8 +456,8 @@ const Home = () => {
       >
         <motion.div
           variants={itemVariants}
-          className="backdrop-blur-xl sticky top-0 z-50 border-b border-black/[0.03] rounded-b-[24px] shadow-[0_4px_30px_rgba(0,0,0,0.03)] transition-all duration-300"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.4)' }}
+          className="backdrop-blur-xl sticky top-0 z-50 rounded-b-[24px] shadow-sm transition-all duration-300 overflow-hidden"
+          style={{ backgroundColor: 'rgba(255, 255, 255, 0.85)' }}
         >
           <Header
             location={address}
@@ -474,7 +468,7 @@ const Home = () => {
           </div>
         </motion.div>
 
-        <main className="pt-6 space-y-8 pb-24 max-w-screen-xl mx-auto w-full">
+        <main className="pt-4 space-y-6 max-w-screen-xl mx-auto w-full">
           {!isLocationSupported ? (
             <div className="flex flex-col items-center justify-center pt-20 pb-10 px-6 text-center min-h-[60vh]">
               <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6">
@@ -523,18 +517,17 @@ const Home = () => {
 
               {/* Categories Section */}
               {homeContent?.isCategoriesVisible !== false && (
-                <motion.section variants={itemVariants} className="relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-b from-blue-50/30 to-transparent pointer-events-none -z-10" />
+                <motion.section variants={itemVariants} className="relative overflow-visible">
                   <ServiceCategories
                     categories={categories}
                     onCategoryClick={handleCategoryClick}
-                    onSeeAllClick={() => { }}
+                    onSeeAllClick={() => setIsCategoryModalOpen(true)}
                   />
                 </motion.section>
               )}
 
               {/* Scrap Promotion Section */}
-              <motion.section variants={itemVariants}>
+              <motion.section variants={itemVariants} className="pt-3 sm:pt-4">
                 <ScrapPromotionCard onClick={() => navigate('/user/scrap')} />
               </motion.section>
 
@@ -685,8 +678,7 @@ const Home = () => {
         </main>
       </motion.div>
 
-      {/* Bottom Navigation */}
-      {!isAddressModalOpen && <BottomNav />}
+      {/* Removed local BottomNav, rendered by routes */}
 
       {/* Category Modal */}
       <CategoryModal

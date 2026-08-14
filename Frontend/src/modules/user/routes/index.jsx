@@ -2,7 +2,6 @@ import React, { lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import PageTransition from '../components/common/PageTransition';
 import BottomNav from '../components/layout/BottomNav';
-import Footer from '../components/layout/Footer';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
@@ -155,7 +154,6 @@ const UserRoutes = () => {
       {/* These components are OUTSIDE Suspense so they persist during page loads */}
       {!isBookingDetailsPage && !isBookingConfirmationPage && !isPublicPage && <LiveBookingCard hasBottomNav={shouldShowBottomNav} />}
       {shouldShowBottomNav && <BottomNav />}
-      {(location.pathname === '/user' || location.pathname === '/user/') && <Footer />}
     </ErrorBoundary>
   );
 };

@@ -8,7 +8,7 @@ import { adminAuthService } from '../../../services/authService';
 const AdminLogin = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    email: 'admin@admin.com',
+    email: 'admin@appzeto.com',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -101,7 +101,7 @@ const AdminLogin = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="admin@admin.com"
+                  placeholder="admin@appzeto.com"
                   className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent text-gray-900"
                   style={{
                     focusRingColor: themeColors.button
@@ -208,7 +208,7 @@ const AdminLogin = () => {
           >
             <h3 className="text-sm font-semibold mb-2" style={{ color: themeColors.button }}>Demo Credentials:</h3>
             <div className="text-sm text-gray-700 space-y-1">
-              <p>Email: admin@admin.com</p>
+              <p>Email: admin@appzeto.com</p>
               <p>Password: admin123</p>
             </div>
           </div>

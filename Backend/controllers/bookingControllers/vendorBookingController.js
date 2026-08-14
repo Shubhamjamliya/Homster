@@ -228,6 +228,13 @@ const acceptBooking = async (req, res) => {
       // If update failed, check why (likely already taken)
       const existing = await Booking.findById(id);
       if (existing && existing.vendorId) {
+        if (existing.vendorId.toString() === vendorId.toString()) {
+          return res.status(200).json({
+            success: true,
+            data: existing,
+            message: 'Booking already accepted by you'
+          });
+        }
         return res.status(409).json({ // 409 Conflict
           success: false,
           message: 'Sorry, this job has already been accepted by another vendor.'

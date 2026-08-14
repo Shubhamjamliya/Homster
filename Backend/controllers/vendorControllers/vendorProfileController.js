@@ -49,6 +49,7 @@ const getProfile = async (req, res) => {
         approvalStatus: vendor.approvalStatus,
         isPhoneVerified: vendor.isPhoneVerified || false,
         isEmailVerified: vendor.isEmailVerified || false,
+        isOnline: vendor.isOnline || false,
         profilePhoto: vendor.profilePhoto || null,
         aadharDocument: vendor.aadhar?.document || null,
         createdAt: vendor.createdAt,
@@ -320,10 +321,48 @@ const updateLocation = async (req, res) => {
   }
 };
 
+/**
+ * Update vendor online status
+ */
+const updateStatus = async (req, res) => {
+  try {
+    const { isOnline } = req.body;
+    const vendorId = req.user.id;
+
+    if (typeof isOnline !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isOnline must be a boolean' });
+    }
+
+    const vendor = await Vendor.findByIdAndUpdate(
+      vendorId, 
+      { 
+        isOnline, 
+        availability: isOnline ? 'AVAILABLE' : 'OFFLINE',
+        lastSeenAt: new Date()
+      }, 
+      { new: true }
+    );
+
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: 'Vendor not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Status updated successfully',
+      isOnline: vendor.isOnline
+    });
+  } catch (error) {
+    console.error('Update vendor status error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update status' });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   updateAddress,
-  updateLocation
+  updateLocation,
+  updateStatus
 };
 

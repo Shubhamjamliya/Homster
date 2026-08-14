@@ -9,7 +9,7 @@ import { acceptBooking, rejectBooking, assignWorker } from '../../services/booki
 // Booking alert handled globally
 import { toast } from 'react-hot-toast';
 import { io } from 'socket.io-client';
-
+import api from '../../../../services/api';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import StatsCards from './components/StatsCards';
@@ -43,8 +43,10 @@ const Dashboard = memo(() => {
     name: 'Vendor Name',
     businessName: 'Business Name',
     photo: null,
-    service: []
+    service: [],
+    isOnline: false
   });
+  const [isOnline, setIsOnline] = useState(false);
   const [recentJobs, setRecentJobs] = useState([]);
   const [pendingBookings, setPendingBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -205,8 +207,10 @@ const Dashboard = memo(() => {
       name: profile.name || 'Vendor Name',
       businessName: profile.businessName || 'Business Name',
       photo: profile.profilePhoto || null,
-      service: profile.service || []
+      service: profile.service || [],
+      isOnline: profile.isOnline || false
     });
+    setIsOnline(profile.isOnline || false);
   }, []);
 
   // Main data loader - useCallback to prevent recreation
@@ -224,6 +228,26 @@ const Dashboard = memo(() => {
       setLoading(false);
     }
   }, [processApiResponse]);
+
+  const handleToggleOnline = async (e) => {
+    e.stopPropagation();
+    const newStatus = !isOnline;
+    // Optimistic UI update
+    setIsOnline(newStatus);
+    try {
+      const res = await api.put('/vendors/status', { isOnline: newStatus });
+      if (res.data.success) {
+        toast.success(newStatus ? 'You are now Online!' : 'You are now Offline!');
+        const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
+        profile.isOnline = newStatus;
+        localStorage.setItem('vendorData', JSON.stringify(profile));
+      }
+    } catch (err) {
+      // Revert if failed
+      setIsOnline(!newStatus);
+      toast.error('Failed to change status');
+    }
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -509,6 +533,24 @@ const Dashboard = memo(() => {
                 </p>
                 <h2 className="text-base font-bold text-white truncate mb-0.5">{vendorProfile.name}</h2>
                 <p className="text-xs text-white truncate font-medium opacity-90">{vendorProfile.businessName}</p>
+              </div>
+
+              {/* Online/Offline Toggle */}
+              <div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full z-20"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(5px)'
+                }}
+                onClick={handleToggleOnline}
+              >
+                <div 
+                  className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-300 ease-in-out cursor-pointer flex ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+                >
+                  <div 
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ease-in-out ${isOnline ? 'translate-x-5' : 'translate-x-0'}`}
+                  />
+                </div>
               </div>
 
               {/* Arrow Icon */}

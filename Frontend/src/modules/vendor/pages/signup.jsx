@@ -182,7 +182,7 @@ const VendorSignup = () => {
     });
 
     if (!validationResult.success) {
-      validationResult.error.errors.forEach(err => toast.error(err.message));
+      toast.error(validationResult.error.errors[0].message);
       return;
     }
 
@@ -356,7 +356,7 @@ const VendorSignup = () => {
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#347989] via-[#D68F35] to-[#BB5F36]" />
 
           {step === 'details' ? (
-            <form onSubmit={handleDetailsSubmit} className="space-y-8">
+            <form onSubmit={handleDetailsSubmit} className="space-y-8" noValidate>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Basic Details */}
                 <div className="space-y-4 animate-stagger-1 animate-fade-in">

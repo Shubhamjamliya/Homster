@@ -77,8 +77,8 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // If error is 401 and we haven't tried to refresh yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // If error is 401, we haven't tried to refresh yet, and it's NOT a login request
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/login')) {
       if (isRefreshing) {
         // If already refreshing, queue this request
         return new Promise((resolve, reject) => {
@@ -101,6 +101,7 @@ api.interceptors.response.use(
 
       if (!refreshToken) {
         // No refresh token, logout
+        isRefreshing = false;
         handleLogout(role);
         return Promise.reject(error);
       }

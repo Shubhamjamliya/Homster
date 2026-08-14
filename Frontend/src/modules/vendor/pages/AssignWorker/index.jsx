@@ -49,15 +49,19 @@ const AssignWorker = () => {
 
         // Load workers
         const workersRes = await getWorkers();
-        // Handle potentially different response structures
         const workersList = Array.isArray(workersRes) ? workersRes : (workersRes.workers || workersRes.data || []);
 
-        // Filter available workers
         const available = workersList.filter(w => {
           const status = (w.status || w.availability || '').toUpperCase();
           return (status === 'ONLINE' || status === 'ACTIVE') && !w.currentJob;
         });
-        setWorkers(available);
+        
+        setWorkers(workersList);
+        
+        // If no workers are online, auto-select assign to self
+        if (available.length === 0) {
+          setAssignToSelf(true);
+        }
       } catch (error) {
         console.error('Error loading data:', error);
         toast.error('Failed to load booking or workers');
@@ -73,8 +77,16 @@ const AssignWorker = () => {
 
   const handleAssign = async () => {
     if (!assignToSelf && !selectedWorker) {
-      toast.error('Please select a worker or assign to yourself');
+      toast.error('Please select an online worker or assign to yourself');
       return;
+    }
+
+    if (selectedWorker) {
+      const status = (selectedWorker.status || selectedWorker.availability || '').toUpperCase();
+      if (status !== 'ONLINE' && status !== 'ACTIVE') {
+        toast.error('Selected worker is currently offline! Please choose an online worker or assign to yourself.');
+        return;
+      }
     }
 
     try {
@@ -111,6 +123,11 @@ const AssignWorker = () => {
     );
   }
 
+  const onlineWorkers = workers.filter(w => {
+    const status = (w.status || w.availability || '').toUpperCase();
+    return (status === 'ONLINE' || status === 'ACTIVE') && !w.currentJob;
+  });
+
   // Helper for address display
   const getAddressString = (addr) => {
     if (!addr) return 'Address not available';
@@ -136,6 +153,21 @@ const AssignWorker = () => {
             ₹{booking.finalAmount || booking.price || 0}
           </p>
         </div>
+
+        {/* Offline Workers Warning Banner */}
+        {onlineWorkers.length === 0 && (
+          <div className="mb-5 p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 shadow-sm">
+            <span className="text-xl shrink-0 mt-0.5">⚠️</span>
+            <div>
+              <h4 className="font-bold text-amber-900 text-sm mb-1">No Workers Currently Online</h4>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                {workers.length > 0
+                  ? 'All your registered workers are currently Offline. You can assign this booking to yourself below, or ask your workers to toggle their status to Online.'
+                  : 'You have no registered workers yet. You can do this job yourself or add a worker.'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Self Assignment Option */}
         <div className="mb-6">
@@ -178,16 +210,29 @@ const AssignWorker = () => {
                 )}
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-800">I'll do this job myself</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-gray-800">I'll do this job myself</h3>
+                  {onlineWorkers.length === 0 && (
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-green-100 text-green-700 rounded-full">
+                      Recommended
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-600">Assign the booking to yourself</p>
               </div>
             </div>
           </button>
         </div>
 
-        {/* Available Workers */}
+        {/* Available & Registered Workers */}
         <div>
-          <h3 className="font-bold text-gray-800 mb-4">Available Workers</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-800">Your Workers</h3>
+            <span className="text-xs text-gray-500 font-medium">
+              {onlineWorkers.length} of {workers.length} Online
+            </span>
+          </div>
+
           {workers.length === 0 ? (
             <div
               className="bg-white rounded-xl p-6 text-center shadow-md"
@@ -196,8 +241,8 @@ const AssignWorker = () => {
               }}
             >
               <FiUser className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-gray-600 mb-2">No available workers</p>
-              <p className="text-sm text-gray-500 mb-4">All workers are currently assigned or offline</p>
+              <p className="text-gray-600 mb-2">No workers found</p>
+              <p className="text-sm text-gray-500 mb-4">You have not added any workers yet</p>
               <button
                 onClick={() => navigate('/vendor/workers/add')}
                 className="px-4 py-2 rounded-lg font-semibold text-white text-sm"
@@ -214,18 +259,26 @@ const AssignWorker = () => {
               {workers.map((worker) => {
                 const workerId = worker._id || worker.id;
                 const isSelected = (selectedWorker?._id || selectedWorker?.id) === workerId;
-                const status = worker.status || worker.availability || 'OFFLINE';
+                const status = (worker.status || worker.availability || '').toUpperCase();
+                const isOnline = status === 'ONLINE' || status === 'ACTIVE';
 
                 return (
                   <button
                     key={workerId}
+                    disabled={!isOnline}
                     onClick={() => {
+                      if (!isOnline) {
+                        toast.error(`${worker.name} is currently Offline and cannot be assigned.`);
+                        return;
+                      }
                       setSelectedWorker(worker);
                       setAssignToSelf(false);
                     }}
                     className={`w-full p-4 rounded-xl text-left transition-all ${isSelected
                       ? 'border-2'
-                      : 'bg-white border border-gray-200'
+                      : !isOnline
+                        ? 'bg-gray-50/80 border border-gray-200 opacity-75 cursor-not-allowed'
+                        : 'bg-white border border-gray-200 hover:border-gray-300'
                       }`}
                     style={
                       isSelected
@@ -234,13 +287,13 @@ const AssignWorker = () => {
                           background: `${themeColors.button}10`,
                         }
                         : {
-                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
                         }
                     }
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center ${isSelected ? 'bg-white' : 'bg-gray-100'
+                        className={`w-12 h-12 rounded-full flex items-center justify-center ${isSelected ? 'bg-white' : !isOnline ? 'bg-gray-200' : 'bg-gray-100'
                           }`}
                         style={
                           isSelected
@@ -253,29 +306,28 @@ const AssignWorker = () => {
                         {isSelected ? (
                           <FiCheck className="w-6 h-6" style={{ color: themeColors.button }} />
                         ) : (
-                          <FiUser className="w-6 h-6 text-gray-400" />
+                          <FiUser className={`w-6 h-6 ${!isOnline ? 'text-gray-400' : 'text-gray-600'}`} />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-800">{worker.name}</h3>
-                        <p className="text-sm text-gray-600">{worker.phone}</p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {worker.skills?.slice(0, 2).map((skill, index) => (
-                            <span
-                              key={index}
-                              className="px-2 py-1 rounded-lg text-xs font-medium"
-                              style={{
-                                background: `${themeColors.button}15`,
-                                color: themeColors.button,
-                              }}
-                            >
-                              {typeof skill === 'string' ? skill : skill.name || skill.title || 'Skill'}
-                            </span>
-                          ))}
-                          {worker.skills?.length > 2 && (
-                            <span className="text-xs text-gray-500">+{worker.skills.length - 2} more</span>
-                          )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="font-bold text-gray-800 truncate">{worker.name}</h3>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                              isOnline
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-600'
+                            }`}
+                          >
+                            {isOnline ? '● Online' : '○ Offline'}
+                          </span>
                         </div>
+                        <p className="text-xs text-gray-500 mt-0.5">{worker.phone || 'No phone'}</p>
+                        {!isOnline && (
+                          <p className="text-[11px] text-red-500 font-medium mt-1">
+                            Worker is offline. Cannot receive booking.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </button>

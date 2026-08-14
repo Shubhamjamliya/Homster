@@ -88,6 +88,9 @@ const EditProfile = () => {
               city: w.address?.city || '',
               state: w.address?.state || '',
               pincode: w.address?.pincode || '',
+              fullAddress: w.address?.fullAddress || '',
+              lat: w.address?.lat,
+              lng: w.address?.lng
             },
             serviceCategories: w.serviceCategories || (w.serviceCategory ? [w.serviceCategory] : []),
             profilePhoto: w.profilePhoto || null,
@@ -195,7 +198,9 @@ const EditProfile = () => {
         city: city || prev.address.city,
         state: state || prev.address.state,
         pincode: pincode || prev.address.pincode,
-        fullAddress: location.address // Store the full formatted address string
+        fullAddress: location.address, // Store the full formatted address string
+        lat: location.lat,
+        lng: location.lng
       }
     }));
     setIsAddressModalOpen(false);
@@ -400,14 +405,18 @@ const EditProfile = () => {
 
           <div className="space-y-3">
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <p className="text-sm font-medium text-gray-700">
-                {formData.address?.fullAddress ||
-                  `${formData.address?.addressLine1 || ''} ${formData.address?.city || ''} ${formData.address?.state || ''} ${formData.address?.pincode || ''}`
-                }
-              </p>
-              {!formData.address?.fullAddress && !formData.address?.addressLine1 && (
-                <p className="text-xs text-gray-400 italic mt-1">No address set</p>
-              )}
+              {(() => {
+                const displayAddress = formData.address?.fullAddress ||
+                  [formData.address?.addressLine1, formData.address?.city, formData.address?.state, formData.address?.pincode]
+                    .filter(Boolean)
+                    .join(' ');
+                
+                return displayAddress ? (
+                  <p className="text-sm font-medium text-gray-700">{displayAddress}</p>
+                ) : (
+                  <p className="text-xs text-gray-400 italic mt-1">No address set</p>
+                );
+              })()}
             </div>
 
             <button

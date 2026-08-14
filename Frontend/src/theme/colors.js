@@ -26,8 +26,8 @@ const userTheme = {
   headerBg: '#EBF8FF',
   button: brand.teal,
   icon: brand.teal,
-  cardShadow: '0 8px 16px -2px rgba(0, 166, 166, 0.15), 0 4px 8px -1px rgba(0, 166, 166, 0.1)',
-  cardBorder: '1px solid rgba(0, 166, 166, 0.15)',
+  cardShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+  cardBorder: '1px solid rgba(0, 0, 0, 0.05)',
   brand: brand
 };
 

@@ -2,9 +2,11 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiCheckCircle, FiClock, FiTrendingUp, FiChevronRight, FiUser, FiBell, FiMapPin, FiArrowRight } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import workerService from '../../../../services/workerService';
+import api from '../../../../services/api';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import { SkeletonProfileHeader, SkeletonDashboardStats, SkeletonList } from '../../../../components/common/SkeletonLoaders';
 import OptimizedImage from '../../../../components/common/OptimizedImage';
@@ -48,11 +50,13 @@ const Dashboard = () => {
   });
   const [workerProfile, setWorkerProfile] = useState({
     name: 'Worker Name',
-    phone: '+91 9876543210',
+    phone: '',
     photo: null,
     categories: [],
     address: null,
+    isOnline: false
   });
+  const [isOnline, setIsOnline] = useState(false);
   const [recentJobs, setRecentJobs] = useState([]);
 
   // Set background gradient
@@ -93,13 +97,16 @@ const Dashboard = () => {
 
       if (profileRes.success) {
         const profile = profileRes.worker;
+        const isOnlineStatus = profile.status === 'ONLINE';
         setWorkerProfile({
           name: profile.name || 'Worker Name',
           phone: profile.phone || '',
           photo: profile.profilePhoto || null,
           categories: profile.serviceCategories || (profile.serviceCategory ? [profile.serviceCategory] : []),
           address: profile.address,
+          isOnline: isOnlineStatus
         });
+        setIsOnline(isOnlineStatus);
       }
 
       if (statsRes.success) {
@@ -156,7 +163,21 @@ const Dashboard = () => {
 
   }, []);
 
-
+  const handleToggleOnline = async (e) => {
+    e.stopPropagation();
+    const newStatus = !isOnline;
+    setIsOnline(newStatus);
+    try {
+      const res = await api.put('/workers/status', { isOnline: newStatus });
+      if (res.data.success) {
+        toast.success(newStatus ? 'You are now Online!' : 'You are now Offline!');
+        setWorkerProfile(prev => ({ ...prev, isOnline: newStatus }));
+      }
+    } catch (err) {
+      setIsOnline(!newStatus);
+      toast.error('Failed to change status');
+    }
+  };
 
   // Socket Listener for New Jobs
   useEffect(() => {
@@ -248,9 +269,27 @@ const Dashboard = () => {
                 <h2 className="text-base font-bold text-white truncate mb-0.5">{workerProfile.name}</h2>
                 {workerProfile.categories && workerProfile.categories.length > 0 && (
                   <p className="text-xs text-white truncate font-medium opacity-90">
-                    {workerProfile.categories.join(', ')}
+                    {workerProfile.categories.join(' • ')}
                   </p>
                 )}
+              </div>
+
+              {/* Online/Offline Toggle */}
+              <div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full z-20"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(5px)'
+                }}
+                onClick={handleToggleOnline}
+              >
+                <div 
+                  className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-300 ease-in-out cursor-pointer flex ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+                >
+                  <div 
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ease-in-out ${isOnline ? 'translate-x-5' : 'translate-x-0'}`}
+                  />
+                </div>
               </div>
 
               {/* Arrow Icon */}

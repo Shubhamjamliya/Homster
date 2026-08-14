@@ -6,7 +6,7 @@ import Modal from "../components/Modal";
 import ToggleSwitch from "../components/ToggleSwitch"; // Import ToggleSwitch
 import { ensureIds, saveCatalog, slugify, toAssetUrl } from "../utils";
 
-import { homeContentService, serviceService } from "../../../../../services/catalogService";
+import { homeContentService, serviceService, categoryService } from "../../../../../services/catalogService";
 
 const RedirectionSelector = ({
   targetCategoryId,
@@ -259,25 +259,48 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
 
 
 
-  // Fetch services for redirection selector
+  // Fetch services and categories for redirection selector
   const [allServices, setAllServices] = useState([]);
 
   useEffect(() => {
-    const fetchServices = async () => {
+    const fetchCatalogData = async () => {
       try {
         const params = {};
         if (selectedCity) params.cityId = selectedCity;
 
-        const response = await serviceService.getAll(params);
-        if (response.success) {
-          setAllServices(response.services || []);
+        // Fetch both services and categories concurrently
+        const [servicesRes, categoriesRes] = await Promise.all([
+          serviceService.getAll(params),
+          categoryService.getAll({ ...params, status: 'active' })
+        ]);
+        
+        if (servicesRes.success) {
+          setAllServices(servicesRes.services || []);
+        }
+        
+        if (categoriesRes.success && categoriesRes.categories) {
+          const mappedCategories = categoriesRes.categories.map(cat => ({
+            id: cat.id,
+            title: cat.title,
+            slug: cat.slug,
+            homeIconUrl: cat.homeIconUrl || "",
+            homeBadge: cat.homeBadge || "",
+            hasSaleBadge: cat.hasSaleBadge || false,
+            showOnHome: cat.showOnHome !== false,
+          }));
+          
+          setCatalog(prev => {
+            const next = { ...prev, categories: mappedCategories };
+            saveCatalog(next);
+            return next;
+          });
         }
       } catch (error) {
-        console.error("Failed to fetch services", error);
+        console.error("Failed to fetch catalog data", error);
       }
     };
-    fetchServices();
-  }, [selectedCity]);
+    fetchCatalogData();
+  }, [selectedCity, setCatalog]);
 
   const updateCategory = (id, patch) => {
     const next = ensureIds(catalog);

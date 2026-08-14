@@ -3,7 +3,7 @@ import { FiDollarSign, FiArrowUp, FiArrowDown, FiClock, FiBell, FiX, FiImage, Fi
 import { AnimatePresence, motion } from 'framer-motion';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
-import BottomNav from '../../components/layout/BottomNav';
+import { createPortal } from 'react-dom';
 import workerWalletService from '../../../../services/workerWalletService';
 import { toast } from 'react-hot-toast';
 import LogoLoader from '../../../../components/common/LogoLoader';
@@ -305,7 +305,8 @@ const Wallet = () => {
       </main>
 
       {/* Payment Details Modal */}
-      <AnimatePresence>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
         {selectedTransaction && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -451,10 +452,13 @@ const Wallet = () => {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
 
       {/* Image Fullscreen Modal */}
-      <AnimatePresence>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
         {imageModalOpen && selectedImage && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -480,10 +484,11 @@ const Wallet = () => {
             />
           </motion.div>
         )}
-      </AnimatePresence>
+        )}
+      </AnimatePresence>,
+      document.body
+    )}
 
-      {/* Hide BottomNav when modal is open */}
-      {!selectedTransaction && !imageModalOpen && <BottomNav />}
     </div>
   );
 };

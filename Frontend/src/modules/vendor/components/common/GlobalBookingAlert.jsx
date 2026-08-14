@@ -188,10 +188,10 @@ export default function GlobalBookingAlert() {
 
           window.dispatchEvent(new Event('vendorJobsUpdated'));
           window.dispatchEvent(new Event('vendorStatsUpdated'));
-          toast.success('Job claimed! Redirecting to assign...');
           navigate(`/vendor/booking/${id}/assign-worker`);
         } catch (e) {
-          toast.error('Failed to claim job');
+          console.error('onAssign error:', e);
+          navigate(`/vendor/booking/${id}/assign-worker`);
         }
       }}
       onReject={async (id) => {

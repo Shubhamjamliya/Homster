@@ -94,7 +94,10 @@ const updateProfile = async (req, res) => {
         city: address.city || worker.address?.city || '',
         state: address.state || worker.address?.state || '',
         pincode: address.pincode || worker.address?.pincode || '',
-        landmark: address.landmark || worker.address?.landmark || ''
+        landmark: address.landmark || worker.address?.landmark || '',
+        fullAddress: address.fullAddress || worker.address?.fullAddress || '',
+        lat: address.lat !== undefined ? address.lat : worker.address?.lat,
+        lng: address.lng !== undefined ? address.lng : worker.address?.lng
       };
     }
     if (status) worker.status = status;
@@ -175,9 +178,46 @@ const updateLocation = async (req, res) => {
   }
 };
 
+/**
+ * Update worker status
+ */
+const updateStatus = async (req, res) => {
+  try {
+    const { isOnline } = req.body;
+    const workerId = req.user.id;
+
+    if (typeof isOnline !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isOnline must be a boolean' });
+    }
+
+    const { WORKER_STATUS } = require('../../utils/constants');
+    
+    const worker = await Worker.findByIdAndUpdate(
+      workerId,
+      { status: isOnline ? WORKER_STATUS.ONLINE : WORKER_STATUS.OFFLINE },
+      { new: true }
+    );
+
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Status updated successfully',
+      status: worker.status,
+      isOnline: worker.status === WORKER_STATUS.ONLINE
+    });
+  } catch (error) {
+    console.error('Update worker status error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update status' });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
-  updateLocation
+  updateLocation,
+  updateStatus
 };
 
