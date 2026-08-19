@@ -239,7 +239,9 @@ const AdminSettings = () => {
     if (!companyName?.trim()) return "Company Name is required";
 
     const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-    if (!companyGSTIN || !gstRegex.test(companyGSTIN)) return "Invalid GSTIN format (e.g., 27ABCDE1234F1Z5)";
+    if (companyGSTIN?.trim() && !gstRegex.test(companyGSTIN.trim())) {
+      return "Invalid GSTIN format (e.g., 27ABCDE1234F1Z5)";
+    }
 
     const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
     if (!companyPAN || !panRegex.test(companyPAN)) return "Invalid PAN format (e.g., ABCDE1234F)";
@@ -689,9 +691,17 @@ const AdminSettings = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">GSTIN</label>
-                        <input type="text" name="companyGSTIN" value={billingSettings.companyGSTIN} onChange={handleBillingChange}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-indigo-500 uppercase" />
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          GSTIN <span className="text-gray-400 font-normal">(Optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="companyGSTIN"
+                          value={billingSettings.companyGSTIN}
+                          onChange={handleBillingChange}
+                          placeholder="Optional (e.g. 27ABCDE1234F1Z5)"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-indigo-500 uppercase placeholder:normal-case placeholder:text-gray-400"
+                        />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">PAN</label>

@@ -74,6 +74,12 @@ const vendorSchema = new mongoose.Schema({
       required: [true, 'Please upload PAN document']
     }
   },
+  gstin: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    default: ''
+  },
   otherDocuments: [{
     type: String // Cloudinary URLs
   }],

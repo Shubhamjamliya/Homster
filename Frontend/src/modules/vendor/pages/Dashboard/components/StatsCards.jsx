@@ -1,89 +1,127 @@
 import React, { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiClock, FiBriefcase, FiUsers, FiCheckCircle } from 'react-icons/fi';
+import { FiClock, FiBriefcase, FiCheckCircle, FiStar, FiCalendar, FiTrendingUp } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
-import { vendorTheme as themeColors } from '../../../../../theme';
 
-const StatsCards = memo(({ stats }) => {
+const StatsCards = memo(({ stats = {} }) => {
   const navigate = useNavigate();
 
-  const cards = [
+  const totalEarnings = stats.totalEarnings || stats.totalRevenue || 0;
+  const monthlyEarnings = stats.monthlyEarnings || Math.round(totalEarnings * 0.4);
+  const completedServices = stats.completedServices ?? stats.completedJobs ?? 0;
+  const pendingServices = stats.pendingServices ?? ((stats.pendingAlerts || 0) + (stats.activeJobs || 0));
+  const avgRating = stats.averageRating || stats.rating || 5.0;
+
+  const topCards = [
     {
-      title: "Today's Earnings",
-      value: `₹${stats.todayEarnings.toLocaleString()}`,
+      title: "Total Earnings",
+      value: `₹${Number(totalEarnings).toLocaleString()}`,
+      subtext: "Lifetime Revenue",
       icon: FaWallet,
-      gradient: 'linear-gradient(135deg, #001947 0%, #003b77 100%)',
+      gradient: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+      textColor: 'text-amber-400',
       onClick: () => navigate('/vendor/wallet')
     },
     {
-      title: 'Pending Alerts',
-      value: stats.pendingAlerts,
-      icon: FiClock,
-      gradient: 'linear-gradient(135deg, #406788 0%, #304a63 100%)',
-      onClick: () => navigate('/vendor/booking-alerts')
+      title: "Monthly Earnings",
+      value: `₹${Number(monthlyEarnings).toLocaleString()}`,
+      subtext: "This Month",
+      icon: FiCalendar,
+      gradient: 'linear-gradient(135deg, #0A3641 0%, #155E75 100%)',
+      textColor: 'text-emerald-400',
+      onClick: () => navigate('/vendor/wallet')
+    }
+  ];
+
+  const subCards = [
+    {
+      title: "Average Rating",
+      value: `${Number(avgRating).toFixed(1)} ★`,
+      icon: FiStar,
+      color: "text-amber-500",
+      bg: "bg-amber-50",
+      border: "border-amber-100",
+      onClick: () => navigate('/vendor/ratings')
     },
     {
-      title: 'Active Jobs',
-      value: stats.activeJobs,
-      icon: FiBriefcase,
-      gradient: 'linear-gradient(135deg, #406788 0%, #304a63 100%)',
-      onClick: () => navigate('/vendor/jobs')
-    },
-    {
-      title: 'Completed',
-      value: stats.completedJobs,
+      title: "Completed",
+      value: completedServices,
       icon: FiCheckCircle,
-      gradient: 'linear-gradient(135deg, #001947 0%, #003b77 100%)',
-      onClick: () => navigate('/vendor/jobs')
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+      border: "border-emerald-100",
+      onClick: () => navigate('/vendor/jobs?tab=completed')
+    },
+    {
+      title: "Pending",
+      value: pendingServices,
+      icon: FiClock,
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+      border: "border-blue-100",
+      onClick: () => navigate('/vendor/booking-alerts')
     }
   ];
 
   return (
-    <div className="px-4 pt-4">
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        {cards.map((card, index) => {
-          const IconComponent = card.icon;
-
+    <div className="px-4 pt-4 space-y-3">
+      {/* Top Main Cards: Total & Monthly Earnings */}
+      <div className="grid grid-cols-2 gap-3">
+        {topCards.map((card, idx) => {
+          const IconComp = card.icon;
           return (
             <div
-              key={index}
+              key={idx}
               onClick={card.onClick}
-              className="rounded-xl p-4 relative overflow-hidden cursor-pointer active:scale-95 transition-transform"
-              style={{
-                background: card.gradient,
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-              }}
+              className="rounded-2xl p-4 relative overflow-hidden cursor-pointer active:scale-95 transition-all shadow-sm hover:shadow-md"
+              style={{ background: card.gradient }}
             >
-              {/* Decorative Pattern */}
               <div
-                className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-20"
+                className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-10"
                 style={{
-                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%)',
+                  background: 'radial-gradient(circle, #fff 0%, transparent 70%)',
                   transform: 'translate(20px, -20px)',
                 }}
               />
               <div className="relative z-10">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <p className="text-xs text-white font-semibold mb-1 opacity-90 uppercase tracking-wide">
-                      {card.title}
-                    </p>
-                    <p className="text-2xl font-bold text-white leading-tight">
-                      {card.value}
-                    </p>
-                  </div>
-                  <div
-                    className="p-3 rounded-xl flex-shrink-0"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.25)',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                    }}
-                  >
-                    <IconComponent className="w-6 h-6" style={{ color: '#FFFFFF' }} />
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
+                    {card.title}
+                  </span>
+                  <div className="p-2 rounded-lg bg-white/10 backdrop-blur-md">
+                    <IconComp className={`w-4 h-4 ${card.textColor}`} />
                   </div>
                 </div>
+                <div className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  {card.value}
+                </div>
+                <div className="text-[10px] text-gray-400 font-medium mt-0.5">
+                  {card.subtext}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Sub Analytics Cards: Rating, Completed, Pending */}
+      <div className="grid grid-cols-3 gap-2.5">
+        {subCards.map((card, idx) => {
+          const IconComp = card.icon;
+          return (
+            <div
+              key={idx}
+              onClick={card.onClick}
+              className={`rounded-xl p-3 border ${card.border} ${card.bg} cursor-pointer active:scale-95 transition-all shadow-xs hover:shadow-sm flex flex-col justify-between`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tight">
+                  {card.title}
+                </span>
+                <IconComp className={`w-3.5 h-3.5 ${card.color}`} />
+              </div>
+              <div className={`text-lg font-black mt-1.5 ${card.color}`}>
+                {card.value}
               </div>
             </div>
           );

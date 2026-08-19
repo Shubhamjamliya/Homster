@@ -189,7 +189,7 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadhar, pan, referralCode } = req.body;
+    const { name, email, verificationToken, aadhar, pan, gstin, referralCode } = req.body;
     let phone = req.body.phone;
 
     if (verificationToken) {
@@ -256,6 +256,7 @@ const register = async (req, res) => {
         backDocument: aadharBackUrl
       },
       pan: { number: pan, document: panUrl },
+      gstin: gstin ? gstin.trim().toUpperCase() : '',
       otherDocuments: otherUrls,
       approvalStatus: VENDOR_STATUS.PENDING,
       isPhoneVerified: true,

@@ -313,15 +313,18 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
                             ))}
                             
                             {/* Bottom Disclaimer */}
-                            <div className="mt-8 pt-4 border-t border-gray-50 flex items-start gap-3 bg-gray-50/50 p-4 rounded-2xl">
-                              <div className="mt-0.5 text-gray-400">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                            <div className="mt-6 mb-6 p-4 sm:p-5 rounded-2xl bg-slate-50 border-2 border-slate-200 flex items-start gap-4 shadow-sm">
+                              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-md shadow-amber-500/25 font-black text-lg">
+                                ℹ
                               </div>
-                              <p className="text-[11px] text-rose-500 font-normal italic leading-snug">
-                                * It is a base price only, additional charges may be applicable after service
-                              </p>
+                              <div className="space-y-1.5 flex-1">
+                                <div className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide">
+                                  Pricing Disclaimer
+                                </div>
+                                <p className="text-sm sm:text-base text-slate-800 font-semibold leading-snug">
+                                  Prices shown are <span className="font-black text-slate-950 underline decoration-amber-500 decoration-2">starting base charges</span> only. Any required spare parts, materials, or extra repair work will be charged additionally after on-site inspection.
+                                </p>
+                              </div>
                             </div>
                           </div>
                         ) : (

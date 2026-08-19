@@ -35,6 +35,7 @@ const AllVendors = () => {
           approvalStatus: vendor.approvalStatus,
           aadhar: vendor.aadhar?.number,
           pan: vendor.pan?.number,
+          gstin: vendor.gstin,
           documents: {
             aadhar: vendor.aadhar?.document,
             aadharBack: vendor.aadhar?.backDocument,
@@ -355,10 +356,12 @@ const AllVendors = () => {
                 <div className="text-gray-900">{selectedVendor.phone}</div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Service Category</label>
-                <div className="text-gray-900">
-                  {Array.isArray(selectedVendor.service) ? selectedVendor.service.join(', ') : (selectedVendor.service || 'N/A')}
-                </div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">PAN Number</label>
+                <div className="text-gray-900 font-mono font-medium">{selectedVendor.pan || 'N/A'}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">GSTIN</label>
+                <div className="text-gray-900 font-mono font-medium">{selectedVendor.gstin || 'Not Provided (Optional)'}</div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>

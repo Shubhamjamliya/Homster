@@ -12,11 +12,12 @@ import { z } from "zod";
 
 // Zod schema for Vendor Signup
 const vendorSignupSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").regex(/^[a-zA-Z\s]+$/, "Name can only contain letters"),
+  name: z.string().min(2, "Full Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
-  phoneNumber: z.string().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian phone number"),
+  phoneNumber: z.string().regex(/^\d{10}$/, "Please enter a valid 10-digit phone number"),
   aadhar: z.string().regex(/^\d{12}$/, "Aadhar number must be exactly 12 digits"),
-  pan: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format (e.g. ABCDE1234F)")
+  pan: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format (e.g. ABCDE1234F)"),
+  gstin: z.string().optional()
 });
 
 const VendorSignup = () => {
@@ -29,10 +30,12 @@ const VendorSignup = () => {
     phoneNumber: '',
     aadhar: '',
     pan: '',
+    gstin: '',
     service: '',
     referralCode: '',
     documents: []
   });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
   const [verificationToken, setVerificationToken] = useState('');
@@ -40,6 +43,10 @@ const VendorSignup = () => {
   const [documentPreview, setDocumentPreview] = useState({});
   const [uploadingDocs, setUploadingDocs] = useState({});
   const [resendTimer, setResendTimer] = useState(0);
+
+  // Refs for auto-focus
+  const nameInputRef = useRef(null);
+  const otpInputRefs = useRef([]);
 
   // Timer countdown effect
   useEffect(() => {
@@ -87,6 +94,9 @@ const VendorSignup = () => {
       ...prev,
       [name]: value
     }));
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleDocumentUpload = async (e, type) => {
@@ -140,11 +150,13 @@ const VendorSignup = () => {
           [type]: previewUrl
         }));
         setUploadingDocs(prev => ({ ...prev, [type]: false }));
+        toast.dismiss(loadingToast);
         toast.success("Image uploaded", { duration: 2000 });
       };
 
       reader.onerror = () => {
         console.error("FileReader failed");
+        toast.dismiss(loadingToast);
         toast.error("Failed to read file");
         setUploadingDocs(prev => ({ ...prev, [type]: false }));
       };
@@ -172,19 +184,27 @@ const VendorSignup = () => {
   };
 
   const handleDetailsSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    setFieldErrors({});
 
     // Zod Validation
     const validationResult = vendorSignupSchema.safeParse({
-      name: formData.name,
-      email: formData.email,
-      phoneNumber: formData.phoneNumber,
-      aadhar: formData.aadhar,
-      pan: formData.pan
+      name: formData.name?.trim(),
+      email: formData.email?.trim(),
+      phoneNumber: formData.phoneNumber?.trim(),
+      aadhar: formData.aadhar?.trim(),
+      pan: formData.pan?.trim()
     });
 
     if (!validationResult.success) {
+      const errMap = {};
+      validationResult.error.errors.forEach(err => {
+        const field = err.path[0];
+        if (!errMap[field]) errMap[field] = err.message;
+      });
+      setFieldErrors(errMap);
       toast.error(validationResult.error.errors[0].message);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -206,11 +226,12 @@ const VendorSignup = () => {
         const otherDocs = formData.documents.filter(d => d.type === 'other').map(d => d.url);
 
         const registerData = {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phoneNumber,
-          aadhar: formData.aadhar,
-          pan: formData.pan,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phoneNumber.trim(),
+          aadhar: formData.aadhar.trim(),
+          pan: formData.pan.trim(),
+          gstin: formData.gstin?.trim() || undefined,
           service: [],
           aadharDocument: aadharDoc,
           aadharBackDocument: aadharBackDoc,
@@ -243,7 +264,7 @@ const VendorSignup = () => {
     }
 
     try {
-      const response = await sendVendorOTP(formData.phoneNumber);
+      const response = await sendVendorOTP(formData.phoneNumber.trim());
       if (response.success) {
         setOtpToken(response.token);
         setIsLoading(false);
@@ -309,6 +330,7 @@ const VendorSignup = () => {
         phone: formData.phoneNumber,
         aadhar: formData.aadhar,
         pan: formData.pan,
+        gstin: formData.gstin?.trim() || undefined,
         service: formData.service,
         aadharDocument: aadharDoc,
         aadharBackDocument: aadharBackDoc,
@@ -379,11 +401,14 @@ const VendorSignup = () => {
                         required
                         value={formData.name}
                         onChange={handleInputChange}
-                        className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400"
-                        style={{ '--tw-ring-color': brandColor }}
-                        placeholder="Organization name"
+                        className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none ${
+                          fieldErrors.name ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={{ '--tw-ring-color': fieldErrors.name ? '#EF4444' : brandColor }}
+                        placeholder="Organization or Person name"
                       />
                     </div>
+                    {fieldErrors.name && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.name}</p>}
                   </div>
 
                   <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
@@ -398,11 +423,14 @@ const VendorSignup = () => {
                         required
                         value={formData.email}
                         onChange={handleInputChange}
-                        className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400"
-                        style={{ '--tw-ring-color': brandColor }}
+                        className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none ${
+                          fieldErrors.email ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={{ '--tw-ring-color': fieldErrors.email ? '#EF4444' : brandColor }}
                         placeholder="vendor@example.com"
                       />
                     </div>
+                    {fieldErrors.email && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.email}</p>}
                   </div>
 
                   {!verificationToken && (
@@ -416,12 +444,18 @@ const VendorSignup = () => {
                           type="tel"
                           required
                           value={formData.phoneNumber}
-                          onChange={(e) => setFormData(p => ({ ...p, phoneNumber: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                          className="block w-full pl-14 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400"
-                          style={{ '--tw-ring-color': brandColor }}
+                          onChange={(e) => {
+                            setFormData(p => ({ ...p, phoneNumber: e.target.value.replace(/\D/g, '').slice(0, 10) }));
+                            if (fieldErrors.phoneNumber) setFieldErrors(p => ({ ...p, phoneNumber: '' }));
+                          }}
+                          className={`block w-full pl-14 pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none ${
+                            fieldErrors.phoneNumber ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                          style={{ '--tw-ring-color': fieldErrors.phoneNumber ? '#EF4444' : brandColor }}
                           placeholder="9876543210"
                         />
                       </div>
+                      {fieldErrors.phoneNumber && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.phoneNumber}</p>}
                     </div>
                   )}
 
@@ -435,12 +469,18 @@ const VendorSignup = () => {
                         type="text"
                         required
                         value={formData.aadhar}
-                        onChange={(e) => setFormData(p => ({ ...p, aadhar: e.target.value.replace(/\D/g, '').slice(0, 12) }))}
-                        className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400"
-                        style={{ '--tw-ring-color': brandColor }}
+                        onChange={(e) => {
+                          setFormData(p => ({ ...p, aadhar: e.target.value.replace(/\D/g, '').slice(0, 12) }));
+                          if (fieldErrors.aadhar) setFieldErrors(p => ({ ...p, aadhar: '' }));
+                        }}
+                        className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none ${
+                          fieldErrors.aadhar ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={{ '--tw-ring-color': fieldErrors.aadhar ? '#EF4444' : brandColor }}
                         placeholder="1234 5678 9012"
                       />
                     </div>
+                    {fieldErrors.aadhar && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.aadhar}</p>}
                   </div>
 
                   <div className="animate-fade-in" style={{ animationDelay: '0.5s' }}>
@@ -453,12 +493,44 @@ const VendorSignup = () => {
                         type="text"
                         required
                         value={formData.pan}
-                        onChange={(e) => setFormData(p => ({ ...p, pan: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) }))}
-                        className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 font-medium tracking-wider uppercase"
-                        style={{ '--tw-ring-color': brandColor }}
+                        onChange={(e) => {
+                          setFormData(p => ({ ...p, pan: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) }));
+                          if (fieldErrors.pan) setFieldErrors(p => ({ ...p, pan: '' }));
+                        }}
+                        className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none font-medium tracking-wider uppercase ${
+                          fieldErrors.pan ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={{ '--tw-ring-color': fieldErrors.pan ? '#EF4444' : brandColor }}
                         placeholder="ABCDE1234F"
                       />
                     </div>
+                    {fieldErrors.pan && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.pan}</p>}
+                  </div>
+
+                  <div className="animate-fade-in" style={{ animationDelay: '0.55s' }}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      GSTIN <span className="text-gray-400 text-xs font-normal">(Optional - If available)</span>
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                        <FiFileText className="text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        name="gstin"
+                        value={formData.gstin}
+                        onChange={(e) => {
+                          setFormData(p => ({ ...p, gstin: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15) }));
+                          if (fieldErrors.gstin) setFieldErrors(p => ({ ...p, gstin: '' }));
+                        }}
+                        className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none font-medium tracking-wider uppercase placeholder:normal-case placeholder:font-normal placeholder:tracking-normal ${
+                          fieldErrors.gstin ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={{ '--tw-ring-color': fieldErrors.gstin ? '#EF4444' : brandColor }}
+                        placeholder="e.g. 27ABCDE1234F1Z5"
+                      />
+                    </div>
+                    {fieldErrors.gstin && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.gstin}</p>}
                   </div>
 
                   <div className="animate-fade-in" style={{ animationDelay: '0.6s' }}>
@@ -591,7 +663,8 @@ const VendorSignup = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-base font-bold rounded-xl text-white transition-all transform hover:-translate-y-1 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+                  onClick={handleDetailsSubmit}
+                  className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-base font-bold rounded-xl text-white transition-all transform hover:-translate-y-1 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden active:scale-98"
                   style={{
                     backgroundColor: brandColor,
                     boxShadow: `0 10px 15px -3px ${brandColor}4D`
