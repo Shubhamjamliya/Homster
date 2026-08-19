@@ -257,6 +257,24 @@ const vendorSchema = new mongoose.Schema({
   loginSessionId: {
     type: String,
     default: null
+  },
+
+  // Referral System
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+    uppercase: true,
+    trim: true
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vendor',
+    default: null
+  },
+  referralEarnings: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true
@@ -265,12 +283,28 @@ const vendorSchema = new mongoose.Schema({
 // Indexes for faster queries
 vendorSchema.index({ approvalStatus: 1 });
 vendorSchema.index({ 'wallet.earnings': -1 });
+vendorSchema.index({ referredBy: 1 });
 vendorSchema.index({ geoLocation: '2dsphere' }); // Fast geo queries
 vendorSchema.index({ isOnline: 1, availability: 1, approvalStatus: 1 }); // Compound index for vendor search
 
-// Hash password before saving
+// Helper to generate random referral code
+const generateReferralCode = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'HOMV';
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
+// Pre-save hook: Hash password and ensure unique referral code
 vendorSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
+  // Generate referral code if missing
+  if (!this.referralCode) {
+    this.referralCode = generateReferralCode();
+  }
+
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
   const salt = await bcrypt.genSalt(10);

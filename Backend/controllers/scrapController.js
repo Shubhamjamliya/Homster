@@ -100,42 +100,178 @@ exports.getAvailableScrap = async (req, res) => {
   }
 };
 
-// Vendor accepts/buys a scrap request
+// Admin sets price offer or accepts scrap request
 exports.acceptScrap = async (req, res) => {
   try {
     const { id } = req.params;
-    const vendorId = req.user.id; // vendor middleware ensures this
+    const { offeredPrice, adminNote } = req.body;
 
     const scrap = await Scrap.findById(id);
     if (!scrap) return res.status(404).json({ success: false, message: 'Scrap item not found' });
 
-    if (scrap.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Item already taken or cancelled' });
+    if (['completed', 'cancelled'].includes(scrap.status)) {
+      return res.status(400).json({ success: false, message: `Cannot modify item in ${scrap.status} state` });
     }
 
-    scrap.status = 'accepted';
-    scrap.vendorId = vendorId;
-    scrap.pickupDate = new Date(); // Default to now, or accept from body
-    await scrap.save();
+    // If an offered price is provided, mark as 'offered' so user can review and approve
+    if (offeredPrice !== undefined && offeredPrice !== null && offeredPrice !== '') {
+      const priceNum = Number(offeredPrice);
+      if (isNaN(priceNum) || priceNum < 0) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid price amount' });
+      }
 
-    // Customize message based on acceptor role
-    const { USER_ROLES } = require('../utils/constants');
-    const isVendor = req.userRole === USER_ROLES.VENDOR;
-    const acceptorType = isVendor ? 'A vendor' : 'An admin';
+      scrap.offeredPrice = priceNum;
+      scrap.adminNote = adminNote || '';
+      scrap.offeredAt = new Date();
+      scrap.status = 'offered';
+      await scrap.save();
+
+      // Notify User
+      await createNotification({
+        userId: scrap.userId,
+        type: 'scrap_price_offered',
+        title: `Price Offer: ₹${scrap.offeredPrice}`,
+        message: `Admin has offered ₹${scrap.offeredPrice} for your scrap item "${scrap.title}". Please review and accept or reject.`,
+        relatedId: scrap._id,
+        relatedType: 'scrap',
+        data: {
+          offeredPrice: scrap.offeredPrice,
+          adminNote: scrap.adminNote
+        }
+      });
+
+      return res.json({
+        success: true,
+        data: scrap,
+        message: `Price offer of ₹${scrap.offeredPrice} sent to user successfully`
+      });
+    }
+
+    // Fallback if accepted directly without price offer
+    scrap.status = 'accepted';
+    scrap.pickupDate = new Date();
+    await scrap.save();
 
     // Notify User
     await createNotification({
       userId: scrap.userId,
       type: 'scrap_accepted',
       title: 'Scrap Request Accepted!',
-      message: `${acceptorType} has accepted your scrap request for "${scrap.title}". They will contact you shortly.`,
+      message: `Admin has accepted your scrap request for "${scrap.title}". They will contact you shortly.`,
       relatedId: scrap._id,
       relatedType: 'scrap'
     });
 
     res.json({ success: true, data: scrap, message: 'Request accepted. Please contact user for pickup.' });
   } catch (error) {
-    console.error(error);
+    console.error('Accept/Offer scrap error:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// User approves or rejects the admin's scrap price offer
+exports.respondToOffer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body; // 'accept' or 'reject'
+
+    if (!['accept', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Invalid action. Must be accept or reject' });
+    }
+
+    const scrap = await Scrap.findById(id);
+    if (!scrap) {
+      return res.status(404).json({ success: false, message: 'Scrap item not found' });
+    }
+
+    // Check that logged in user is the owner of this scrap
+    if (scrap.userId.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    if (scrap.status !== 'offered') {
+      return res.status(400).json({ success: false, message: `Cannot respond to offer. Current status is ${scrap.status}` });
+    }
+
+    scrap.userResponseDate = new Date();
+
+    if (action === 'accept') {
+      scrap.status = 'accepted';
+      scrap.finalPrice = scrap.offeredPrice;
+      scrap.pickupDate = new Date();
+      await scrap.save();
+
+      // Fetch user name
+      const user = await User.findById(req.user.id);
+      const userName = user ? user.name : 'User';
+
+      // Notify Admins
+      const admins = await Admin.find({});
+      for (const admin of admins) {
+        await createNotification({
+          adminId: admin._id,
+          type: 'scrap_accepted',
+          title: 'Scrap Offer Accepted',
+          message: `${userName} accepted the price offer of ₹${scrap.offeredPrice} for "${scrap.title}".`,
+          relatedId: scrap._id,
+          relatedType: 'scrap'
+        });
+      }
+
+      // Notify User
+      await createNotification({
+        userId: scrap.userId,
+        type: 'scrap_accepted',
+        title: 'Offer Accepted Successfully',
+        message: `You accepted the offer of ₹${scrap.offeredPrice} for "${scrap.title}". Pickup will be scheduled soon.`,
+        relatedId: scrap._id,
+        relatedType: 'scrap'
+      });
+
+      return res.json({
+        success: true,
+        data: scrap,
+        message: 'Offer accepted! Pickup will be scheduled.'
+      });
+    } else {
+      scrap.status = 'rejected';
+      await scrap.save();
+
+      // Fetch user name
+      const user = await User.findById(req.user.id);
+      const userName = user ? user.name : 'User';
+
+      // Notify Admins
+      const admins = await Admin.find({});
+      for (const admin of admins) {
+        await createNotification({
+          adminId: admin._id,
+          type: 'scrap_rejected',
+          title: 'Scrap Offer Rejected',
+          message: `${userName} rejected the price offer of ₹${scrap.offeredPrice} for "${scrap.title}".`,
+          relatedId: scrap._id,
+          relatedType: 'scrap'
+        });
+      }
+
+      // Notify User
+      await createNotification({
+        userId: scrap.userId,
+        type: 'scrap_rejected',
+        title: 'Offer Rejected',
+        message: `You rejected the offer for "${scrap.title}".`,
+        relatedId: scrap._id,
+        relatedType: 'scrap'
+      });
+
+      return res.json({
+        success: true,
+        data: scrap,
+        message: 'Offer rejected.'
+      });
+    }
+  } catch (error) {
+    console.error('Error responding to scrap offer:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };

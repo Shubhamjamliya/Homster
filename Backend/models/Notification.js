@@ -67,9 +67,13 @@ const notificationSchema = new mongoose.Schema({
       'payout_processed',
       'scrap_listed',
       'new_scrap_added',
+      'scrap_price_offered',
       'scrap_accepted',
+      'scrap_rejected',
       'scrap_completed',
       'vendor_withdrawal_request',
+      'vendor_referral_success',
+      'vendor_referral_rewarded',
       'general'
     ],
     index: true

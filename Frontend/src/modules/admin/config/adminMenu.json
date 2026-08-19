@@ -31,8 +31,18 @@
     "children": [
       "All Vendors",
       "Vendor Bookings",
+      "Vendor Referrals",
       "Vendor Analytics"
     ]
+  },
+  {
+    "title": "Vendor Referrals",
+    "route": "/admin/vendors/referrals",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": []
   },
   {
     "title": "Workers",

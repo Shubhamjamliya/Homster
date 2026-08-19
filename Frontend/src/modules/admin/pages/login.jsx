@@ -9,7 +9,7 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: 'admin@appzeto.com',
-    password: ''
+    password: 'admin123'
   });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -200,13 +200,18 @@ const AdminLogin = () => {
 
           {/* Demo Credentials */}
           <div
-            className="mt-8 p-4 rounded-xl"
+            onClick={() => setFormData({ email: 'admin@appzeto.com', password: 'admin123' })}
+            className="mt-8 p-4 rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
+            title="Click to fill credentials"
             style={{
               background: 'linear-gradient(135deg, rgba(0, 166, 166, 0.1) 0%, rgba(0, 138, 138, 0.05) 100%)',
               border: '1px solid rgba(0, 166, 166, 0.2)'
             }}
           >
-            <h3 className="text-sm font-semibold mb-2" style={{ color: themeColors.button }}>Demo Credentials:</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold" style={{ color: themeColors.button }}>Demo Credentials:</h3>
+              <span className="text-xs text-teal-600 font-medium">(Click to auto-fill)</span>
+            </div>
             <div className="text-sm text-gray-700 space-y-1">
               <p>Email: admin@appzeto.com</p>
               <p>Password: admin123</p>

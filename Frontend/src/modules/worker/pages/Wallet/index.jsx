@@ -484,7 +484,6 @@ const Wallet = () => {
             />
           </motion.div>
         )}
-        )}
       </AnimatePresence>,
       document.body
     )}

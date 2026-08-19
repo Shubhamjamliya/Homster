@@ -16,9 +16,19 @@ const scrapSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  description: {
+  category: {
     type: String,
-    trim: true
+    trim: true,
+    default: 'General'
+  },
+  quantity: {
+    type: String,
+    trim: true,
+    default: '1'
+  },
+  expectedPrice: {
+    type: Number,
+    default: 0
   },
   images: [{
     type: String
@@ -33,9 +43,25 @@ const scrapSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'completed', 'cancelled'],
+    enum: ['pending', 'offered', 'accepted', 'completed', 'cancelled', 'rejected'],
     default: 'pending',
     index: true
+  },
+  offeredPrice: {
+    type: Number,
+    default: null
+  },
+  adminNote: {
+    type: String,
+    default: ''
+  },
+  offeredAt: {
+    type: Date,
+    default: null
+  },
+  userResponseDate: {
+    type: Date,
+    default: null
   },
   vendorId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -46,7 +72,8 @@ const scrapSchema = new mongoose.Schema({
     type: Date
   },
   finalPrice: {
-    type: Number
+    type: Number,
+    default: null
   }
 }, {
   timestamps: true

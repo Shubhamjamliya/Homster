@@ -8,6 +8,7 @@ const {
   getAvailableScrap,
   getMyAcceptedScrap,
   acceptScrap,
+  respondToOffer,
   completeScrap,
   getAllScrapAdmin,
   getScrapById,
@@ -17,9 +18,11 @@ const {
 // User Routes
 router.post('/', authenticate, isUser, createScrap);
 router.get('/my', authenticate, isUser, getMyScrap);
+router.put('/:id/respond', authenticate, isUser, respondToOffer);
 
-// Vendor/Admin Actions - Now Admin Only
+// Admin Actions
 router.put('/:id/accept', authenticate, isAdmin, acceptScrap);
+router.put('/:id/offer', authenticate, isAdmin, acceptScrap);
 router.put('/:id/complete', authenticate, isAdmin, completeScrap);
 router.delete('/:id', authenticate, deleteScrap); // Allow delete (controller checks auth)
 // Admin Routes

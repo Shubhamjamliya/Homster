@@ -6,14 +6,15 @@ import {
   FiBriefcase,
   FiActivity,
   FiDollarSign,
-  FiChevronRight
+  FiChevronRight,
+  FiGift
 } from 'react-icons/fi';
 
-// Import sub-components
 // Import sub-components
 import AllVendors from './AllVendors';
 import VendorBookings from './VendorBookings';
 import VendorAnalytics from './VendorAnalytics';
+import VendorReferrals from './VendorReferrals';
 
 const Vendors = () => {
   const location = useLocation();
@@ -21,6 +22,7 @@ const Vendors = () => {
   const navTabs = [
     { name: 'All Vendors', path: '/admin/vendors/all', icon: FiUsers },
     { name: 'Vendor Bookings', path: '/admin/vendors/bookings', icon: FiBriefcase },
+    { name: 'Vendor Referrals', path: '/admin/vendors/referrals', icon: FiGift },
     { name: 'Vendor Analytics', path: '/admin/vendors/analytics', icon: FiActivity },
   ];
 
@@ -42,6 +44,7 @@ const Vendors = () => {
           <Route path="/" element={<Navigate to="all" replace />} />
           <Route path="all" element={<AllVendors />} />
           <Route path="bookings" element={<VendorBookings />} />
+          <Route path="referrals" element={<VendorReferrals />} />
           <Route path="analytics" element={<VendorAnalytics />} />
         </Routes>
       </motion.div>

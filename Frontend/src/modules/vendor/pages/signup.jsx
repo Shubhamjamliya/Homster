@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle, FiCamera } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle, FiCamera, FiGift } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../theme';
 import { register, sendOTP as sendVendorOTP } from '../services/authService';
@@ -30,6 +30,7 @@ const VendorSignup = () => {
     aadhar: '',
     pan: '',
     service: '',
+    referralCode: '',
     documents: []
   });
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -51,17 +52,18 @@ const VendorSignup = () => {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
-  // Refs for auto-focus
-  const nameInputRef = useRef(null);
-  const otpInputRefs = useRef([]);
-
-  // Unified Flow: Pre-fill
+  // Unified Flow: Pre-fill and check URL referral param (?ref=...)
   useEffect(() => {
     if (location.state?.phone && location.state?.verificationToken) {
       setFormData(prev => ({ ...prev, phoneNumber: location.state.phone }));
       setVerificationToken(location.state.verificationToken);
     }
-  }, [location.state]);
+    const searchParams = new URLSearchParams(location.search);
+    const refParam = searchParams.get('ref') || location.state?.referralCode;
+    if (refParam) {
+      setFormData(prev => ({ ...prev, referralCode: refParam.toUpperCase() }));
+    }
+  }, [location.state, location.search]);
 
   // Clear any existing vendor tokens on page load
   useEffect(() => {
@@ -214,6 +216,7 @@ const VendorSignup = () => {
           aadharBackDocument: aadharBackDoc,
           panDocument: panDoc,
           otherDocuments: otherDocs,
+          referralCode: formData.referralCode?.trim() || undefined,
           verificationToken
         };
 
@@ -311,6 +314,7 @@ const VendorSignup = () => {
         aadharBackDocument: aadharBackDoc,
         panDocument: panDoc,
         otherDocuments: otherDocs,
+        referralCode: formData.referralCode?.trim() || undefined,
         otp: otpValue,
         token: otpToken
       };
@@ -450,9 +454,29 @@ const VendorSignup = () => {
                         required
                         value={formData.pan}
                         onChange={(e) => setFormData(p => ({ ...p, pan: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) }))}
-                        className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400"
+                        className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 font-medium tracking-wider uppercase"
                         style={{ '--tw-ring-color': brandColor }}
                         placeholder="ABCDE1234F"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="animate-fade-in" style={{ animationDelay: '0.6s' }}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Referral Code <span className="text-gray-400 text-xs font-normal">(Optional - If referred by a vendor)</span>
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                        <FiGift className="text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        name="referralCode"
+                        value={formData.referralCode}
+                        onChange={(e) => setFormData(p => ({ ...p, referralCode: e.target.value.toUpperCase().trim() }))}
+                        className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 uppercase font-semibold text-gray-800 tracking-wider placeholder:normal-case placeholder:font-normal placeholder:tracking-normal"
+                        style={{ '--tw-ring-color': brandColor }}
+                        placeholder="e.g. HOMV-A4B7"
                       />
                     </div>
                   </div>

@@ -189,7 +189,7 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadhar, pan } = req.body;
+    const { name, email, verificationToken, aadhar, pan, referralCode } = req.body;
     let phone = req.body.phone;
 
     if (verificationToken) {
@@ -207,6 +207,15 @@ const register = async (req, res) => {
     const existing = await Vendor.findOne({ $or: [{ phone }, { email }] });
     if (existing) {
       return res.status(400).json({ success: false, message: 'Vendor already exists. Login.' });
+    }
+
+    // Check referral code if provided
+    let referrer = null;
+    if (referralCode && referralCode.trim()) {
+      referrer = await Vendor.findOne({ 
+        referralCode: referralCode.trim().toUpperCase(),
+        phone: { $ne: phone } // Cannot refer oneself
+      });
     }
 
     // Upload documents
@@ -227,8 +236,6 @@ const register = async (req, res) => {
       const uploadRes = await cloudinaryService.uploadFile(panUrl, { folder: 'vendors/documents' });
       if (uploadRes.success) panUrl = uploadRes.url;
     }
-    // ... (otherDocs logic simplified for brevity, assume frontend sends valid array or backend helper used?
-    // I'll keep the simplified logic here assuming loop is standard)
     if (otherUrls && otherUrls.length > 0) {
       const uploadedOthers = [];
       for (const doc of otherUrls) {
@@ -251,8 +258,40 @@ const register = async (req, res) => {
       pan: { number: pan, document: panUrl },
       otherDocuments: otherUrls,
       approvalStatus: VENDOR_STATUS.PENDING,
-      isPhoneVerified: true
+      isPhoneVerified: true,
+      referredBy: referrer ? referrer._id : null
     });
+
+    // Create Vendor Referral tracking record if referred
+    if (referrer) {
+      try {
+        const VendorReferral = require('../../models/VendorReferral');
+        const Settings = require('../../models/Settings');
+        const settings = await Settings.findOne({ type: 'global' }).lean();
+        const rewardAmount = settings?.vendorReferralReward ?? 100;
+
+        await VendorReferral.create({
+          referrerId: referrer._id,
+          referredVendorId: vendor._id,
+          referralCode: referralCode.trim().toUpperCase(),
+          status: 'pending',
+          rewardAmount
+        });
+
+        // Notify Referrer Vendor
+        const { createNotification } = require('../notificationControllers/notificationController');
+        await createNotification({
+          vendorId: referrer._id,
+          type: 'vendor_referral_success',
+          title: '🎉 New Referral Signup!',
+          message: `${vendor.name} has registered using your referral code (${referralCode.trim().toUpperCase()}). Once approved, your reward of ₹${rewardAmount} will be credited to your wallet.`,
+          relatedId: vendor._id,
+          relatedType: 'vendor'
+        });
+      } catch (refErr) {
+        console.error('Referral creation error:', refErr);
+      }
+    }
 
     // Notify Admins
     try {
@@ -264,7 +303,7 @@ const register = async (req, res) => {
           adminId: admin._id,
           type: 'vendor_approval_request',
           title: '👤 New Vendor Registration',
-          message: `${vendor.name} (${vendor.phone}) has registered`,
+          message: `${vendor.name} (${vendor.phone}) has registered${referrer ? ` (Referred by ${referrer.name})` : ''}`,
           relatedId: vendor._id,
           relatedType: 'vendor',
           data: { vendorId: vendor._id, vendorName: vendor.name, phone: vendor.phone },
@@ -281,7 +320,8 @@ const register = async (req, res) => {
         name: vendor.name,
         email: vendor.email,
         phone: vendor.phone,
-        approvalStatus: vendor.approvalStatus
+        approvalStatus: vendor.approvalStatus,
+        referralCode: vendor.referralCode
       }
     });
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight } from 'react-icons/fi';
+import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight, FiGift } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -705,6 +705,28 @@ const Dashboard = memo(() => {
                   <p className="text-sm text-gray-600 font-semibold text-center">Average rating</p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Refer & Earn Promotional Card */}
+          <div
+            onClick={() => navigate('/vendor/refer-earn')}
+            className="rounded-2xl p-4 bg-gradient-to-r from-[#2b6573] to-[#347989] text-white shadow-lg cursor-pointer active:scale-98 transition-all relative overflow-hidden flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3.5 z-10">
+              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 shadow-inner">
+                <FiGift className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full">
+                  Refer & Earn
+                </span>
+                <h3 className="text-sm font-extrabold text-white mt-1">Invite Vendors & Earn ₹100</h3>
+                <p className="text-[11px] text-teal-100 font-medium">Get cash reward directly into your wallet</p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white z-10">
+              <FiChevronRight className="w-5 h-5" />
             </div>
           </div>
 

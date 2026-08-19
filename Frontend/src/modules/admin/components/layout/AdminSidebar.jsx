@@ -17,6 +17,7 @@ import {
   FiPackage,
   FiTrash2,
   FiStar,
+  FiGift,
 } from "react-icons/fi";
 import adminMenu from "../../config/adminMenu.json";
 import dashboardService from "../../services/dashboardService";
@@ -26,6 +27,8 @@ const iconMap = {
   Dashboard: FiHome,
   Users: FiUsers,
   Vendors: FiBriefcase,
+  "Vendor Referrals": FiGift,
+  Referrals: FiGift,
   Workers: FiUser,
   Bookings: FiShoppingBag,
   "User Catalog": FiGrid,
@@ -53,6 +56,7 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/vendors": {
       "All Vendors": "/admin/vendors/all",
       "Vendor Bookings": "/admin/vendors/bookings",
+      "Vendor Referrals": "/admin/vendors/referrals",
       "Vendor Analytics": "/admin/vendors/analytics",
       "Vendor Payments": "/admin/vendors/payments",
     },

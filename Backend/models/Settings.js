@@ -172,6 +172,22 @@ const settingsSchema = new mongoose.Schema({
   isOnlinePaymentEnabled: {
     type: Boolean,
     default: true
+  },
+
+  // Vendor Referral Program Settings
+  vendorReferralEnabled: {
+    type: Boolean,
+    default: true
+  },
+  vendorReferralReward: {
+    type: Number,
+    default: 100, // Reward amount in INR credited to referrer vendor wallet
+    min: 0
+  },
+  vendorReferralCriteria: {
+    type: String,
+    enum: ['MANUAL_ADMIN_APPROVAL', 'ON_APPROVAL'],
+    default: 'MANUAL_ADMIN_APPROVAL'
   }
 }, { timestamps: true });
 

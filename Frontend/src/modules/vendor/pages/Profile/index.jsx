@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiSettings, FiChevronRight, FiCreditCard, FiLogOut, FiTrash2 } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiSettings, FiChevronRight, FiCreditCard, FiLogOut, FiTrash2, FiGift } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
@@ -22,6 +22,7 @@ const Profile = () => {
 
   const menuItems = [
     { id: 2, label: 'Wallet', icon: FaWallet, path: '/vendor/wallet' },
+    { id: 3, label: 'Refer & Earn', icon: FiGift, path: '/vendor/refer-earn', badge: 'Earn ₹100' },
     { id: 5, label: 'My Ratings', icon: FiStar, path: '/vendor/my-ratings' },
     { id: 6, label: 'Manage Payment Methods', icon: FiCreditCard, path: '/vendor/manage-payment-methods' },
     { id: 7, label: 'Manage Address', icon: FiMapPin, path: '/vendor/address-management' },
@@ -407,9 +408,16 @@ const Profile = () => {
                       </div>
                     )
                   )}
-                  <span className="text-[15px] font-bold text-gray-800 text-left">
-                    {item.label}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[15px] font-bold text-gray-800 text-left">
+                      {item.label}
+                    </span>
+                    {item.badge && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200 uppercase tracking-tight">
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center">
                   <FiChevronRight className="w-5 h-5 text-gray-400" />
