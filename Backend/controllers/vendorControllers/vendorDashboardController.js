@@ -21,7 +21,7 @@ const getDashboardStats = async (req, res) => {
     ];
 
     // ─── SINGLE PARALLEL BLAST ───────────────────────────────────────────────
-    const [bookingData, workersOnline, earningsResult] = await Promise.all([
+    const [bookingData, workersOnline, earningsResult, bookingEarningsResult] = await Promise.all([
       // 1. ALL BOOKING DATA (Counts + Recent List + Rating) in ONE round-trip
       Booking.aggregate([
         {
@@ -179,10 +179,10 @@ const getDashboardStats = async (req, res) => {
     const recentBookings = facet.recent || [];
     const avgRatingVal = facet.rating?.[0]?.avg || req.user.rating || 5.0;
     
-    const billEarnings = earningsResult[0]?.total || 0;
-    const bookingEarnings = bookingEarningsResult[0]?.totalBookingRevenue || 0;
-    const monthlyEarnings = bookingEarningsResult[0]?.monthlyBookingRevenue || 0;
-    const todayEarnings = bookingEarningsResult[0]?.todayBookingRevenue || 0;
+    const billEarnings = (earningsResult && earningsResult[0]?.total) || 0;
+    const bookingEarnings = (bookingEarningsResult && bookingEarningsResult[0]?.totalBookingRevenue) || 0;
+    const monthlyEarnings = (bookingEarningsResult && bookingEarningsResult[0]?.monthlyBookingRevenue) || 0;
+    const todayEarnings = (bookingEarningsResult && bookingEarningsResult[0]?.todayBookingRevenue) || 0;
     
     const walletEarnings = req.user.wallet?.earnings || 0;
     const totalEarnings = Math.max(billEarnings, bookingEarnings, walletEarnings);
@@ -199,15 +199,19 @@ const getDashboardStats = async (req, res) => {
       }
     ]);
 
-    // 5. Fetch Global Settings for Timing
+    // 5. Fetch Global Settings for Timing & Referral Reward
     const globalSettings = await Settings.findOne({ type: 'global' }).lean();
+    const referralReward = globalSettings?.vendorReferralReward ?? 100;
+    const vendorReferralEnabled = globalSettings?.vendorReferralEnabled ?? true;
 
     res.status(200).json({
       success: true,
       data: {
         config: {
           maxSearchTime: globalSettings?.maxSearchTime || 5, // mins
-          waveDuration: globalSettings?.waveDuration || 60  // secs
+          waveDuration: globalSettings?.waveDuration || 60,  // secs
+          referralReward,
+          vendorReferralEnabled
         },
         stats: {
           totalBookings: counts.total,
@@ -223,6 +227,8 @@ const getDashboardStats = async (req, res) => {
           totalEarnings: Math.round(totalEarnings),
           monthlyEarnings: Math.round(monthlyEarnings || (totalEarnings * 0.4)),
           todayEarnings: Math.round(todayEarnings),
+          referralReward,
+          vendorReferralEnabled,
           workersOnline,
           rating: parseFloat(Number(avgRatingVal).toFixed(1)),
           averageRating: parseFloat(Number(avgRatingVal).toFixed(1))
