@@ -175,13 +175,15 @@ const Dashboard = memo(() => {
 
     // Update stats
     setStats({
-      todayEarnings: apiStats.vendorEarnings || 0,
-      activeJobs: apiStats.inProgressBookings || 0,
+      todayEarnings: apiStats.todayEarnings || 0,
+      monthlyEarnings: apiStats.monthlyEarnings || 0,
+      totalRevenue: apiStats.totalRevenue || apiStats.totalEarnings || 0,
+      totalEarnings: apiStats.totalEarnings || apiStats.totalRevenue || 0,
+      activeJobs: apiStats.activeJobs || apiStats.inProgressBookings || 0,
       pendingAlerts: mergedPending.length,
       workersOnline: apiStats.workersOnline || 0,
-      totalEarnings: apiStats.vendorEarnings || 0,
-      completedJobs: apiStats.completedBookings || 0,
-      rating: apiStats.rating || 0,
+      completedJobs: apiStats.completedJobs || apiStats.completedBookings || 0,
+      rating: apiStats.rating || apiStats.averageRating || 0,
     });
 
     // Recent jobs (non-requested)
