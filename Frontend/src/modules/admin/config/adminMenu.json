@@ -36,15 +36,6 @@
     ]
   },
   {
-    "title": "Vendor Referrals",
-    "route": "/admin/vendors/referrals",
-    "allowedRoles": [
-      "super_admin",
-      "admin"
-    ],
-    "children": []
-  },
-  {
     "title": "Workers",
     "route": "/admin/workers",
     "allowedRoles": [

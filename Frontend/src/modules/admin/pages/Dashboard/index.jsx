@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiBriefcase, FiUsers, FiShoppingBag, FiDollarSign, FiActivity } from 'react-icons/fi';
+import { FiUser, FiBriefcase, FiUsers, FiShoppingBag, FiDollarSign, FiActivity, FiPercent, FiCreditCard, FiFileText, FiTrendingUp } from 'react-icons/fi';
 import RevenueLineChart from '../../components/dashboard/RevenueLineChart';
 import BookingsBarChart from '../../components/dashboard/BookingsBarChart';
 import BookingStatusPieChart from '../../components/dashboard/BookingStatusPieChart';
@@ -30,6 +30,10 @@ const AdminDashboard = () => {
     activeBookings: 0,
     completedBookings: 0,
     totalRevenue: 0,
+    totalPlatformFeeCollected: 0,
+    totalVendorEarnings: 0,
+    totalWorkerEarnings: 0,
+    totalGSTCollected: 0,
     todayRevenue: 0,
   });
 
@@ -78,6 +82,10 @@ const AdminDashboard = () => {
             activeBookings: s.pendingBookings,
             completedBookings: s.completedBookings,
             totalRevenue: s.totalRevenue,
+            totalPlatformFeeCollected: s.totalPlatformFeeCollected || s.platformCommission || 0,
+            totalVendorEarnings: s.totalVendorEarnings || 0,
+            totalWorkerEarnings: s.totalWorkerEarnings || 0,
+            totalGSTCollected: s.totalGSTCollected || 0,
             todayRevenue: 0,
           });
           setRecentBookingsList(statsRes.data.recentBookings || []);
@@ -149,6 +157,50 @@ const AdminDashboard = () => {
       color: 'text-white',
       bgColor: 'bg-gradient-to-br from-green-500 to-emerald-600',
       cardBg: 'bg-gradient-to-br from-green-50 to-emerald-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/reports/revenue'
+    },
+    {
+      title: 'Platform Fee Collected',
+      value: formatCurrency(stats.totalPlatformFeeCollected || 0),
+      change: 0,
+      icon: FiPercent,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-emerald-500 to-green-600',
+      cardBg: 'bg-gradient-to-br from-emerald-50 to-green-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/reports/revenue'
+    },
+    {
+      title: 'Vendor Earnings',
+      value: formatCurrency(stats.totalVendorEarnings || 0),
+      change: 0,
+      icon: FiBriefcase,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-cyan-500 to-sky-600',
+      cardBg: 'bg-gradient-to-br from-cyan-50 to-sky-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/vendors/analytics'
+    },
+    {
+      title: 'Worker Earnings',
+      value: formatCurrency(stats.totalWorkerEarnings || 0),
+      change: 0,
+      icon: FiCreditCard,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-fuchsia-500 to-pink-600',
+      cardBg: 'bg-gradient-to-br from-fuchsia-50 to-pink-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/workers/analytics'
+    },
+    {
+      title: 'GST Collected',
+      value: formatCurrency(stats.totalGSTCollected || 0),
+      change: 0,
+      icon: FiFileText,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-amber-500 to-orange-600',
+      cardBg: 'bg-gradient-to-br from-amber-50 to-orange-50',
       iconBg: 'bg-white/20',
       link: '/admin/reports/revenue'
     },
@@ -227,7 +279,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
         {statsCards.map((card, index) => {
           const Icon = card.icon;
           const isPositive = (card.change || 0) >= 0;
