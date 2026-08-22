@@ -12,7 +12,8 @@ import {
   startSelfJob,
   vendorReached,
   verifySelfVisit,
-  completeSelfJob
+  completeSelfJob,
+  requestAdvancePayment as requestAdvancePaymentApi
 } from '../../services/bookingService';
 import vendorBillService from '../../../../services/vendorBillService';
 import { CashCollectionModal, ConfirmDialog, WorkerPaymentModal, OtpVerificationModal } from '../../components/common';
@@ -36,6 +37,11 @@ export default function BookingDetails() {
   const [isWorkDoneModalOpen, setIsWorkDoneModalOpen] = useState(false);
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+  const [advanceForm, setAdvanceForm] = useState({
+    amount: '',
+    reason: '',
+    partsDescription: ''
+  });
 
 
   const [actionLoading, setActionLoading] = useState(false);
@@ -130,6 +136,8 @@ export default function BookingDetails() {
         workerResponseAt: apiData.workerResponseAt,
         paymentMethod: apiData.paymentMethod,
         paymentStatus: apiData.paymentStatus,
+        advancePayment: apiData.advancePayment || { status: 'none', requestedAmount: 0, paidAmount: 0 },
+        userPayableAmount: parseFloat(apiData.userPayableAmount || apiData.finalAmount || 0),
         cashCollected: apiData.cashCollected || false,
         workerPaymentStatus: apiData.workerPaymentStatus,
         finalSettlementStatus: apiData.finalSettlementStatus
@@ -341,6 +349,35 @@ export default function BookingDetails() {
 
   const handlePayWorkerClick = () => {
     setIsPayWorkerModalOpen(true);
+  };
+
+  const handleRequestAdvancePayment = async () => {
+    const amount = Number(advanceForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter a valid advance amount');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      const response = await requestAdvancePaymentApi(id, {
+        amount,
+        reason: advanceForm.reason,
+        partsDescription: advanceForm.partsDescription
+      });
+
+      if (response.success) {
+        toast.success(response.message || 'Advance payment request sent');
+        setAdvanceForm({ amount: '', reason: '', partsDescription: '' });
+        await loadBooking();
+      } else {
+        toast.error(response.message || 'Failed to send advance request');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send advance request');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handlePayWorkerSubmit = async (payoutData) => {
@@ -1253,6 +1290,76 @@ export default function BookingDetails() {
                     Reassign
                   </button>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {['visited', 'in_progress'].includes((booking.status || '').toLowerCase()) && (
+          <div className="bg-white rounded-2xl mb-4 overflow-hidden shadow-lg border border-amber-100">
+            <div className="h-2 bg-gradient-to-r from-amber-400 to-orange-500" />
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <FiAlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Advance Payment</h3>
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Before marking work done</p>
+                </div>
+              </div>
+
+              {booking.advancePayment?.status === 'paid' ? (
+                <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
+                  <p className="text-sm font-bold text-green-800">Advance received</p>
+                  <p className="text-xs text-green-700 mt-1">₹{Number(booking.advancePayment.paidAmount || booking.advancePayment.requestedAmount || 0).toLocaleString()} has already been paid by the customer.</p>
+                </div>
+              ) : booking.advancePayment?.status === 'requested' ? (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                  <p className="text-sm font-bold text-amber-800">Request pending</p>
+                  <p className="text-xs text-amber-700 mt-1">₹{Number(booking.advancePayment.requestedAmount || 0).toLocaleString()} requested from the customer.</p>
+                  {booking.advancePayment.reason && (
+                    <p className="text-xs text-gray-600 mt-2">{booking.advancePayment.reason}</p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-3">
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Advance amount"
+                      value={advanceForm.amount}
+                      onChange={(e) => setAdvanceForm(prev => ({ ...prev, amount: e.target.value }))}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-amber-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Reason for advance payment"
+                      value={advanceForm.reason}
+                      onChange={(e) => setAdvanceForm(prev => ({ ...prev, reason: e.target.value }))}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none focus:border-amber-400"
+                    />
+                    <textarea
+                      rows={3}
+                      placeholder="Parts/material details"
+                      value={advanceForm.partsDescription}
+                      onChange={(e) => setAdvanceForm(prev => ({ ...prev, partsDescription: e.target.value }))}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none focus:border-amber-400 resize-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleRequestAdvancePayment}
+                    disabled={actionLoading}
+                    className="w-full py-3.5 rounded-xl font-bold text-white shadow-lg active:scale-95 disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #F59E0B, #EA580C)' }}
+                  >
+                    Request Advance Payment
+                  </button>
+                  <p className="text-[11px] text-gray-500 text-center">
+                    Use this only after reaching the customer and starting work, if costly parts need approval.
+                  </p>
+                </>
               )}
             </div>
           </div>

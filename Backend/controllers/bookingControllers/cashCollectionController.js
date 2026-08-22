@@ -5,6 +5,11 @@ const { PAYMENT_STATUS, BOOKING_STATUS } = require('../../utils/constants');
 const { recordBookingEarning } = require('../../services/earningTrackerService');
 const { createQRCode, getQRCodePayments } = require('../../services/razorpayService');
 
+const getRemainingPayableAmount = (booking) => {
+  const amount = Number(booking.userPayableAmount ?? booking.finalAmount ?? 0);
+  return Number.isFinite(amount) ? Math.max(0, amount) : 0;
+};
+
 /**
  * Initiate Online Collection (Show QR Code)
  */
@@ -20,11 +25,15 @@ exports.initiateOnlineCollection = async (req, res) => {
     // Optional: Update final total and extra items if provided during initiation
     const { totalAmount, extraItems } = req.body;
     if (totalAmount !== undefined && !isNaN(parseFloat(totalAmount))) {
-      booking.finalAmount = parseFloat(totalAmount);
       booking.userPayableAmount = parseFloat(totalAmount);
+      if (!booking.vendorBillId) {
+        booking.finalAmount = parseFloat(totalAmount);
+      }
     }
 
-    if (!booking.finalAmount || booking.finalAmount <= 0) {
+    const payableAmount = getRemainingPayableAmount(booking);
+
+    if (!payableAmount || payableAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid payment amount' });
     }
 
@@ -53,7 +62,7 @@ exports.initiateOnlineCollection = async (req, res) => {
 
     // Create QR Code
     const qrResult = await createQRCode(
-      booking.finalAmount,
+      payableAmount,
       booking.bookingNumber,
       {
         bookingId: booking._id.toString(),
@@ -81,6 +90,7 @@ exports.initiateOnlineCollection = async (req, res) => {
       io.to(`user_${booking.userId}`).emit('booking_updated', {
         bookingId: booking._id,
         finalAmount: booking.finalAmount,
+        userPayableAmount: payableAmount,
         workDoneDetails: booking.workDoneDetails,
         qrPaymentInitiated: true,
         customerConfirmationOTP: otp,
@@ -116,7 +126,7 @@ exports.initiateOnlineCollection = async (req, res) => {
       data: {
         qrImageUrl: qrResult.imageUrl,
         paymentUrl: qrResult.paymentUrl,
-        amount: booking.finalAmount,
+        amount: payableAmount,
         isManualUpi: qrResult.isManualUpi || false
       }
     });
@@ -148,9 +158,10 @@ exports.initiateCashCollection = async (req, res) => {
     // Optional: Update final total and extra items if provided during initiation
     const { totalAmount, extraItems } = req.body;
     if (totalAmount !== undefined) {
-      booking.finalAmount = Number(totalAmount);
-      // Assuming no partial payment has been made yet (as status is pending/work_done)
       booking.userPayableAmount = Number(totalAmount);
+      if (!booking.vendorBillId) {
+        booking.finalAmount = Number(totalAmount);
+      }
     }
 
     // Store extra items for proper commission calculation
@@ -201,6 +212,7 @@ exports.initiateCashCollection = async (req, res) => {
       io.to(`user_${booking.userId}`).emit('booking_updated', {
         bookingId: booking._id,
         finalAmount: booking.finalAmount,
+        userPayableAmount: getRemainingPayableAmount(booking),
         customerConfirmationOTP: booking.customerConfirmationOTP,
         paymentOtp: booking.paymentOtp,
         workDoneDetails: booking.workDoneDetails,
@@ -229,7 +241,7 @@ exports.initiateCashCollection = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Bill finalized',
-      totalAmount: booking.finalAmount
+      totalAmount: getRemainingPayableAmount(booking)
     });
   } catch (error) {
     console.error('Initiate cash collection error:', error);
@@ -279,7 +291,7 @@ exports.confirmCashCollection = async (req, res) => {
       });
     }
 
-    const collectionAmount = amount !== undefined ? Number(amount) : Number(booking.finalAmount);
+    const collectionAmount = amount !== undefined ? Number(amount) : getRemainingPayableAmount(booking);
 
     // Store extra items in workDoneDetails (for display)
     if (extraItems && Array.isArray(extraItems) && extraItems.length > 0) {
@@ -320,7 +332,7 @@ exports.confirmCashCollection = async (req, res) => {
       booking.tax = bill.originalGST + bill.vendorServiceGST + bill.partsGST;
       booking.visitingCharges = bill.visitingCharges;
       booking.finalAmount = bill.grandTotal;
-      booking.userPayableAmount = bill.grandTotal;
+      booking.userPayableAmount = collectionAmount;
 
       // Mark bill as paid
       bill.status = 'paid';
@@ -329,7 +341,7 @@ exports.confirmCashCollection = async (req, res) => {
     }
 
     // Update Booking
-    booking.finalAmount = collectionAmount;
+    booking.finalAmount = grandTotal;
     booking.userPayableAmount = collectionAmount;
     booking.cashCollected = true;
     booking.cashCollectedAt = new Date();
@@ -360,7 +372,7 @@ exports.confirmCashCollection = async (req, res) => {
     let newDues = 0;
 
     if (vendor) {
-      newDues = (vendor.wallet?.dues || 0) + grandTotal;
+      newDues = (vendor.wallet?.dues || 0) + collectionAmount;
       const newEarnings = (vendor.wallet?.earnings || 0) + vendorEarning;
       const cashLimit = vendor.wallet?.cashLimit || 10000;
       const netOwed = newDues - newEarnings;
@@ -368,9 +380,9 @@ exports.confirmCashCollection = async (req, res) => {
 
       const walletUpdate = {
         $inc: {
-          'wallet.dues': grandTotal,
+          'wallet.dues': collectionAmount,
           'wallet.earnings': vendorEarning,
-          'wallet.totalCashCollected': grandTotal
+          'wallet.totalCashCollected': collectionAmount
         }
       };
 
@@ -390,7 +402,7 @@ exports.confirmCashCollection = async (req, res) => {
           vendorId,
           userId: booking.userId,
           bookingId: booking._id,
-          amount: grandTotal,
+          amount: collectionAmount,
           type: 'cash_collected',
           paymentMethod: 'cash collected',
           description: `Cash ₹${grandTotal} collected for booking ${booking.bookingNumber}`,
@@ -460,7 +472,7 @@ exports.confirmCashCollection = async (req, res) => {
       userId: booking.userId,
       type: 'payment_received',
       title: 'Payment Received (Cash)',
-      message: `Payment of ₹${grandTotal} received in cash. Job Completed. Thanks!`,
+      message: `Payment of ₹${collectionAmount} received in cash. Job Completed. Thanks!`,
       relatedId: booking._id,
       relatedType: 'booking',
       priority: 'high'
@@ -471,7 +483,7 @@ exports.confirmCashCollection = async (req, res) => {
       message: 'Cash collection confirmed and recorded in ledger',
       data: {
         bookingId: booking._id,
-        amount: grandTotal,
+        amount: collectionAmount,
         walletDues: vendor ? newDues : null
       }
     });
@@ -565,7 +577,7 @@ exports.verifyOnlinePayment = async (req, res) => {
           booking.tax = bill.originalGST + bill.vendorServiceGST + bill.partsGST;
           booking.visitingCharges = bill.visitingCharges;
           booking.finalAmount = bill.grandTotal;
-          booking.userPayableAmount = bill.grandTotal;
+          booking.userPayableAmount = getRemainingPayableAmount(booking);
           
           bill.status = 'paid';
           bill.paidAt = new Date();
@@ -584,7 +596,7 @@ exports.verifyOnlinePayment = async (req, res) => {
         await Transaction.create({
           userId: booking.userId,
           bookingId: booking._id,
-          amount: booking.finalAmount,
+          amount: getRemainingPayableAmount(booking),
           type: 'payment',
           paymentMethod: 'Qr online',
           status: 'completed',
@@ -709,7 +721,7 @@ exports.confirmManualOnlinePayment = async (req, res) => {
       booking.tax = bill.originalGST + bill.vendorServiceGST + bill.partsGST;
       booking.visitingCharges = bill.visitingCharges;
       booking.finalAmount = bill.grandTotal;
-      booking.userPayableAmount = bill.grandTotal;
+      booking.userPayableAmount = getRemainingPayableAmount(booking);
 
       bill.status = 'paid';
       bill.paidAt = new Date();
@@ -727,7 +739,7 @@ exports.confirmManualOnlinePayment = async (req, res) => {
     await Transaction.create({
       userId: booking.userId,
       bookingId: booking._id,
-      amount: booking.finalAmount,
+      amount: getRemainingPayableAmount(booking),
       type: 'payment',
       paymentMethod: 'Qr online',
       status: 'completed',

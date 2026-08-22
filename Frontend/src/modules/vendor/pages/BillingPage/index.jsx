@@ -410,6 +410,10 @@ const BillingPage = () => {
     const totalPartsGST = partsGST + customGST;
 
     const finalBillAmount = parseFloat(((totalServiceBase + totalServiceGST) + (totalPartsBase + totalPartsGST) + visitingCharges + finalTransportCharges).toFixed(2));
+    const advancePaidAmount = booking.advancePayment?.status === 'paid'
+      ? Number(booking.advancePayment.paidAmount || booking.advancePayment.requestedAmount || 0)
+      : 0;
+    const remainingPayableAmount = parseFloat(Math.max(0, finalBillAmount - advancePaidAmount).toFixed(2));
 
     // Vendor Earnings estimate
     const vendorServiceEarnings = parseFloat(((totalServiceBase * servicePayoutPct) / 100).toFixed(2));
@@ -428,6 +432,8 @@ const BillingPage = () => {
       visitingCharges,
       transportCharges: finalTransportCharges,
       finalBillAmount,
+      advancePaidAmount,
+      remainingPayableAmount,
       totalVendorEarnings,
       vendorServiceEarnings,
       vendorPartsEarnings,
@@ -441,7 +447,7 @@ const BillingPage = () => {
     const currentDues = walletInfo.dues || 0;
     const currentEarnings = walletInfo.earnings || 0;
     const cashLimit = walletInfo.cashLimit || 10000;
-    const expectedNewNetOwed = (currentDues + calculations.finalBillAmount) - (currentEarnings + calculations.totalVendorEarnings);
+    const expectedNewNetOwed = (currentDues + calculations.remainingPayableAmount) - (currentEarnings + calculations.totalVendorEarnings);
     return expectedNewNetOwed > cashLimit;
   }, [walletInfo, calculations]);
 
@@ -488,7 +494,7 @@ const BillingPage = () => {
 
       const res = await vendorWalletService.initiateCashCollection(
         id,
-        calculations.finalBillAmount,
+        calculations.remainingPayableAmount,
         [...selectedParts, ...customItems]
       );
 
@@ -515,7 +521,7 @@ const BillingPage = () => {
 
       const res = await vendorWalletService.confirmCashCollection(
         id,
-        calculations.finalBillAmount,
+        calculations.remainingPayableAmount,
         code,
         [...selectedParts, ...customItems]
       );
@@ -551,7 +557,7 @@ const BillingPage = () => {
         applyPartsGST
       });
 
-      const res = await vendorWalletService.initiateOnlineCollection(id, calculations.finalBillAmount, [...selectedParts, ...customItems]);
+      const res = await vendorWalletService.initiateOnlineCollection(id, calculations.remainingPayableAmount, [...selectedParts, ...customItems]);
 
       if (res.success) {
         setOnlinePaymentData(res.data);

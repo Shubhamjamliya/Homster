@@ -31,6 +31,9 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
   // --- 1. Total & Breakdown Calculations ---
   const isPlanBenefit = booking.paymentMethod === 'plan_benefit';
   const bill = booking.bill;
+  const advancePayment = booking.advancePayment || {};
+  const isAdvancePending = advancePayment.status === 'requested';
+  const advancePaidAmount = Number(advancePayment.paidAmount || advancePayment.requestedAmount || 0);
 
   // Base Logic (Services)
   const originalBase = bill ? (bill.originalServiceBase || 0) : (parseFloat(booking.basePrice) || 0);
@@ -78,6 +81,8 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
 
   // Final Total
   const finalTotal = bill?.grandTotal || (booking.finalAmount || 0);
+  const remainingTotal = Number(booking.userPayableAmount ?? finalTotal);
+  const amountDue = isAdvancePending ? Number(advancePayment.requestedAmount || 0) : remainingTotal;
 
   // --- 2. Identity Helpers ---
   const categoryName = booking.serviceCategory || 'General';
@@ -113,8 +118,8 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
               <div className="w-14 h-14 bg-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/30 mb-3 text-white overflow-hidden border-2 border-slate-800">
                 {CategoryIcon}
               </div>
-              <h3 className="text-white font-bold text-lg">Payment Verification</h3>
-              <p className="text-slate-400 text-xs mt-1">Review bill and complete payment</p>
+              <h3 className="text-white font-bold text-lg">{isAdvancePending ? 'Advance Payment Request' : 'Payment Verification'}</h3>
+              <p className="text-slate-400 text-xs mt-1">{isAdvancePending ? 'Review the request and pay the advance' : 'Review bill and complete payment'}</p>
             </div>
           </div>
 
@@ -148,12 +153,30 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
             {/* Bill Details */}
             <div className="space-y-4">
               <div className="flex justify-between items-end border-b border-slate-100 pb-2">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">Total Amount</p>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">{isAdvancePending ? 'Advance Amount' : 'Amount Due'}</p>
                 <p className="text-3xl font-black text-slate-900">
-                  ₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹{amountDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </p>
               </div>
 
+              {isAdvancePending ? (
+                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 space-y-3">
+                  <p className="text-sm font-bold text-amber-900">Advance requested for parts/materials</p>
+                  {advancePayment.reason && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Reason</p>
+                      <p className="text-xs text-gray-700 mt-1">{advancePayment.reason}</p>
+                    </div>
+                  )}
+                  {advancePayment.partsDescription && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Parts Details</p>
+                      <p className="text-xs text-gray-700 mt-1">{advancePayment.partsDescription}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+              <>
               {/* 1. Services */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -244,6 +267,18 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                   </div>
                 </div>
               )}
+              {advancePaidAmount > 0 && (
+                <div className="mt-2 pt-2 border-t border-slate-100">
+                  <div className="flex justify-between text-xs font-bold text-slate-600">
+                    <span className="flex items-center gap-2 uppercase tracking-wide">
+                      <FiShield className="w-3.5 h-3.5 text-emerald-500" /> Advance Paid
+                    </span>
+                    <span className="font-mono text-emerald-600">-₹{advancePaidAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+              </>
+              )}
             </div>
 
             {/* Actions */}
@@ -266,7 +301,7 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                       onClick={onPayOnline}
                       className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
                     >
-                      Pay Online Securely
+                      {isAdvancePending ? 'Pay Advance Online' : 'Pay Online Securely'}
                     </button>
                   ) : (
                     !configLoading && (
@@ -279,13 +314,15 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                     )
                   )}
 
+                  {!isAdvancePending && (
                   <div className="relative py-2 text-center">
                     <span className="bg-white px-2 text-[10px] font-bold text-slate-400 relative z-10 uppercase tracking-wider">OR</span>
                     <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-100 z-0"></div>
                   </div>
+                  )}
 
                   {/* Cash Code */}
-                  {(booking.customerConfirmationOTP || booking.paymentOtp) && (
+                  {!isAdvancePending && (booking.customerConfirmationOTP || booking.paymentOtp) && (
                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
                       <p className="text-xs font-bold text-slate-700 mb-2">Paying Cash? Share Code</p>
                       <div className="bg-white border-2 border-dashed border-slate-300 rounded-lg py-2 px-4 inline-block mb-1">

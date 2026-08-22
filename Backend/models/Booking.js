@@ -197,6 +197,60 @@ const bookingSchema = new mongoose.Schema({
     default: null,
     index: true
   },
+  advancePayment: {
+    status: {
+      type: String,
+      enum: ['none', 'requested', 'paid', 'cancelled'],
+      default: 'none'
+    },
+    requestedAmount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    paidAmount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    reason: {
+      type: String,
+      default: null
+    },
+    partsDescription: {
+      type: String,
+      default: null
+    },
+    requestedAt: {
+      type: Date,
+      default: null
+    },
+    requestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Vendor',
+      default: null
+    },
+    paidAt: {
+      type: Date,
+      default: null
+    },
+    paymentMethod: {
+      type: String,
+      default: null
+    },
+    paymentId: {
+      type: String,
+      default: null
+    },
+    razorpayOrderId: {
+      type: String,
+      default: null
+    },
+    razorpayPaymentId: {
+      type: String,
+      default: null
+    }
+  },
   // Cash Collection Details
   cashCollected: {
     type: Boolean,

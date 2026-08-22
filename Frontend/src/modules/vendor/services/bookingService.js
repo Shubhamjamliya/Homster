@@ -145,6 +145,14 @@ export const collectSelfCash = async (bookingId, otp, amount) => {
 };
 
 /**
+ * Request advance payment from customer
+ */
+export const requestAdvancePayment = async (bookingId, data) => {
+  const response = await api.post(`/vendors/bookings/${bookingId}/advance-payment-request`, data);
+  return response.data;
+};
+
+/**
  * Pay Worker (Worker Payment Settlement)
  */
 export const payWorker = async (bookingId) => {

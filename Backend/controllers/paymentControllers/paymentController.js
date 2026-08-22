@@ -8,6 +8,16 @@ const { createOrder, verifyPayment, refundPayment } = require('../../services/ra
 const { createNotification } = require('../notificationControllers/notificationController');
 const { recordBookingEarning } = require('../../services/earningTrackerService');
 
+const getFinalPaymentAmount = (booking) => {
+  const amount = Number(booking.userPayableAmount ?? booking.finalAmount ?? 0);
+  return Number.isFinite(amount) ? Math.max(0, amount) : 0;
+};
+
+const getAdvancePaymentAmount = (booking) => {
+  const amount = Number(booking.advancePayment?.requestedAmount ?? 0);
+  return Number.isFinite(amount) ? Math.max(0, amount) : 0;
+};
+
 /**
  * Create Razorpay order for booking payment
  */
@@ -24,6 +34,7 @@ const createPaymentOrder = async (req, res) => {
 
     const userId = req.user.id;
     const { bookingId } = req.body;
+    const paymentType = req.body.paymentType === 'advance' ? 'advance' : 'final';
 
     // Get booking
     const booking = await Booking.findOne({ _id: bookingId, userId });
@@ -35,24 +46,49 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // Check if payment already done
-    if (booking.paymentStatus === PAYMENT_STATUS.SUCCESS) {
+    if (paymentType === 'advance') {
+      if (booking.advancePayment?.status === 'paid') {
+        return res.status(400).json({
+          success: false,
+          message: 'Advance payment already completed for this booking'
+        });
+      }
+
+      if (booking.advancePayment?.status !== 'requested') {
+        return res.status(400).json({
+          success: false,
+          message: 'No active advance payment request found for this booking'
+        });
+      }
+    } else if (booking.paymentStatus === PAYMENT_STATUS.SUCCESS) {
       return res.status(400).json({
         success: false,
         message: 'Payment already completed for this booking'
       });
     }
 
+    const payableAmount = paymentType === 'advance'
+      ? getAdvancePaymentAmount(booking)
+      : getFinalPaymentAmount(booking);
+
+    if (payableAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: paymentType === 'advance' ? 'Advance payment amount is invalid' : 'No final payment is due for this booking'
+      });
+    }
+
     // Create Razorpay order
-    console.log('Creating Razorpay order with amount:', booking.finalAmount);
+    console.log(`Creating Razorpay ${paymentType} order with amount:`, payableAmount);
     const orderResult = await createOrder(
-      booking.finalAmount,
+      payableAmount,
       'INR',
-      booking.bookingNumber,
+      paymentType === 'advance' ? `${booking.bookingNumber}_ADVANCE` : booking.bookingNumber,
       {
         bookingId: booking._id.toString(),
         userId: userId.toString(),
-        bookingNumber: booking.bookingNumber
+        bookingNumber: booking.bookingNumber,
+        paymentType
       }
     );
 
@@ -68,7 +104,11 @@ const createPaymentOrder = async (req, res) => {
     }
 
     // Update booking with Razorpay order ID
-    booking.razorpayOrderId = orderResult.orderId;
+    if (paymentType === 'advance') {
+      booking.advancePayment.razorpayOrderId = orderResult.orderId;
+    } else {
+      booking.razorpayOrderId = orderResult.orderId;
+    }
     await booking.save();
 
     res.status(200).json({
@@ -79,7 +119,8 @@ const createPaymentOrder = async (req, res) => {
         amount: orderResult.amount / 100, // Convert back to rupees
         currency: orderResult.currency,
         key: process.env.RAZORPAY_KEY_ID,
-        bookingId: booking._id
+        bookingId: booking._id,
+        paymentType
       }
     });
   } catch (error) {
@@ -114,7 +155,12 @@ const verifyPaymentWebhook = async (req, res) => {
     }
 
     // Find booking by Razorpay order ID
-    const booking = await Booking.findOne({ razorpayOrderId: razorpay_order_id });
+    const booking = await Booking.findOne({
+      $or: [
+        { razorpayOrderId: razorpay_order_id },
+        { 'advancePayment.razorpayOrderId': razorpay_order_id }
+      ]
+    });
 
     if (!booking) {
       return res.status(404).json({
@@ -122,6 +168,77 @@ const verifyPaymentWebhook = async (req, res) => {
         message: 'Booking not found'
       });
     }
+
+    const isAdvancePayment = booking.advancePayment?.razorpayOrderId === razorpay_order_id;
+    const Transaction = require('../../models/Transaction');
+    const Vendor = require('../../models/Vendor');
+    const VendorBill = require('../../models/VendorBill');
+
+    if (isAdvancePayment) {
+      const advanceAmount = getAdvancePaymentAmount(booking);
+      booking.advancePayment.status = 'paid';
+      booking.advancePayment.paidAmount = advanceAmount;
+      booking.advancePayment.paidAt = new Date();
+      booking.advancePayment.paymentMethod = 'online';
+      booking.advancePayment.paymentId = razorpay_payment_id;
+      booking.advancePayment.razorpayPaymentId = razorpay_payment_id;
+
+      await booking.save();
+
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user_${booking.userId}`).emit('booking_updated', {
+          bookingId: booking._id,
+          advancePayment: booking.advancePayment
+        });
+        if (booking.vendorId) {
+          io.to(`vendor_${booking.vendorId}`).emit('booking_updated', {
+            bookingId: booking._id,
+            advancePayment: booking.advancePayment
+          });
+        }
+      }
+
+      await Transaction.create({
+        userId: booking.userId,
+        bookingId: booking._id,
+        amount: advanceAmount,
+        type: 'advance_payment',
+        paymentMethod: 'razorpay',
+        status: 'completed',
+        description: `Advance payment for booking ${booking.bookingNumber}`,
+        referenceId: razorpay_payment_id
+      });
+
+      await createNotification({
+        userId: booking.userId,
+        type: 'payment_success',
+        title: 'Advance Payment Successful',
+        message: `Advance payment of ₹${advanceAmount} for booking ${booking.bookingNumber} was successful.`,
+        relatedId: booking._id,
+        relatedType: 'payment',
+        priority: 'high'
+      });
+
+      if (booking.vendorId) {
+        await createNotification({
+          vendorId: booking.vendorId,
+          type: 'payment_success',
+          title: 'Advance Payment Received',
+          message: `Customer paid the advance amount for booking ${booking.bookingNumber}.`,
+          relatedId: booking._id,
+          relatedType: 'booking',
+          priority: 'high'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Advance payment verified successfully'
+      });
+    }
+
+    const finalPaymentAmount = getFinalPaymentAmount(booking);
 
     // Update booking payment status
     booking.paymentStatus = PAYMENT_STATUS.SUCCESS;
@@ -140,19 +257,15 @@ const verifyPaymentWebhook = async (req, res) => {
     await booking.save();
 
     // ── Credit Vendor Wallet from VendorBill (single source of truth) ──
-    const Transaction = require('../../models/Transaction');
-    const Vendor = require('../../models/Vendor');
-    const VendorBill = require('../../models/VendorBill');
-
     // User payment transaction
     await Transaction.create({
       userId: booking.userId,
       bookingId: booking._id,
-      amount: booking.finalAmount,
+      amount: finalPaymentAmount,
       type: 'payment',
       paymentMethod: 'razorpay',
       status: 'completed',
-      description: `Online payment for booking ${booking.bookingNumber}`,
+      description: `Final payment for booking ${booking.bookingNumber}`,
       referenceId: razorpay_payment_id
     });
 
@@ -277,6 +390,7 @@ const processWalletPayment = async (req, res) => {
 
     const userId = req.user.id;
     const { bookingId } = req.body;
+    const paymentType = req.body.paymentType === 'advance' ? 'advance' : 'final';
 
     // Get user
     const user = await User.findById(userId);
@@ -297,16 +411,40 @@ const processWalletPayment = async (req, res) => {
       });
     }
 
-    // Check if payment already done
-    if (booking.paymentStatus === PAYMENT_STATUS.SUCCESS) {
+    if (paymentType === 'advance') {
+      if (booking.advancePayment?.status === 'paid') {
+        return res.status(400).json({
+          success: false,
+          message: 'Advance payment already completed for this booking'
+        });
+      }
+
+      if (booking.advancePayment?.status !== 'requested') {
+        return res.status(400).json({
+          success: false,
+          message: 'No active advance payment request found for this booking'
+        });
+      }
+    } else if (booking.paymentStatus === PAYMENT_STATUS.SUCCESS) {
       return res.status(400).json({
         success: false,
         message: 'Payment already completed for this booking'
       });
     }
 
+    const payableAmount = paymentType === 'advance'
+      ? getAdvancePaymentAmount(booking)
+      : getFinalPaymentAmount(booking);
+
+    if (payableAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: paymentType === 'advance' ? 'Advance payment amount is invalid' : 'No final payment is due for this booking'
+      });
+    }
+
     // Check wallet balance
-    if (user.wallet.balance < booking.finalAmount) {
+    if (user.wallet.balance < payableAmount) {
       return res.status(400).json({
         success: false,
         message: 'Insufficient wallet balance'
@@ -314,20 +452,76 @@ const processWalletPayment = async (req, res) => {
     }
 
     // Deduct from user wallet
-    user.wallet.balance -= booking.finalAmount;
+    user.wallet.balance -= payableAmount;
     await user.save();
 
     const Transaction = require('../../models/Transaction');
     await Transaction.create({
       userId,
       bookingId: booking._id,
-      amount: booking.finalAmount,
-      type: 'debit',
+      amount: payableAmount,
+      type: paymentType === 'advance' ? 'advance_payment' : 'debit',
       paymentMethod: 'wallet',
       status: 'completed',
-      description: `Wallet payment for booking ${booking.bookingNumber}`,
+      description: `${paymentType === 'advance' ? 'Advance' : 'Final'} wallet payment for booking ${booking.bookingNumber}`,
       balanceAfter: user.wallet.balance
     });
+
+    if (paymentType === 'advance') {
+      booking.advancePayment.status = 'paid';
+      booking.advancePayment.paidAmount = payableAmount;
+      booking.advancePayment.paidAt = new Date();
+      booking.advancePayment.paymentMethod = 'wallet';
+      booking.advancePayment.paymentId = `ADV_WALLET_${Date.now()}`;
+
+      await booking.save();
+
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user_${booking.userId}`).emit('booking_updated', {
+          bookingId: booking._id,
+          advancePayment: booking.advancePayment
+        });
+        if (booking.vendorId) {
+          io.to(`vendor_${booking.vendorId}`).emit('booking_updated', {
+            bookingId: booking._id,
+            advancePayment: booking.advancePayment
+          });
+        }
+      }
+
+      await createNotification({
+        userId,
+        type: 'payment_success',
+        title: 'Advance Payment Successful',
+        message: `Advance payment of ₹${payableAmount} for booking ${booking.bookingNumber} was successful.`,
+        relatedId: booking._id,
+        relatedType: 'payment',
+        priority: 'high'
+      });
+
+      if (booking.vendorId) {
+        await createNotification({
+          vendorId: booking.vendorId,
+          type: 'payment_success',
+          title: 'Advance Payment Received',
+          message: `Customer paid the advance amount for booking ${booking.bookingNumber}.`,
+          relatedId: booking._id,
+          relatedType: 'booking',
+          priority: 'high'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Advance payment processed successfully',
+        data: {
+          bookingId: booking._id,
+          amount: payableAmount,
+          remainingBalance: user.wallet.balance
+        }
+      });
+    }
 
     // Update booking payment status
     booking.paymentStatus = PAYMENT_STATUS.SUCCESS;
@@ -443,7 +637,7 @@ const processWalletPayment = async (req, res) => {
       message: 'Payment processed successfully',
       data: {
         bookingId: booking._id,
-        amount: booking.finalAmount,
+        amount: payableAmount,
         remainingBalance: user.wallet.balance
       }
     });

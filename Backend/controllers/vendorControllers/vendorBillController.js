@@ -251,8 +251,12 @@ const createOrUpdateBill = async (req, res) => {
     // ═══════════════════════════════════════
     // 8. UPDATE BOOKING (no earnings!)
     // ═══════════════════════════════════════
+    const advancePaidAmount = booking.advancePayment?.status === 'paid'
+      ? Number(booking.advancePayment?.paidAmount || booking.advancePayment?.requestedAmount || 0)
+      : 0;
+
     booking.finalAmount = grandTotal;
-    booking.userPayableAmount = grandTotal;
+    booking.userPayableAmount = Math.max(0, parseFloat((grandTotal - advancePaidAmount).toFixed(2)));
     booking.vendorBillId = bill._id;
     await booking.save();
 

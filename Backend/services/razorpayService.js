@@ -35,10 +35,22 @@ const createOrder = async (amount, currency = 'INR', receipt = null, notes = {})
       };
     }
 
+    const normalizedAmount = Number(amount);
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      return {
+        success: false,
+        error: `Invalid payment amount: ${amount}`
+      };
+    }
+
+    const sanitizedReceipt = String(receipt || `receipt_${Date.now()}`)
+      .replace(/[^a-zA-Z0-9_/-]/g, '')
+      .slice(0, 40);
+
     const options = {
-      amount: Math.round(amount * 100), // Convert to paise
+      amount: Math.round(normalizedAmount * 100), // Convert to paise
       currency,
-      receipt: receipt || `receipt_${Date.now()}`,
+      receipt: sanitizedReceipt,
       notes
     };
 
@@ -70,7 +82,12 @@ const createOrder = async (amount, currency = 'INR', receipt = null, notes = {})
 
     return {
       success: false,
-      error: error.description || error.message || 'Failed to create Razorpay order'
+      error:
+        error?.error?.description ||
+        error?.description ||
+        error?.error?.reason ||
+        error?.message ||
+        'Failed to create Razorpay order'
     };
   }
 };

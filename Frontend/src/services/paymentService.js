@@ -7,8 +7,8 @@ import api from './api';
 
 export const paymentService = {
   // Create Razorpay order for booking payment
-  createOrder: async (bookingId) => {
-    const response = await api.post('/payments/create-order', { bookingId });
+  createOrder: async (bookingId, paymentType = 'final') => {
+    const response = await api.post('/payments/create-order', { bookingId, paymentType });
     return response.data;
   },
 
@@ -19,8 +19,8 @@ export const paymentService = {
   },
 
   // Process wallet payment
-  processWalletPayment: async (bookingId) => {
-    const response = await api.post('/payments/wallet', { bookingId });
+  processWalletPayment: async (bookingId, paymentType = 'final') => {
+    const response = await api.post('/payments/wallet', { bookingId, paymentType });
     return response.data;
   },
 

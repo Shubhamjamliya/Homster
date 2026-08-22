@@ -145,6 +145,8 @@ const BookingDetails = () => {
     if (!booking) return;
     
     const isPaymentDone = booking.paymentStatus === 'success' || booking.cashCollected === true;
+    const isAdvancePaid = booking.advancePayment?.status === 'paid';
+    const hasAdvanceRequest = booking.advancePayment?.status === 'requested';
 
     // Track the latest OTP to detect a fresh payment request from the vendor
     const lastSeenOtp = sessionStorage.getItem(`last_seen_otp_${booking._id}`);
@@ -153,7 +155,7 @@ const BookingDetails = () => {
     // We also show if it was never shown and we have a pending payment request
     const hasShown = sessionStorage.getItem(`payment_modal_shown_${booking._id}`);
 
-    if (!isPaymentDone && (hasNewOtpRequest || (!hasShown && (booking.customerConfirmationOTP || booking.qrPaymentInitiated)))) {
+    if ((!isPaymentDone && (hasNewOtpRequest || (!hasShown && (booking.customerConfirmationOTP || booking.qrPaymentInitiated)))) || hasAdvanceRequest) {
       setShowPaymentModal(true);
       sessionStorage.setItem(`payment_modal_shown_${booking._id}`, 'true');
       if (booking.customerConfirmationOTP) {
@@ -164,7 +166,7 @@ const BookingDetails = () => {
       setShowPaymentModal(true);
     }
     // Close if payment becomes done
-    else if (isPaymentDone) {
+    else if (isPaymentDone || isAdvancePaid) {
       setShowPaymentModal(false);
     }
   }, [booking]);
@@ -307,17 +309,24 @@ const BookingDetails = () => {
 
   const handleOnlinePayment = async () => {
     if (paying) return;
+    const paymentType = booking.advancePayment?.status === 'requested' ? 'advance' : 'final';
 
     // If a Razorpay order already exists for this booking and hasn't been used, skip creating a new one
-    if (booking.razorpayOrderId) {
+    const existingOrderId = paymentType === 'advance'
+      ? booking.advancePayment?.razorpayOrderId
+      : booking.razorpayOrderId;
+
+    if (existingOrderId) {
       // Open Razorpay with existing order
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: Math.round((booking.finalAmount || 0) * 100),
+        amount: Math.round(((paymentType === 'advance'
+          ? booking.advancePayment?.requestedAmount
+          : (booking.userPayableAmount || booking.finalAmount)) || 0) * 100),
         currency: 'INR',
-        order_id: booking.razorpayOrderId,
+        order_id: existingOrderId,
         name: 'Homestr',
-        description: `Payment for ${booking.serviceName}`,
+        description: `${paymentType === 'advance' ? 'Advance' : 'Final'} payment for ${booking.serviceName}`,
         handler: async function (response) {
           toast.loading('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({
@@ -352,7 +361,7 @@ const BookingDetails = () => {
     try {
       setPaying(true);
       toast.loading('Creating payment order...');
-      const orderResponse = await paymentService.createOrder(booking._id || booking.id);
+      const orderResponse = await paymentService.createOrder(booking._id || booking.id, paymentType);
       toast.dismiss();
 
       if (!orderResponse.success) {
@@ -367,7 +376,7 @@ const BookingDetails = () => {
         currency: orderResponse.data.currency || 'INR',
         order_id: orderResponse.data.orderId,
         name: 'Homestr',
-        description: `Payment for ${booking.serviceName}`,
+        description: `${paymentType === 'advance' ? 'Advance' : 'Final'} payment for ${booking.serviceName}`,
         handler: async function (response) {
           toast.loading('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({

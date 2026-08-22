@@ -68,16 +68,23 @@ const BookingTrack = () => {
 
   const handleOnlinePayment = async () => {
     if (paying) return;
+    const paymentType = booking.advancePayment?.status === 'requested' ? 'advance' : 'final';
 
     // If a Razorpay order already exists for this booking, reuse it
-    if (booking.razorpayOrderId) {
+    const existingOrderId = paymentType === 'advance'
+      ? booking.advancePayment?.razorpayOrderId
+      : booking.razorpayOrderId;
+
+    if (existingOrderId) {
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: Math.round((booking.finalAmount || 0) * 100),
+        amount: Math.round(((paymentType === 'advance'
+          ? booking.advancePayment?.requestedAmount
+          : (booking.userPayableAmount || booking.finalAmount)) || 0) * 100),
         currency: 'INR',
-        order_id: booking.razorpayOrderId,
+        order_id: existingOrderId,
         name: 'Appzeto',
-        description: `Payment for ${booking.serviceName}`,
+        description: `${paymentType === 'advance' ? 'Advance' : 'Final'} payment for ${booking.serviceName}`,
         handler: async function (response) {
           toast.loading('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({
@@ -111,7 +118,7 @@ const BookingTrack = () => {
     try {
       setPaying(true);
       toast.loading('Creating payment order...');
-      const orderResponse = await paymentService.createOrder(booking._id || booking.id);
+      const orderResponse = await paymentService.createOrder(booking._id || booking.id, paymentType);
       toast.dismiss();
 
       if (!orderResponse.success) {
@@ -126,7 +133,7 @@ const BookingTrack = () => {
         currency: orderResponse.data.currency || 'INR',
         order_id: orderResponse.data.orderId,
         name: 'Appzeto',
-        description: `Payment for ${booking.serviceName}`,
+        description: `${paymentType === 'advance' ? 'Advance' : 'Final'} payment for ${booking.serviceName}`,
         handler: async function (response) {
           toast.loading('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({
@@ -274,11 +281,22 @@ const BookingTrack = () => {
 
       const handleBookingUpdate = (data) => {
         if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
+          const mergedBooking = {
+            ...(booking || {}),
+            ...(data.data || data)
+          };
+
           setBooking(prev => {
             if (!prev) return prev;
             return { ...prev, ...(data.data || data) };
           });
-          if (data.qrPaymentInitiated) {
+
+          if (mergedBooking.advancePayment?.status === 'paid') {
+            setShowPaymentModal(false);
+          } else if (data.advancePayment?.status === 'requested') {
+            setShowPaymentModal(true);
+            toast.success('Advance payment requested!');
+          } else if (data.qrPaymentInitiated) {
             setShowPaymentModal(true);
             toast.success('Professional has initiated payment!');
           } else if (data.customerConfirmationOTP) {
@@ -300,6 +318,12 @@ const BookingTrack = () => {
       };
     }
   }, [socket, id]);
+
+  useEffect(() => {
+    if (booking?.advancePayment?.status === 'paid') {
+      setShowPaymentModal(false);
+    }
+  }, [booking?.advancePayment?.status]);
 
   // Firebase Realtime Tracking Listener
   useEffect(() => {

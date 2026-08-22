@@ -17,7 +17,8 @@ const {
 
 // Validation rules
 const createOrderValidation = [
-  body('bookingId').isMongoId().withMessage('Valid booking ID is required')
+  body('bookingId').isMongoId().withMessage('Valid booking ID is required'),
+  body('paymentType').optional().isIn(['advance', 'final']).withMessage('Payment type must be advance or final')
 ];
 
 const verifyPaymentValidation = [
@@ -27,7 +28,8 @@ const verifyPaymentValidation = [
 ];
 
 const walletPaymentValidation = [
-  body('bookingId').isMongoId().withMessage('Valid booking ID is required')
+  body('bookingId').isMongoId().withMessage('Valid booking ID is required'),
+  body('paymentType').optional().isIn(['advance', 'final']).withMessage('Payment type must be advance or final')
 ];
 
 const refundValidation = [

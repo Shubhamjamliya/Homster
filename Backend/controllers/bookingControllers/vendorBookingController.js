@@ -6,6 +6,11 @@ const { BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 const { createNotification } = require('../notificationControllers/notificationController');
 const { sendNotificationToUser, sendNotificationToVendor, sendNotificationToWorker } = require('../../services/firebaseAdmin');
 
+const ADVANCE_REQUEST_ALLOWED_STATUSES = [
+  BOOKING_STATUS.VISITED,
+  BOOKING_STATUS.IN_PROGRESS
+];
+
 /**
  * Get vendor bookings with filters
  */
@@ -1499,6 +1504,113 @@ const payWorker = async (req, res) => {
 };
 
 /**
+ * Request advance payment from customer
+ */
+const requestAdvancePayment = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const vendorId = req.user.id;
+    const { id } = req.params;
+    const { amount, reason, partsDescription } = req.body;
+
+    const booking = await Booking.findOne({ _id: id, vendorId });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (!ADVANCE_REQUEST_ALLOWED_STATUSES.includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Advance payment can only be requested during an active booking. Current status: ${booking.status}`
+      });
+    }
+
+    if (booking.advancePayment?.status === 'requested') {
+      return res.status(400).json({
+        success: false,
+        message: 'An advance payment request is already pending for this booking'
+      });
+    }
+
+    if (booking.advancePayment?.status === 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Advance payment has already been collected for this booking'
+      });
+    }
+
+    const requestedAmount = Number(amount);
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid advance payment amount'
+      });
+    }
+
+    booking.advancePayment = {
+      status: 'requested',
+      requestedAmount,
+      paidAmount: 0,
+      reason: reason?.trim() || 'Advance requested for costly parts',
+      partsDescription: partsDescription?.trim() || null,
+      requestedAt: new Date(),
+      requestedBy: vendorId,
+      paidAt: null,
+      paymentMethod: null,
+      paymentId: null,
+      razorpayOrderId: null,
+      razorpayPaymentId: null
+    };
+
+    await booking.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        advancePayment: booking.advancePayment,
+        message: 'Your service provider requested an advance payment for parts.'
+      });
+    }
+
+    await createNotification({
+      userId: booking.userId,
+      type: 'advance_payment_requested',
+      title: 'Advance Payment Requested',
+      message: `Advance payment of ₹${requestedAmount} requested for booking ${booking.bookingNumber}.`,
+      relatedId: booking._id,
+      relatedType: 'booking',
+      priority: 'high',
+      pushData: {
+        type: 'advance_payment_requested',
+        bookingId: booking._id.toString(),
+        link: `/user/booking/${booking._id}`
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Advance payment request sent successfully',
+      data: booking.advancePayment
+    });
+  } catch (error) {
+    console.error('Request advance payment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to request advance payment'
+    });
+  }
+};
+
+/**
  * Get vendor ratings and reviews
  */
 const getVendorRatings = async (req, res) => {
@@ -1639,6 +1751,7 @@ module.exports = {
   verifySelfVisit,
   completeSelfJob,
   collectSelfCash,
+  requestAdvancePayment,
   payWorker,
   getVendorRatings,
   getPendingBookings
