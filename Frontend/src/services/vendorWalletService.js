@@ -94,6 +94,16 @@ const vendorWalletService = {
     return response.data;
   },
 
+  createSettlementOrder: async (amount) => {
+    const response = await api.post('/vendors/wallet/settlement/create-order', { amount });
+    return response.data;
+  },
+
+  verifySettlementPayment: async (paymentData) => {
+    const response = await api.post('/vendors/wallet/settlement/verify', paymentData);
+    return response.data;
+  },
+
   /**
    * Get settlement history
    */

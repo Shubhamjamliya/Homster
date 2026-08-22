@@ -32,12 +32,24 @@ const settlementSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['upi', 'bank_transfer', 'cash', 'other'],
+    enum: ['upi', 'bank_transfer', 'cash', 'other', 'razorpay'],
     default: 'upi'
   },
   // Reference/Transaction ID from vendor's payment
   paymentReference: {
     type: String,
+    default: null
+  },
+  razorpayOrderId: {
+    type: String,
+    default: null
+  },
+  razorpayPaymentId: {
+    type: String,
+    default: null
+  },
+  verifiedAt: {
+    type: Date,
     default: null
   },
   // Screenshot or proof of payment (Cloudinary URL)

@@ -8,6 +8,8 @@ const {
   getTransactions,
   recordCashCollection,
   requestSettlement,
+  createSettlementOrder,
+  verifySettlementPayment,
   getSettlements,
   getWalletSummary,
   payWorker,
@@ -48,6 +50,14 @@ router.post('/wallet/cash-collection', authenticate, isVendor, cashCollectionVal
 
 // Request settlement (vendor pays admin)
 router.post('/wallet/settlement', authenticate, isVendor, settlementValidation, requestSettlement);
+router.post('/wallet/settlement/create-order', authenticate, isVendor, settlementValidation, createSettlementOrder);
+router.post('/wallet/settlement/verify', authenticate, isVendor, [
+  body('amount').isFloat({ min: 1 }).withMessage('Valid amount is required'),
+  body('razorpay_order_id').notEmpty().withMessage('Razorpay order id is required'),
+  body('razorpay_payment_id').notEmpty().withMessage('Razorpay payment id is required'),
+  body('razorpay_signature').notEmpty().withMessage('Razorpay signature is required'),
+  body('notes').optional().trim()
+], verifySettlementPayment);
 
 // Pay worker for a booking
 router.post('/wallet/pay-worker', authenticate, isVendor, payWorkerValidation, payWorker);

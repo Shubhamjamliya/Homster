@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
 import vendorBillService from '../../../../services/vendorBillService';
 import vendorWalletService from '../../../../services/vendorWalletService';
-import { getBookingById } from '../../services/bookingService';
+import { getBookingById, requestAdvancePayment } from '../../services/bookingService';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { OtpVerificationModal, ScanAndPayModal } from '../../components/common';
 
@@ -69,6 +69,11 @@ const BillingPage = () => {
   const [qrLoading, setQrLoading] = useState(false);
   const [paymentMode, setPaymentMode] = useState(null); // 'cash' | 'online'
   const [walletInfo, setWalletInfo] = useState(null);
+  const [advanceForm, setAdvanceForm] = useState({
+    amount: '',
+    reason: '',
+    partsDescription: ''
+  });
 
   // Fetch Data
   useEffect(() => {
@@ -201,10 +206,10 @@ const BillingPage = () => {
         };
 
         let reachedStep = 1;
-        if (currentData.transportCharges > 0) reachedStep = 4;
-        else if (currentData.customItems?.length > 0) reachedStep = 3;
-        else if (currentData.selectedParts?.length > 0) reachedStep = 2;
-        else if (currentData.selectedServices?.length > 0) reachedStep = 1;
+        if (currentData.transportCharges > 0) reachedStep = 5;
+        else if (currentData.customItems?.length > 0) reachedStep = 4;
+        else if (currentData.selectedParts?.length > 0) reachedStep = 3;
+        else if (currentData.selectedServices?.length > 0) reachedStep = 2;
 
         setMaxStep(prev => Math.max(prev, reachedStep));
       } else if (!hasDraft) {
@@ -480,6 +485,36 @@ const BillingPage = () => {
     }
   };
 
+  const handleRequestAdvancePayment = async () => {
+    const amount = Number(advanceForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter a valid advance amount');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const res = await requestAdvancePayment(id, {
+        amount,
+        reason: advanceForm.reason,
+        partsDescription: advanceForm.partsDescription
+      });
+
+      if (res.success) {
+        toast.success(res.message || 'Advance payment request sent');
+        setAdvanceForm({ amount: '', reason: '', partsDescription: '' });
+        await fetchData();
+      } else {
+        toast.error(res.message || 'Failed to request advance payment');
+      }
+    } catch (error) {
+      console.error('Advance payment request error:', error);
+      toast.error(error.response?.data?.message || 'Failed to request advance payment');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSendOTP = async () => {
     try {
       setOtpLoading(true);
@@ -688,7 +723,7 @@ const BillingPage = () => {
           </button>
           <button onClick={() => {
             setViewMode('select-parts');
-            setCurrentStep(2);
+            setCurrentStep(3);
           }} className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">
             Next: Parts <FiArrowRight className="w-5 h-5" />
           </button>
@@ -746,7 +781,7 @@ const BillingPage = () => {
           </button>
           <button onClick={() => {
             setViewMode('timeline');
-            setCurrentStep(3); // Go to Extras
+            setCurrentStep(4); // Go to Extras
           }} className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">
             Next: Extras <FiArrowRight className="w-5 h-5" />
           </button>
@@ -773,11 +808,12 @@ const BillingPage = () => {
         {/* Step Indicator */}
         <div className="px-4 py-4 border-b border-gray-50 flex justify-between relative overflow-hidden shadow-sm">
           {[
-            { id: 1, label: 'Services', icon: FiTool },
-            { id: 2, label: 'Parts', icon: FiPackage },
-            { id: 3, label: 'Extras', icon: FiPlus },
-            { id: 4, label: 'Transport', icon: FiPackage },
-            { id: 5, label: 'Review', icon: FiFileText }
+            { id: 1, label: 'Advance', icon: FiCreditCard },
+            { id: 2, label: 'Services', icon: FiTool },
+            { id: 3, label: 'Parts', icon: FiPackage },
+            { id: 4, label: 'Extras', icon: FiPlus },
+            { id: 5, label: 'Transport', icon: FiPackage },
+            { id: 6, label: 'Review', icon: FiFileText }
           ].map((step) => {
             const isCompleted = step.id < currentStep;
             const isActive = step.id === currentStep;
@@ -794,13 +830,80 @@ const BillingPage = () => {
             );
           })}
           <div className="absolute top-8 left-0 right-0 h-0.5 bg-gray-200 -z-0 mx-8">
-            <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${((maxStep - 1) / 4) * 100}%` }}></div>
+            <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${((maxStep - 1) / 5) * 100}%` }}></div>
           </div>
         </div>
       </div>
 
       <div className="p-4 space-y-6 pb-48">
         {currentStep === 1 && (
+          <div className="animate-in fade-in slide-in-from-right-4">
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <FiCreditCard className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800 text-lg">Advance Payment</h3>
+                  <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wide">Optional before final bill</p>
+                </div>
+              </div>
+
+              {booking.advancePayment?.status === 'paid' ? (
+                <div className="rounded-2xl border border-green-100 bg-green-50 p-4 space-y-2">
+                  <p className="text-sm font-bold text-green-800">Advance already paid</p>
+                  <p className="text-sm text-green-700">Amount: ₹{Number(booking.advancePayment.paidAmount || booking.advancePayment.requestedAmount || 0).toFixed(2)}</p>
+                  {booking.advancePayment.reason && <p className="text-xs text-gray-700">{booking.advancePayment.reason}</p>}
+                  {booking.advancePayment.partsDescription && <p className="text-xs text-gray-600">{booking.advancePayment.partsDescription}</p>}
+                </div>
+              ) : booking.advancePayment?.status === 'requested' ? (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 space-y-2">
+                  <p className="text-sm font-bold text-amber-800">Advance request pending</p>
+                  <p className="text-sm text-amber-700">Requested: ₹{Number(booking.advancePayment.requestedAmount || 0).toFixed(2)}</p>
+                  {booking.advancePayment.reason && <p className="text-xs text-gray-700">{booking.advancePayment.reason}</p>}
+                  {booking.advancePayment.partsDescription && <p className="text-xs text-gray-600">{booking.advancePayment.partsDescription}</p>}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3">
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Advance amount"
+                      value={advanceForm.amount}
+                      onChange={(e) => setAdvanceForm(prev => ({ ...prev, amount: e.target.value }))}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-amber-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Reason for advance payment"
+                      value={advanceForm.reason}
+                      onChange={(e) => setAdvanceForm(prev => ({ ...prev, reason: e.target.value }))}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none focus:border-amber-400"
+                    />
+                    <textarea
+                      rows={3}
+                      placeholder="Parts/material details"
+                      value={advanceForm.partsDescription}
+                      onChange={(e) => setAdvanceForm(prev => ({ ...prev, partsDescription: e.target.value }))}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none focus:border-amber-400 resize-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleRequestAdvancePayment}
+                    disabled={submitting}
+                    className="w-full py-3.5 rounded-xl font-bold text-white shadow-lg active:scale-95 disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #F59E0B, #EA580C)' }}
+                  >
+                    Request Advance Payment
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {currentStep === 2 && (
           <div className="animate-in fade-in slide-in-from-right-4">
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4">
               <div className="flex justify-between items-center mb-4">
@@ -828,7 +931,7 @@ const BillingPage = () => {
           </div>
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 3 && (
           <div className="animate-in fade-in slide-in-from-right-4">
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4">
               <div className="flex justify-between items-center mb-4">
@@ -859,7 +962,7 @@ const BillingPage = () => {
           </div>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 4 && (
           <div className="animate-in fade-in slide-in-from-right-4">
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -958,7 +1061,7 @@ const BillingPage = () => {
           </div>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           <div className="animate-in fade-in slide-in-from-right-4">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
@@ -984,14 +1087,61 @@ const BillingPage = () => {
           </div>
         )}
 
-        {currentStep === 5 && calculations && (
+        {currentStep === 6 && calculations && (
           <div className="animate-in fade-in slide-in-from-right-4 pb-10">
             <div className="bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-100 mb-6">
               <div className="bg-gray-900 px-6 py-6 text-white text-center">
                 <p className="text-gray-400 text-xs font-medium uppercase tracking-widest mb-1">TOTAL INVOICE AMOUNT</p>
                 <h2 className="text-4xl font-black">₹{calculations.finalBillAmount.toFixed(2)}</h2>
+                {calculations.advancePaidAmount > 0 && (
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-left">
+                    <div className="rounded-2xl bg-white/10 px-4 py-3">
+                      <p className="text-[10px] uppercase tracking-widest text-gray-300 mb-1">Advance Paid</p>
+                      <p className="text-lg font-black text-emerald-300">₹{calculations.advancePaidAmount.toFixed(2)}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/10 px-4 py-3">
+                      <p className="text-[10px] uppercase tracking-widest text-gray-300 mb-1">Remaining Due</p>
+                      <p className="text-lg font-black text-yellow-300">₹{calculations.remainingPayableAmount.toFixed(2)}</p>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-6 space-y-6">
+                {(booking.advancePayment?.requestedAmount > 0 || calculations.advancePaidAmount > 0) && (
+                  <div>
+                    <h4 className="font-bold text-gray-900 flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+                      <span className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs"><FiCreditCard /></span>
+                      Advance Payment
+                    </h4>
+                    <div className="space-y-2 text-sm pl-2">
+                      <div className="flex justify-between text-gray-600">
+                        <span>Status</span>
+                        <span className={`font-bold uppercase ${booking.advancePayment?.status === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {booking.advancePayment?.status === 'paid' ? 'Paid' : 'Requested'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Requested Amount</span>
+                        <span>₹{Number(booking.advancePayment?.requestedAmount || 0).toFixed(2)}</span>
+                      </div>
+                      {calculations.advancePaidAmount > 0 && (
+                        <div className="flex justify-between text-gray-600">
+                          <span>Paid Amount</span>
+                          <span>₹{calculations.advancePaidAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-bold text-gray-800 pt-1">
+                        <span>Remaining In Bill</span>
+                        <span>₹{calculations.remainingPayableAmount.toFixed(2)}</span>
+                      </div>
+                      {booking.advancePayment?.reason && (
+                        <div className="text-xs text-gray-500 pt-1">
+                          Reason: {booking.advancePayment.reason}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <h4 className="font-bold text-gray-900 flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
                     <span className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs"><FiTool /></span>
@@ -1169,14 +1319,14 @@ const BillingPage = () => {
       <div className="fixed bottom-[72px] left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex gap-3">
         {currentStep === 1 && (
           <button onClick={() => setCurrentStep(2)} className="w-full py-3.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">
-            Next: Parts <FiArrowRight />
+            Next: Services <FiArrowRight />
           </button>
         )}
         {currentStep === 2 && (
           <>
             <button onClick={() => setCurrentStep(1)} className="flex-1 py-3 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl">Back</button>
             <button onClick={() => setCurrentStep(3)} className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">
-              Next: Extras <FiArrowRight />
+              Next: Parts <FiArrowRight />
             </button>
           </>
         )}
@@ -1184,7 +1334,7 @@ const BillingPage = () => {
           <>
             <button onClick={() => setCurrentStep(2)} className="flex-1 py-3 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl">Back</button>
             <button onClick={() => setCurrentStep(4)} className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">
-              Next: Transport <FiArrowRight />
+              Next: Extras <FiArrowRight />
             </button>
           </>
         )}
@@ -1192,7 +1342,7 @@ const BillingPage = () => {
           <>
             <button onClick={() => setCurrentStep(3)} className="flex-1 py-3 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl">Back</button>
             <button onClick={() => setCurrentStep(5)} className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">
-              Next: Final Review <FiArrowRight />
+              Next: Transport <FiArrowRight />
             </button>
           </>
         )}
@@ -1205,8 +1355,22 @@ const BillingPage = () => {
             >
               Back
             </button>
+            <button onClick={() => setCurrentStep(6)} className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">
+              Next: Final Review <FiArrowRight />
+            </button>
+          </>
+        )}
+        {currentStep === 6 && (
+          <>
+            <button
+              onClick={() => setCurrentStep(5)}
+              disabled={submitting || otpLoading}
+              className="flex-1 py-3 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl disabled:opacity-50"
+            >
+              Back
+            </button>
 
-            {/* Payment Options Grid for Step 5 */}
+            {/* Payment Options Grid for Final Review */}
             <div className="flex-[2] grid grid-cols-2 gap-2">
               {/* Cash/OTP Option - Show if either cash mode or QR generated OTP */}
               {(isOtpSent && paymentMode === 'cash') ? (
@@ -1254,7 +1418,7 @@ const BillingPage = () => {
         isOpen={showQrModal}
         onClose={() => setShowQrModal(false)}
         qrImageUrl={onlinePaymentData?.qrImageUrl}
-        amount={calculations.finalBillAmount}
+        amount={calculations.remainingPayableAmount}
         onCheckStatus={checkPaymentStatus}
       />
     </div>

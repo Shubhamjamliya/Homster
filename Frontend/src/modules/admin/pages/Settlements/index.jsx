@@ -469,8 +469,8 @@ const SettlementManagement = () => {
           <div key={index} className={`bg-white rounded-xl p-4 shadow-sm border hover:shadow-md transition-all ${card.border}`}>
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{card.title}</p>
-                <h3 className="text-2xl font-black text-gray-800 tracking-tight">{card.value}</h3>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{card.title}</p>
+                <h3 className="text-2xl font-bold text-gray-800 mt-1">{card.value}</h3>
               </div>
               <div className={`p-3 rounded-xl ${card.bg} ${card.color}`}>
                 <card.icon className="w-5 h-5" />
@@ -512,7 +512,7 @@ const SettlementManagement = () => {
 
                 <div className="flex items-center gap-2 mb-2">
                   <p className="text-2xl font-bold text-blue-600">₹{settlement.amount?.toLocaleString()}</p>
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase rounded">{settlement.paymentMethod}</span>
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-semibold uppercase rounded">{settlement.paymentMethod}</span>
                 </div>
 
                 {settlement.paymentReference && (
@@ -600,7 +600,7 @@ const SettlementManagement = () => {
                         style={{ width: `${Math.min((vendor.amountDue / vendor.cashLimit) * 100, 100)}%` }}
                       />
                     </div>
-                    {vendor.isBlocked && <span className="text-[10px] text-red-600 font-bold mt-1 uppercase tracking-wide">Blocked</span>}
+                    {vendor.isBlocked && <span className="text-[10px] text-red-600 font-semibold mt-1 uppercase tracking-wide">Blocked</span>}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-right">
