@@ -195,11 +195,18 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]); // Remove onClose to prevent re-triggering when parent re-renders
 
+  const isVendorCatalogSubroute = (pathname) =>
+    pathname.startsWith("/admin/user-categories/vendor-services") ||
+    pathname.startsWith("/admin/user-categories/vendor-parts");
+
   // Auto-expand menu items when their route is active
   useEffect(() => {
     const activeItem = filteredMenu.find((item) => {
       if (item.route === "/admin/dashboard") {
         return location.pathname === "/admin/dashboard";
+      }
+      if (item.route === "/admin/user-categories" && isVendorCatalogSubroute(location.pathname)) {
+        return false;
       }
       const isChildRoute =
         location.pathname.startsWith(item.route) &&
@@ -226,7 +233,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
     // Special case for User Catalog to avoid overlap with Vendor Services/Parts
     if (route === "/admin/user-categories") {
-      if (location.pathname.startsWith("/admin/user-categories/vendor-")) {
+      if (isVendorCatalogSubroute(location.pathname)) {
         return false;
       }
     }
