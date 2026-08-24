@@ -1,26 +1,27 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiDollarSign, FiArrowRight, FiCreditCard, FiAlertCircle, FiCheckCircle, FiEdit2, FiClock, FiPlusCircle, FiActivity } from 'react-icons/fi';
+import { FiDollarSign, FiArrowRight, FiCreditCard, FiAlertCircle, FiCheckCircle, FiEdit2, FiClock, FiActivity } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import { requestWithdrawal, getWalletBalance, getWithdrawalHistory } from '../../services/walletService';
 import { toast } from 'react-hot-toast';
 import LogoLoader from '../../../../components/common/LogoLoader';
+import { vendorAuthService } from '../../../../services/authService';
 
 const WithdrawalRequest = () => {
   const navigate = useNavigate();
   const [wallet, setWallet] = useState({ available: 0 });
   const [amount, setAmount] = useState('');
-  const [showBankForm, setShowBankForm] = useState(false);
   const [history, setHistory] = useState([]);
   const [bankAccount, setBankAccount] = useState({
     accountHolderName: '',
     bankName: '',
     accountNumber: '',
-    confirmAccountNumber: '',
+    branchName: '',
     ifscCode: '',
-    upiId: ''
+    upiId: '',
+    qrCodeImage: ''
   });
   const [isBankSaved, setIsBankSaved] = useState(false);
   const [error, setError] = useState('');
@@ -49,20 +50,41 @@ const WithdrawalRequest = () => {
 
   const loadData = async () => {
     try {
-      const [walletRes, historyRes] = await Promise.all([
+      const [walletRes, historyRes, profileRes] = await Promise.all([
         getWalletBalance(),
-        getWithdrawalHistory()
+        getWithdrawalHistory(),
+        vendorAuthService.getProfile()
       ]);
       setWallet({ available: walletRes.earnings || 0 });
       setHistory(historyRes || []);
 
-      const savedBank = JSON.parse(localStorage.getItem('vendorBankAccount') || 'null');
-      if (savedBank) {
-        setBankAccount({ ...savedBank, confirmAccountNumber: savedBank.accountNumber });
+      const profileBankDetails = profileRes?.vendor?.bankDetails || {};
+      const hasRequiredBankDetails = Boolean(
+        profileBankDetails.accountHolderName &&
+        profileBankDetails.bankName &&
+        profileBankDetails.accountNumber &&
+        profileBankDetails.ifscCode &&
+        profileBankDetails.qrCodeImage
+      );
+
+      if (hasRequiredBankDetails) {
+        setBankAccount({
+          accountHolderName: profileBankDetails.accountHolderName || '',
+          bankName: profileBankDetails.bankName || '',
+          accountNumber: profileBankDetails.accountNumber || '',
+          branchName: profileBankDetails.branchName || '',
+          ifscCode: profileBankDetails.ifscCode || '',
+          upiId: profileBankDetails.upiId || '',
+          qrCodeImage: profileBankDetails.qrCodeImage || ''
+        });
         setIsBankSaved(true);
+      } else {
+        toast.error('Please add bank details and QR code first');
+        navigate('/vendor/bank-details', { replace: true, state: { redirectTo: '/vendor/wallet/withdraw' } });
       }
     } catch (error) {
       console.error('Error loading data:', error);
+      toast.error('Unable to load withdrawal details');
     }
   };
 
@@ -82,36 +104,6 @@ const WithdrawalRequest = () => {
   const handleMaxAmount = () => {
     setAmount(wallet.available.toString());
     setError('');
-  };
-
-  const handleBankInputChange = (e) => {
-    const { name, value } = e.target;
-
-    // Validate number-only fields
-    if (name === 'accountNumber' || name === 'confirmAccountNumber') {
-      const numValue = value.replace(/[^0-9]/g, '');
-      setBankAccount(prev => ({ ...prev, [name]: numValue }));
-      return;
-    }
-
-    setBankAccount(prev => ({ ...prev, [name]: value }));
-  };
-
-  const saveBankDetails = () => {
-    if (!bankAccount.accountHolderName || !bankAccount.accountNumber || !bankAccount.bankName || !bankAccount.ifscCode) {
-      toast.error('Please fill all mandatory bank details');
-      return;
-    }
-
-    if (bankAccount.accountNumber !== bankAccount.confirmAccountNumber) {
-      toast.error('Account numbers do not match');
-      return;
-    }
-
-    localStorage.setItem('vendorBankAccount', JSON.stringify(bankAccount));
-    setIsBankSaved(true);
-    setShowBankForm(false);
-    toast.success('Bank details updated');
   };
 
   const handleSubmit = async () => {
@@ -236,9 +228,9 @@ const WithdrawalRequest = () => {
                 <p className="text-[10px] text-gray-500 font-medium">Where should we send money?</p>
               </div>
             </div>
-            {isBankSaved && !showBankForm && (
+            {isBankSaved && (
               <button
-                onClick={() => setShowBankForm(true)}
+                onClick={() => navigate('/vendor/bank-details')}
                 className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all border border-gray-200 active:scale-95"
               >
                 <FiEdit2 className="w-4 h-4" />
@@ -246,111 +238,8 @@ const WithdrawalRequest = () => {
             )}
           </div>
 
-          {!isBankSaved || showBankForm ? (
-            <div className="space-y-4 relative z-10">
-              {/* Account Holder Name */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Account Holder</label>
-                <input
-                  type="text"
-                  name="accountHolderName"
-                  value={bankAccount.accountHolderName}
-                  onChange={handleBankInputChange}
-                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none text-sm font-bold text-gray-800 placeholder:font-medium transition-all"
-                  placeholder="e.g. John Doe"
-                />
-              </div>
-
-              {/* Bank Name */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Bank Name</label>
-                <input
-                  type="text"
-                  name="bankName"
-                  value={bankAccount.bankName}
-                  onChange={handleBankInputChange}
-                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none text-sm font-bold text-gray-800 placeholder:font-medium transition-all"
-                  placeholder="e.g. HDFC Bank"
-                />
-              </div>
-
-              {/* Account Number */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Account Number</label>
-                <input
-                  type="tel"
-                  name="accountNumber"
-                  value={bankAccount.accountNumber}
-                  onChange={handleBankInputChange}
-                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none text-xl font-bold text-gray-900 tracking-wide placeholder:font-medium transition-all"
-                  placeholder="0000000000"
-                  inputMode="numeric"
-                />
-                <p className="text-[10px] text-gray-400 pl-1">Only numbers allowed</p>
-              </div>
-
-              {/* Confirm Account Number */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Confirm Account Number</label>
-                <input
-                  type="tel"
-                  name="confirmAccountNumber"
-                  value={bankAccount.confirmAccountNumber || ''}
-                  onChange={handleBankInputChange}
-                  className={`w-full px-4 py-3 bg-gray-50 rounded-xl border focus:bg-white focus:ring-4 outline-none text-xl font-bold text-gray-900 tracking-wide placeholder:font-medium transition-all ${bankAccount.confirmAccountNumber && bankAccount.accountNumber !== bankAccount.confirmAccountNumber
-                    ? 'border-red-200 focus:border-red-500 focus:ring-red-500/10'
-                    : 'border-gray-200 focus:border-blue-500 focus:ring-blue-500/10'
-                    }`}
-                  placeholder="0000000000"
-                  inputMode="numeric"
-                  onPaste={(e) => e.preventDefault()}
-                />
-                {bankAccount.confirmAccountNumber && bankAccount.accountNumber !== bankAccount.confirmAccountNumber && (
-                  <p className="text-[10px] text-red-500 font-bold pl-1 flex items-center gap-1">
-                    <FiAlertCircle className="w-3 h-3" /> Account numbers do not match
-                  </p>
-                )}
-              </div>
-
-              {/* IFSC Code */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">IFSC Code</label>
-                <input
-                  type="text"
-                  name="ifscCode"
-                  value={bankAccount.ifscCode}
-                  onChange={handleBankInputChange}
-                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none text-sm font-bold text-gray-800 placeholder:font-medium transition-all uppercase"
-                  placeholder="HDFC0000123"
-                  maxLength={11}
-                />
-              </div>
-
-              {/* UPI ID */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">UPI ID (Optional)</label>
-                <input
-                  type="text"
-                  name="upiId"
-                  value={bankAccount.upiId}
-                  onChange={handleBankInputChange}
-                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none text-sm font-bold text-gray-800 placeholder:font-medium transition-all"
-                  placeholder="username@okaxis"
-                />
-              </div>
-
-              <div className="pt-2">
-                <button
-                  onClick={saveBankDetails}
-                  disabled={!bankAccount.accountNumber || bankAccount.accountNumber !== bankAccount.confirmAccountNumber}
-                  className="w-full py-4 bg-gray-900 text-white rounded-[1.2rem] font-bold text-xs uppercase tracking-[0.1em] shadow-xl hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
-                >
-                  Save & Confirm Account
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-blue-50/50 rounded-2xl p-5 border border-blue-100 shadow-sm relative group cursor-pointer hover:border-blue-200 transition-all" onClick={() => setShowBankForm(true)}>
+          {isBankSaved ? (
+            <div className="bg-blue-50/50 rounded-2xl p-5 border border-blue-100 shadow-sm relative group transition-all">
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
@@ -379,6 +268,33 @@ const WithdrawalRequest = () => {
                     {bankAccount.accountNumber?.replace(/(.{4})/g, '$1 ').trim()}
                   </p>
                 </div>
+
+                {bankAccount.branchName && (
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Branch Name</p>
+                    <p className="font-bold text-gray-800 text-sm">{bankAccount.branchName}</p>
+                  </div>
+                )}
+
+                {bankAccount.upiId && (
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">UPI ID</p>
+                    <p className="font-bold text-gray-800 text-sm">{bankAccount.upiId}</p>
+                  </div>
+                )}
+
+                {bankAccount.qrCodeImage && (
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">QR Code</p>
+                    <div className="w-40 h-40 rounded-2xl border border-blue-100 bg-white p-2">
+                      <img
+                        src={bankAccount.qrCodeImage}
+                        alt="Vendor payout QR"
+                        className="w-full h-full object-contain rounded-xl"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="absolute top-4 right-12">
@@ -387,6 +303,17 @@ const WithdrawalRequest = () => {
                 </span>
               </div>
               <FiEdit2 className="w-4 h-4 text-gray-300 absolute top-5 right-5" />
+            </div>
+          ) : (
+            <div className="bg-amber-50/60 rounded-2xl p-5 border border-amber-100">
+              <p className="text-sm font-bold text-amber-900 mb-2">Bank details are required before withdrawal.</p>
+              <button
+                onClick={() => navigate('/vendor/bank-details')}
+                className="text-xs font-black uppercase tracking-wider text-white px-4 py-3 rounded-xl"
+                style={{ background: themeColors.button }}
+              >
+                Add Bank Details
+              </button>
             </div>
           )}
         </div>

@@ -538,16 +538,31 @@ module.exports = {
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       const withdrawals = await Withdrawal.find({ status: 'pending' })
-        .populate('vendorId', 'name businessName phone wallet.earnings')
+        .populate('vendorId', 'name businessName phone wallet.earnings bankDetails')
         .sort({ createdAt: 1 })
         .skip(skip)
         .limit(parseInt(limit));
+
+      const normalizedWithdrawals = withdrawals.map((withdrawal) => {
+        const withdrawalObj = withdrawal.toObject();
+        const vendorBankDetails = withdrawalObj.vendorId?.bankDetails || {};
+        const requestBankDetails = withdrawalObj.bankDetails || {};
+
+        return {
+          ...withdrawalObj,
+          bankDetails: {
+            ...vendorBankDetails,
+            ...requestBankDetails,
+            qrCodeImage: requestBankDetails.qrCodeImage || vendorBankDetails.qrCodeImage || ''
+          }
+        };
+      });
 
       const total = await Withdrawal.countDocuments({ status: 'pending' });
 
       res.status(200).json({
         success: true,
-        data: withdrawals,
+        data: normalizedWithdrawals,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),

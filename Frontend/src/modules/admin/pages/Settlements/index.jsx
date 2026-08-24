@@ -111,6 +111,11 @@ const SettlementManagement = () => {
     setActiveModal('approve_withdrawal');
   };
 
+  const openViewWithdrawal = (item) => {
+    setSelectedItem(item);
+    setActiveModal('view_withdrawal');
+  };
+
   const openRejectWithdrawal = (item) => {
     setSelectedItem(item);
     setModalInput('');
@@ -253,6 +258,20 @@ const SettlementManagement = () => {
       minute: '2-digit'
     });
   };
+
+  const getInitials = (name = '') => {
+    return name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part.charAt(0).toUpperCase())
+      .join('') || 'V';
+  };
+
+  const getWithdrawalBankDetails = (item) => ({
+    ...(item?.vendorId?.bankDetails || {}),
+    ...(item?.bankDetails || {})
+  });
 
   const handleExport = () => {
     if (activeTab === 'history' && history.length > 0) {
@@ -696,7 +715,7 @@ const SettlementManagement = () => {
     )
   );
 
-  const renderWithdrawalsList = () => (
+  const renderWithdrawalsListOld = () => (
     withdrawals.length === 0 ? (
       <div className="text-center py-10">
         <FiCheck className="w-12 h-12 mx-auto mb-3 text-gray-200" />
@@ -764,6 +783,88 @@ const SettlementManagement = () => {
             )}
           </div>
         ))}
+      </div>
+    )
+  );
+
+  const renderWithdrawalsList = () => (
+    withdrawals.length === 0 ? (
+      <div className="text-center py-10">
+        <FiCheck className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+        <p className="text-gray-500 text-sm font-medium">No pending withdrawal requests. All settled!</p>
+      </div>
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Vendor</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Business</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Amount</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Available</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Request Date</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Payout</th>
+              <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-500">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {withdrawals.map((request) => (
+              <tr key={request._id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-green-50 text-green-600 flex items-center justify-center font-bold text-sm shrink-0">
+                      {getInitials(request.vendorId?.name)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 text-sm">{request.vendorId?.name || 'Unknown Vendor'}</p>
+                      <p className="text-xs text-gray-500">{request.vendorId?.phone || 'No phone'}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-4 text-sm font-medium text-gray-700">
+                  {request.vendorId?.businessName || '-'}
+                </td>
+                <td className="px-4 py-4 text-sm font-black text-green-600">
+                  ₹{request.amount?.toLocaleString() || 0}
+                </td>
+                <td className="px-4 py-4 text-sm font-semibold text-gray-800">
+                  ₹{request.vendorId?.wallet?.earnings?.toLocaleString() || 0}
+                </td>
+                <td className="px-4 py-4 text-sm text-gray-600">
+                  {formatDate(request.requestDate)}
+                </td>
+                <td className="px-4 py-4">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                    {getWithdrawalBankDetails(request)?.upiId ? 'Bank + UPI' : 'Bank Transfer'}
+                  </span>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => openViewWithdrawal(request)}
+                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="View Details"
+                    >
+                      <FiEye className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => openApproveWithdrawal(request)}
+                      className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-green-700 transition-colors"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => openRejectWithdrawal(request)}
+                      className="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold uppercase hover:bg-red-50 transition-colors"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     )
   );
@@ -944,6 +1045,99 @@ const SettlementManagement = () => {
             >
               Update Limit
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={activeModal === 'view_withdrawal'}
+        onClose={closeModals}
+        title="Withdrawal Details"
+        size="lg"
+      >
+        <div className="space-y-5">
+          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center font-bold text-sm">
+              {getInitials(selectedItem?.vendorId?.name)}
+            </div>
+            <div>
+              <p className="font-bold text-gray-900">{selectedItem?.vendorId?.name || 'Unknown Vendor'}</p>
+              <p className="text-sm text-gray-500">{selectedItem?.vendorId?.businessName || '-'}</p>
+              <p className="text-xs text-gray-400">{selectedItem?.vendorId?.phone || 'No phone'}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Requested Amount</p>
+              <p className="text-2xl font-black text-green-600">₹{selectedItem?.amount?.toLocaleString() || 0}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Available Earnings</p>
+              <p className="text-2xl font-black text-gray-900">₹{selectedItem?.vendorId?.wallet?.earnings?.toLocaleString() || 0}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Request Date</p>
+              <p className="text-sm font-semibold text-gray-800">{selectedItem?.requestDate ? formatDate(selectedItem.requestDate) : '-'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Payout Mode</p>
+              <p className="text-sm font-semibold text-gray-800">{getWithdrawalBankDetails(selectedItem)?.upiId ? 'Bank + UPI' : 'Bank Transfer'}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <h4 className="text-sm font-bold text-gray-900 mb-4">Bank Details</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Account Holder</p>
+                <p className="font-semibold text-gray-800">{getWithdrawalBankDetails(selectedItem)?.accountHolderName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Bank Name</p>
+                <p className="font-semibold text-gray-800">{getWithdrawalBankDetails(selectedItem)?.bankName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Account Number</p>
+                <p className="font-semibold text-gray-800 break-all">{getWithdrawalBankDetails(selectedItem)?.accountNumber || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">IFSC Code</p>
+                <p className="font-semibold text-gray-800">{getWithdrawalBankDetails(selectedItem)?.ifscCode || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Branch Name</p>
+                <p className="font-semibold text-gray-800">{getWithdrawalBankDetails(selectedItem)?.branchName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">UPI ID</p>
+                <p className="font-semibold text-gray-800 break-all">{getWithdrawalBankDetails(selectedItem)?.upiId || '-'}</p>
+              </div>
+            </div>
+
+            {getWithdrawalBankDetails(selectedItem)?.qrCodeImage && (
+              <div className="mt-5 pt-5 border-t border-gray-100">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Payment QR</p>
+                <div className="w-full max-w-xs rounded-2xl border border-gray-200 bg-gray-50 p-3">
+                  <img
+                    src={getWithdrawalBankDetails(selectedItem).qrCodeImage}
+                    alt="Withdrawal bank QR"
+                    className="w-full h-auto rounded-xl object-contain bg-white"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {selectedItem?.adminNotes && (
+            <div className="bg-amber-50 rounded-xl border border-amber-100 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-600 mb-1">Admin Notes</p>
+              <p className="text-sm text-amber-900">{selectedItem.adminNotes}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button variant="ghost" onClick={closeModals}>Close</Button>
           </div>
         </div>
       </Modal>

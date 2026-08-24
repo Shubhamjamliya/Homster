@@ -350,8 +350,6 @@ const EditProfile = () => {
         }
       }
 
-      // Prepare payload to match backend structure
-      // Prepare payload to match backend structure
       const payload = {
         name: formData.name,
         businessName: formData.businessName,

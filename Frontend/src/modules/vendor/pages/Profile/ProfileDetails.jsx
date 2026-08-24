@@ -255,6 +255,7 @@ const ProfileDetails = () => {
               </div>
             </div>
           </div>
+
         </div>
       </main>
 

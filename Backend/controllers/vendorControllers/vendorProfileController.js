@@ -51,6 +51,7 @@ const getProfile = async (req, res) => {
         isEmailVerified: vendor.isEmailVerified || false,
         isOnline: vendor.isOnline || false,
         profilePhoto: vendor.profilePhoto || null,
+        bankDetails: vendor.bankDetails || {},
         aadharDocument: vendor.aadhar?.document || null,
         createdAt: vendor.createdAt,
         updatedAt: vendor.updatedAt
@@ -80,7 +81,7 @@ const updateProfile = async (req, res) => {
     }
 
     const vendorId = req.user.id;
-    const { name, businessName, address, profilePhoto, serviceCategory, skills, aadharNumber, aadharDocument, panNumber, panDocument, serviceRange } = req.body;
+    const { name, businessName, address, profilePhoto, serviceCategory, skills, aadharNumber, aadharDocument, panNumber, panDocument, serviceRange, bankDetails } = req.body;
 
     console.log('Update Vendor Profile Body:', JSON.stringify(req.body, null, 2));
 
@@ -161,6 +162,20 @@ const updateProfile = async (req, res) => {
     if (skills !== undefined) {
       vendor.skills = Array.isArray(skills) ? skills : [];
     }
+
+    if (bankDetails && typeof bankDetails === 'object') {
+      const existingBankDetails = vendor.bankDetails?.toObject ? vendor.bankDetails.toObject() : (vendor.bankDetails || {});
+      vendor.bankDetails = {
+        ...existingBankDetails,
+        accountHolderName: bankDetails.accountHolderName !== undefined ? String(bankDetails.accountHolderName || '').trim() : (existingBankDetails.accountHolderName || ''),
+        bankName: bankDetails.bankName !== undefined ? String(bankDetails.bankName || '').trim() : (existingBankDetails.bankName || ''),
+        accountNumber: bankDetails.accountNumber !== undefined ? String(bankDetails.accountNumber || '').trim() : (existingBankDetails.accountNumber || ''),
+        ifscCode: bankDetails.ifscCode !== undefined ? String(bankDetails.ifscCode || '').trim().toUpperCase() : (existingBankDetails.ifscCode || ''),
+        branchName: bankDetails.branchName !== undefined ? String(bankDetails.branchName || '').trim() : (existingBankDetails.branchName || ''),
+        upiId: bankDetails.upiId !== undefined ? String(bankDetails.upiId || '').trim().toLowerCase() : (existingBankDetails.upiId || ''),
+        qrCodeImage: bankDetails.qrCodeImage !== undefined ? String(bankDetails.qrCodeImage || '').trim() : (existingBankDetails.qrCodeImage || '')
+      };
+    }
     // If aadharDocument exists and is not empty, update it
     if (aadharDocument || aadharNumber) {
       let aadharUrl = aadharDocument || vendor.aadhar?.document;
@@ -216,7 +231,7 @@ const updateProfile = async (req, res) => {
         isPhoneVerified: vendor.isPhoneVerified,
         isEmailVerified: vendor.isEmailVerified,
         profilePhoto: vendor.profilePhoto,
-        service: vendor.service,
+        bankDetails: vendor.bankDetails || {},
         skills: vendor.skills,
         settings: vendor.settings
       }

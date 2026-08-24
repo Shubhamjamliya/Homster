@@ -41,7 +41,9 @@ const withdrawalSchema = new mongoose.Schema({
     ifscCode: String,
     accountHolderName: String,
     bankName: String,
-    upiId: String
+    branchName: String,
+    upiId: String,
+    qrCodeImage: String
   },
   // TDS Details (calculated at approval)
   tdsRate: {
