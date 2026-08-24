@@ -109,6 +109,26 @@ const AdminScrapPage = () => {
     return item.status === filter;
   });
 
+  const getMapsUrl = (item) => {
+    const lat = item?.address?.lat;
+    const lng = item?.address?.lng;
+
+    if (lat !== undefined && lat !== null && lng !== undefined && lng !== null) {
+      return `https://www.google.com/maps?q=${lat},${lng}`;
+    }
+
+    const addressText = [
+      item?.address?.addressLine1,
+      item?.address?.addressLine2,
+      item?.address?.city,
+      item?.address?.state,
+      item?.address?.pincode
+    ].filter(Boolean).join(', ');
+
+    if (!addressText) return null;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`;
+  };
+
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -203,9 +223,24 @@ const AdminScrapPage = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-[10px] text-gray-500 font-medium max-w-[160px] line-clamp-2">
-                        {item.address?.addressLine1 ? `${item.address.addressLine1}, ${item.address.city || ''}` : 'N/A'}
-                      </p>
+                      {getMapsUrl(item) ? (
+                        <a
+                          href={getMapsUrl(item)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-start gap-1.5 text-[10px] text-blue-600 font-medium max-w-[160px] hover:text-blue-700 hover:underline"
+                          title="Open in Google Maps"
+                        >
+                          <FiMapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                          <span className="line-clamp-2">
+                            {item.address?.addressLine1 ? `${item.address.addressLine1}, ${item.address.city || ''}` : 'Open location'}
+                          </span>
+                        </a>
+                      ) : (
+                        <p className="text-[10px] text-gray-500 font-medium max-w-[160px] line-clamp-2">
+                          N/A
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-[10px] text-gray-500 font-medium">
                       {new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}

@@ -244,7 +244,9 @@ const AdminSettings = () => {
     }
 
     const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-    if (!companyPAN || !panRegex.test(companyPAN)) return "Invalid PAN format (e.g., ABCDE1234F)";
+    if (companyPAN?.trim() && !panRegex.test(companyPAN.trim())) {
+      return "Invalid PAN format (e.g., ABCDE1234F)";
+    }
 
     if (!companyAddress?.trim()) return "Address is required";
 
@@ -582,9 +584,10 @@ const AdminSettings = () => {
                 <form onSubmit={handleFinancialSave} className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Visit Charges (₹)</label>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Convenience Fee</label>
                       <input type="number" name="visitedCharges" value={financialSettings.visitedCharges} onChange={handleFinancialChange}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                      <p className="text-[10px] text-gray-400 mt-1">This is the convenience fee shown on user checkout</p>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Vendor Cash Limit (₹)</label>
@@ -596,7 +599,7 @@ const AdminSettings = () => {
                       <input type="number" name="serviceGstPercentage" value={financialSettings.serviceGstPercentage} onChange={handleFinancialChange}
                         min="0" max="100"
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">GST rate applied to services</p>
+                      <p className="text-[10px] text-gray-400 mt-1">GST rate applied to services and used on user checkout</p>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Parts GST (%)</label>

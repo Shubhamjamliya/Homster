@@ -36,7 +36,7 @@ const ScrapPromotionCard = ({ onClick }) => {
           </h2>
           
           <p className="text-teal-50/80 text-sm lg:text-base font-medium max-w-md mb-6 mx-auto md:mx-0">
-            Accepting paper, plastic, metal, and electronics at best prices. We pick up directly from your doorstep.
+            Get the best price for your scrap with easy doorstep pickup.
           </p>
 
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
