@@ -1,8 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiSearch, FiUser, FiPhone, FiMail, FiCheckCircle, FiSlash, FiCheck, FiTrash2 } from 'react-icons/fi';
+import { FiSearch, FiUser, FiPhone, FiMail, FiMapPin, FiCheckCircle, FiSlash, FiCheck, FiTrash2 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { adminUserService } from '../../../../services/adminUserService';
+
+const formatSavedAddress = (addresses = []) => {
+  if (!Array.isArray(addresses) || addresses.length === 0) return 'No saved address';
+
+  const primaryAddress = addresses.find((address) => address?.isDefault) || addresses[0];
+  const formattedAddress = [
+    primaryAddress?.addressLine1,
+    primaryAddress?.addressLine2,
+    primaryAddress?.city,
+    primaryAddress?.state,
+    primaryAddress?.pincode
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  return formattedAddress || 'No saved address';
+};
 
 const AllUsers = () => {
   const [users, setUsers] = useState([]);
@@ -152,14 +169,18 @@ const AllUsers = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         <div className="flex items-center gap-1.5 text-gray-600 text-[11px]">
                           <FiMail className="w-3 h-3" />
-                          <span>{user.email}</span>
+                          <span>{user.email || 'No email'}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-gray-600 text-[11px]">
                           <FiPhone className="w-3 h-3" />
                           <span>{user.phone}</span>
+                        </div>
+                        <div className="flex items-start gap-1.5 text-gray-600 text-[11px]">
+                          <FiMapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                          <span className="leading-4">{formatSavedAddress(user.addresses)}</span>
                         </div>
                       </div>
                     </td>
