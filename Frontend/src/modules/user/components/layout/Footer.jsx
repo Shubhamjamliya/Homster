@@ -31,8 +31,8 @@ const Footer = () => {
         { label: 'About Us', path: '/user/about-homestr' },
         { label: 'Help & Support', path: '/user/help-support' },
         { label: 'Cancellation Policy', path: '/user/cancellation-policy' },
-        { label: 'Terms & Conditions', path: '#' },
-        { label: 'Privacy Policy', path: '#' },
+        { label: 'Terms & Conditions', path: '/user/policies/user' },
+        { label: 'Privacy Policy', path: '/user/policies/privacy' },
       ]
     },
     {

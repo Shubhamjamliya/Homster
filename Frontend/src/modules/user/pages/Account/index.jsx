@@ -421,6 +421,16 @@ const Account = () => {
               label="Help & Support"
               onClick={() => navigate('/user/help-support')}
             />
+            <MenuItem
+              icon={FiShield}
+              label="Privacy Policy"
+              onClick={() => navigate('/user/policies/privacy')}
+            />
+            <MenuItem
+              icon={FiFileText}
+              label="User Policy"
+              onClick={() => navigate('/user/policies/user')}
+            />
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={() => navigate('/user/about-homestr')}

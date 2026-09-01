@@ -174,6 +174,23 @@ const settingsSchema = new mongoose.Schema({
     default: true
   },
 
+  // Legal policy content managed from the admin settings area
+  privacyPolicy: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  userPolicy: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  vendorPolicy: {
+    type: String,
+    default: '',
+    trim: true
+  },
+
   // Vendor Referral Program Settings
   vendorReferralEnabled: {
     type: Boolean,

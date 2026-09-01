@@ -50,6 +50,12 @@ const AdminSettings = () => {
     supportWhatsapp: ''
   });
   const [supportLoading, setSupportLoading] = useState(false);
+  const [legalPolicies, setLegalPolicies] = useState({
+    privacyPolicy: '',
+    userPolicy: '',
+    vendorPolicy: ''
+  });
+  const [policyLoading, setPolicyLoading] = useState(false);
 
   const [profile, setProfile] = useState({
     name: '',
@@ -142,6 +148,11 @@ const AdminSettings = () => {
             supportEmail: res.settings.supportEmail || '',
             supportPhone: res.settings.supportPhone || '',
             supportWhatsapp: res.settings.supportWhatsapp || ''
+          });
+          setLegalPolicies({
+            privacyPolicy: res.settings.privacyPolicy || '',
+            userPolicy: res.settings.userPolicy || '',
+            vendorPolicy: res.settings.vendorPolicy || ''
           });
         }
       } catch (error) {
@@ -305,6 +316,24 @@ const AdminSettings = () => {
       toast.error('Failed to update support settings');
     } finally {
       setSupportLoading(false);
+    }
+  };
+
+  const handlePolicyChange = (e) => {
+    const { name, value } = e.target;
+    setLegalPolicies(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePolicySave = async (e) => {
+    e.preventDefault();
+    setPolicyLoading(true);
+    try {
+      await updateSettings(legalPolicies);
+      toast.success('Policies saved successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to save policies');
+    } finally {
+      setPolicyLoading(false);
     }
   };
 
@@ -472,6 +501,15 @@ const AdminSettings = () => {
         </div>
       )}
 
+      <div onClick={() => setActiveView('policies')}
+        className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group">
+        <div className="w-12 h-12 bg-rose-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-rose-100 transition-colors">
+          <FiFileText className="w-6 h-6 text-rose-600" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-800 mb-2">Policy Management</h3>
+        <p className="text-sm text-gray-500">Edit and save privacy, user, and vendor policies</p>
+      </div>
+
       {/* Admin Management Card - Super Admin Only */}
       {isSuperAdmin && (
         <div onClick={() => setActiveView('admins')}
@@ -564,6 +602,53 @@ const AdminSettings = () => {
               </form>
             </div>
           </motion.div >
+        )}
+
+        {activeView === 'policies' && (
+          <motion.div key="policies" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
+            <form onSubmit={handlePolicySave} className="max-w-4xl mx-auto bg-white rounded-xl p-6 md:p-8 shadow-sm border border-gray-100 space-y-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-11 h-11 rounded-lg bg-rose-50 flex items-center justify-center">
+                    <FiFileText className="w-5 h-5 text-rose-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800">Policy Management</h2>
+                    <p className="text-sm text-gray-500">Keep the policies shown to customers and vendors up to date.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="privacyPolicy">Privacy Policy</label>
+                <textarea id="privacyPolicy" name="privacyPolicy" value={legalPolicies.privacyPolicy} onChange={handlePolicyChange}
+                  placeholder="Write the privacy policy..." rows="10"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 transition-all resize-y" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="userPolicy">User Policy</label>
+                <textarea id="userPolicy" name="userPolicy" value={legalPolicies.userPolicy} onChange={handlePolicyChange}
+                  placeholder="Write the customer/user policy..." rows="10"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 transition-all resize-y" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="vendorPolicy">Vendor Policy</label>
+                <textarea id="vendorPolicy" name="vendorPolicy" value={legalPolicies.vendorPolicy} onChange={handlePolicyChange}
+                  placeholder="Write the vendor policy..." rows="10"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 transition-all resize-y" />
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button type="submit" disabled={policyLoading}
+                  className="px-6 py-3 bg-rose-600 text-white rounded-xl font-semibold hover:bg-rose-700 transition-colors disabled:opacity-70 flex items-center gap-2">
+                  {policyLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSave className="w-5 h-5" />}
+                  Save Policies
+                </button>
+              </div>
+            </form>
+          </motion.div>
         )}
 
         {/* Financial View */}

@@ -50,7 +50,9 @@ exports.updateSettings = async (req, res, next) => {
       // Booking Timing
       maxSearchTime, waveDuration, searchRadius,
       // Payment Control
-      isOnlinePaymentEnabled
+      isOnlinePaymentEnabled,
+      // Legal Policies
+      privacyPolicy, userPolicy, vendorPolicy
     } = req.body;
 
     let settings = await Settings.findOne({ type: 'global' });
@@ -72,7 +74,10 @@ exports.updateSettings = async (req, res, next) => {
         razorpayWebhookSecret,
         cloudinaryCloudName,
         cloudinaryApiKey,
-        cloudinaryApiSecret
+        cloudinaryApiSecret,
+        privacyPolicy,
+        userPolicy,
+        vendorPolicy
       });
     } else {
       // Update fields if provided
@@ -118,6 +123,11 @@ exports.updateSettings = async (req, res, next) => {
       if (searchRadius !== undefined) settings.searchRadius = searchRadius;
       if (isOnlinePaymentEnabled !== undefined) settings.isOnlinePaymentEnabled = isOnlinePaymentEnabled;
 
+      // Legal policy update
+      if (privacyPolicy !== undefined) settings.privacyPolicy = privacyPolicy;
+      if (userPolicy !== undefined) settings.userPolicy = userPolicy;
+      if (vendorPolicy !== undefined) settings.vendorPolicy = vendorPolicy;
+
       await settings.save();
     }
 
@@ -155,7 +165,7 @@ exports.updateSettings = async (req, res, next) => {
 // Get Public Settings (Visited Charges, GST)
 exports.getPublicSettings = async (req, res, next) => {
   try {
-    let settings = await Settings.findOne({ type: 'global' }).select('visitedCharges serviceGstPercentage partsGstPercentage supportEmail supportPhone supportWhatsapp cancellationPenalty companyName companyAddress companyCity companyState companyPincode companyPhone companyEmail isOnlinePaymentEnabled');
+    let settings = await Settings.findOne({ type: 'global' }).select('visitedCharges serviceGstPercentage partsGstPercentage supportEmail supportPhone supportWhatsapp cancellationPenalty companyName companyAddress companyCity companyState companyPincode companyPhone companyEmail isOnlinePaymentEnabled privacyPolicy userPolicy vendorPolicy');
 
     // Default if not found (fallback values)
     if (!settings) {
