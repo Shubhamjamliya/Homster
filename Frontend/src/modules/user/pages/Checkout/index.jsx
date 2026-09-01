@@ -388,7 +388,7 @@ const Checkout = () => {
         }
       }
     } catch (error) {
-      toast.error('Failed to initiate booking request. Please try again.');
+      toast.error(error.response?.data?.message || 'Failed to initiate booking request. Please try again.');
       setShowVendorModal(false);
       setSearchingVendors(false);
     }
@@ -665,7 +665,7 @@ const Checkout = () => {
     } catch (error) {
       toast.dismiss();
       console.error('Search vendors error:', error);
-      toast.error('Failed to search for vendors. Please try again.');
+      toast.error(error.response?.data?.message || 'Failed to search for vendors. Please try again.');
       setCurrentStep('details');
       setSearchingVendors(false);
       setShowVendorModal(false);

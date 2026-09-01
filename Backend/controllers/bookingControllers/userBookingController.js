@@ -27,6 +27,34 @@ const createBooking = async (req, res) => {
     }
 
     const userId = req.user.id;
+
+    // A customer can have only one service in progress at a time. Work done is
+    // intentionally still active until the booking is fully completed.
+    const activeBooking = await Booking.findOne({
+      userId,
+      status: {
+        $nin: [
+          BOOKING_STATUS.COMPLETED,
+          BOOKING_STATUS.CANCELLED,
+          BOOKING_STATUS.REJECTED
+        ]
+      }
+    })
+      .select('bookingNumber serviceName status')
+      .lean();
+
+    if (activeBooking) {
+      return res.status(409).json({
+        success: false,
+        message: `You already have an active booking (${activeBooking.bookingNumber}) for ${activeBooking.serviceName}. Complete or cancel it before booking another service.`,
+        activeBooking: {
+          id: activeBooking._id,
+          bookingNumber: activeBooking.bookingNumber,
+          status: activeBooking.status
+        }
+      });
+    }
+
     let {
       serviceId,
       vendorId,
