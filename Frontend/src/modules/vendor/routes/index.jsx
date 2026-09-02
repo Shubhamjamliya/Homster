@@ -82,6 +82,7 @@ const VendorRoutes = () => {
   // Check if current route should hide bottom nav (auth routes or map or booking alert)
   const shouldHideBottomNav = location.pathname === '/vendor/login' ||
     location.pathname === '/vendor/signup' ||
+    location.pathname.includes('/vendor/policies/') ||
     location.pathname.endsWith('/map') ||
     location.pathname.includes('/booking-alert/');
 
@@ -97,6 +98,8 @@ const VendorRoutes = () => {
               {/* Public routes */}
               <Route path="/login" element={<PublicRoute userType="vendor"><Login /></PublicRoute>} />
               <Route path="/signup" element={<PublicRoute userType="vendor"><Signup /></PublicRoute>} />
+              <Route path="/policies/privacy" element={<PolicyPage type="privacy" />} />
+              <Route path="/policies/vendor" element={<PolicyPage type="vendor" />} />
 
               {/* Protected routes (auth required) */}
               <Route path="/" element={<ProtectedRoute userType="vendor"><Navigate to="dashboard" replace /></ProtectedRoute>} />
@@ -128,8 +131,6 @@ const VendorRoutes = () => {
               <Route path="/notifications" element={<ProtectedRoute userType="vendor"><Notifications /></ProtectedRoute>} />
               <Route path="/my-ratings" element={<ProtectedRoute userType="vendor"><MyRatings /></ProtectedRoute>} />
               <Route path="/about-homestr" element={<ProtectedRoute userType="vendor"><AboutHomestr /></ProtectedRoute>} />
-              <Route path="/policies/privacy" element={<ProtectedRoute userType="vendor"><PolicyPage type="privacy" /></ProtectedRoute>} />
-              <Route path="/policies/vendor" element={<ProtectedRoute userType="vendor"><PolicyPage type="vendor" /></ProtectedRoute>} />
             </Routes>
           </PageTransition>
         </Suspense>

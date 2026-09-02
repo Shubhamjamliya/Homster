@@ -354,6 +354,10 @@ const Login = () => {
       </div>
 
       <div className="mt-8 text-center text-xs text-gray-400 animate-fade-in animate-stagger-4">
+        <div className="mb-3 flex justify-center gap-4 font-medium">
+          <Link to="/user/policies/privacy" className="hover:text-[#347989] transition-colors">Privacy Policy</Link>
+          <Link to="/user/policies/user" className="hover:text-[#347989] transition-colors">User Policy</Link>
+        </div>
         &copy; {new Date().getFullYear()} Homestr. All rights reserved.
       </div>
       <DebugConsole />

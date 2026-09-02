@@ -340,6 +340,10 @@ const VendorLogin = () => {
             Register Now
           </Link>
         </p>
+        <div className="mt-4 flex justify-center gap-4 text-xs font-medium text-gray-400">
+          <Link to="/vendor/policies/privacy" className="hover:text-[#347989] transition-colors">Privacy Policy</Link>
+          <Link to="/vendor/policies/vendor" className="hover:text-[#347989] transition-colors">Vendor Policy</Link>
+        </div>
       </div>
     </div>
   );

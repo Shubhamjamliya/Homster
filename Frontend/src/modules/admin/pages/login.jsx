@@ -198,6 +198,10 @@ const AdminLogin = () => {
             </button>
           </form>
 
+          <div className="mt-6 text-center text-xs font-medium text-gray-400">
+            <Link to="/admin/policies/privacy" className="hover:text-teal-600 transition-colors">Privacy Policy</Link>
+          </div>
+
           {/* Demo Credentials */}
           <div
             onClick={() => setFormData({ email: 'admin@appzeto.com', password: 'admin123' })}

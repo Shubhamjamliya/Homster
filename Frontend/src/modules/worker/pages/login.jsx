@@ -318,6 +318,9 @@ const WorkerLogin = () => {
             Register as Xpert
           </Link>
         </p>
+        <div className="mt-4 text-center text-xs font-medium text-gray-400">
+          <Link to="/worker/policies/privacy" className="hover:text-[#347989] transition-colors">Privacy Policy</Link>
+        </div>
       </div>
     </div>
   );

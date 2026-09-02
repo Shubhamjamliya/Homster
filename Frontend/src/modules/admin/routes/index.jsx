@@ -21,6 +21,7 @@ const BookingNotifications = lazy(() => import('../pages/Bookings/BookingNotific
 const Payments = lazy(() => import('../pages/Payments'));
 const Reports = lazy(() => import('../pages/Reports'));
 const Notifications = lazy(() => import('../pages/Notifications'));
+const PolicyPage = lazy(() => import('../../../components/common/PolicyPage'));
 
 const Plans = lazy(() => import('../pages/Plans/Plans'));
 const Scrap = lazy(() => import('../pages/Scrap'));
@@ -46,6 +47,7 @@ const AdminRoutes = () => {
       <Routes>
         {/* Login route - outside of layout (public) */}
         <Route path="/login" element={<PublicRoute userType="admin"><Login /></PublicRoute>} />
+        <Route path="/policies/privacy" element={<PolicyPage type="privacy" />} />
 
         {/* Protected routes - inside layout */}
         <Route path="/" element={

@@ -108,7 +108,7 @@ const UserRoutes = () => {
 
 
   // Check if we are on public pages (login/signup) where we shouldn't fetch bookings
-  const isPublicPage = location.pathname.includes('/login') || location.pathname.includes('/signup');
+  const isPublicPage = location.pathname.includes('/login') || location.pathname.includes('/signup') || location.pathname.includes('/policies/');
 
   return (
     <ErrorBoundary>
@@ -120,6 +120,8 @@ const UserRoutes = () => {
               {/* Public routes */}
               <Route path="/login" element={<PublicRoute userType="user"><Login /></PublicRoute>} />
               <Route path="/signup" element={<PublicRoute userType="user"><Signup /></PublicRoute>} />
+              <Route path="/policies/privacy" element={<PolicyPage type="privacy" />} />
+              <Route path="/policies/user" element={<PolicyPage type="user" />} />
 
               {/* Protected routes (auth required) */}
               <Route path="/" element={<ProtectedRoute userType="user"><Home /></ProtectedRoute>} />
@@ -147,8 +149,6 @@ const UserRoutes = () => {
               <Route path="/notifications" element={<ProtectedRoute userType="user"><Notifications /></ProtectedRoute>} />
               <Route path="/help-support" element={<ProtectedRoute userType="user"><HelpSupport /></ProtectedRoute>} />
               <Route path="/cancellation-policy" element={<ProtectedRoute userType="user"><CancellationPolicy /></ProtectedRoute>} />
-              <Route path="/policies/privacy" element={<ProtectedRoute userType="user"><PolicyPage type="privacy" /></ProtectedRoute>} />
-              <Route path="/policies/user" element={<ProtectedRoute userType="user"><PolicyPage type="user" /></ProtectedRoute>} />
             </Routes>
           </PageTransition>
         </Suspense>
