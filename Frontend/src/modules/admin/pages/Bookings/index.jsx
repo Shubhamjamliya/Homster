@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FiSearch, FiCalendar, FiDownload, FiMoreVertical,
+  FiSearch, FiCalendar, FiDownload, FiEye, FiX, FiMapPin, FiCreditCard, FiUser, FiBriefcase,
   FiClock, FiCheckCircle, FiBox, FiTruck, FiXCircle, FiRefreshCw, FiShoppingBag
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -24,6 +24,8 @@ const BookingStatsCard = ({ title, count, icon: Icon, colorClass, bgClass }) => 
 const Bookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -124,6 +126,30 @@ const Bookings = () => {
     document.body.appendChild(link);
     link.click();
   };
+
+  const openBookingDetails = async (booking) => {
+    setSelectedBooking(booking);
+    setDetailsLoading(true);
+    try {
+      const response = await adminBookingService.getBookingById(booking._id);
+      if (response.success) {
+        setSelectedBooking(response.data);
+      } else {
+        toast.error(response.message || 'Failed to load booking details');
+      }
+    } catch (error) {
+      console.error('Error loading booking details:', error);
+      toast.error(error.message || 'Failed to load booking details');
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const formatDateTime = (date) => date ? new Date(date).toLocaleString('en-IN', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  }) : 'Not available';
+
+  const formatAmount = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en-IN')}`;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -231,7 +257,7 @@ const Bookings = () => {
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-blue-600 text-[11px] font-bold">
-                        {booking.items?.length || 1} items
+                        {booking.bookedItems?.length || 1} items
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -257,8 +283,13 @@ const Bookings = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
-                        <FiMoreVertical className="w-4 h-4" />
+                      <button
+                        onClick={() => openBookingDetails(booking)}
+                        className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="View booking details"
+                        aria-label={`View booking ${booking.bookingNumber || booking._id}`}
+                      >
+                        <FiEye className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -291,6 +322,135 @@ const Bookings = () => {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {selectedBooking && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+            onMouseDown={() => !detailsLoading && setSelectedBooking(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.98 }}
+              onMouseDown={(event) => event.stopPropagation()}
+              className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+            >
+              <div className="flex items-start justify-between border-b border-gray-100 p-5">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Booking Details</p>
+                  <h2 className="mt-1 text-xl font-bold text-gray-900">#{selectedBooking.bookingNumber || selectedBooking._id?.slice(-6).toUpperCase()}</h2>
+                  <p className="mt-1 text-xs text-gray-500">Created {formatDateTime(selectedBooking.createdAt)}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                    {selectedBooking.status?.replaceAll('_', ' ') || 'Pending'}
+                  </span>
+                  <button
+                    onClick={() => setSelectedBooking(null)}
+                    disabled={detailsLoading}
+                    className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed"
+                    aria-label="Close booking details"
+                  >
+                    <FiX />
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-[calc(90vh-100px)] overflow-y-auto p-5">
+                {detailsLoading ? (
+                  <div className="flex min-h-64 items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-100 border-t-blue-600" />
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-bold text-gray-500"><FiUser /> Customer</div>
+                        <p className="text-sm font-semibold text-gray-900">{selectedBooking.userId?.name || 'Guest customer'}</p>
+                        <p className="mt-1 text-xs text-gray-600">{selectedBooking.userId?.phone || selectedBooking.customerPhone || 'No phone'}</p>
+                        <p className="text-xs text-gray-600">{selectedBooking.userId?.email || 'No email'}</p>
+                      </div>
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-bold text-gray-500"><FiBriefcase /> Vendor and Worker</div>
+                        <p className="text-sm font-semibold text-gray-900">{selectedBooking.vendorId?.businessName || selectedBooking.vendorId?.name || 'Not assigned'}</p>
+                        <p className="mt-1 text-xs text-gray-600">Vendor: {selectedBooking.vendorId?.phone || 'Not assigned'}</p>
+                        <p className="text-xs text-gray-600">Worker: {selectedBooking.workerId?.name || 'Not assigned'}</p>
+                      </div>
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-bold text-gray-500"><FiCalendar /> Schedule</div>
+                        <p className="text-sm font-semibold text-gray-900">{formatDateTime(selectedBooking.scheduledDate)}</p>
+                        <p className="mt-1 text-xs text-gray-600">{selectedBooking.scheduledTime || selectedBooking.timeSlot?.start || 'Time not set'}</p>
+                        <p className="text-xs capitalize text-gray-600">{selectedBooking.bookingType || 'scheduled'} booking</p>
+                      </div>
+                    </div>
+
+                    <section className="rounded-xl border border-gray-100">
+                      <div className="border-b border-gray-100 px-4 py-3">
+                        <h3 className="text-sm font-bold text-gray-900">Booked Services and Items</h3>
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                        {(selectedBooking.bookedItems?.length ? selectedBooking.bookedItems : [{ serviceName: selectedBooking.serviceName, card: { title: selectedBooking.serviceId?.title, price: selectedBooking.basePrice }, quantity: 1 }]).map((item, index) => (
+                          <div key={`${item.serviceName || item.card?.title || 'item'}-${index}`} className="flex items-center justify-between gap-4 px-4 py-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-gray-900">{item.card?.title || item.serviceName || selectedBooking.serviceName || 'Service'}</p>
+                              <p className="mt-0.5 text-xs text-gray-500">{[item.brandName, item.card?.subtitle, item.card?.duration].filter(Boolean).join(' | ') || selectedBooking.serviceCategory}</p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-sm font-semibold text-gray-900">{formatAmount(item.card?.price ?? selectedBooking.basePrice)}</p>
+                              <p className="text-xs text-gray-500">Qty: {item.quantity || 1}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <section className="rounded-xl border border-gray-100 p-4">
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-900"><FiMapPin className="text-blue-600" /> Service Address</h3>
+                        <p className="text-sm text-gray-700">{[selectedBooking.address?.addressLine1, selectedBooking.address?.addressLine2, selectedBooking.address?.landmark].filter(Boolean).join(', ') || 'Address not available'}</p>
+                        <p className="mt-1 text-sm text-gray-700">{[selectedBooking.address?.city, selectedBooking.address?.state, selectedBooking.address?.pincode].filter(Boolean).join(', ')}</p>
+                      </section>
+                      <section className="rounded-xl border border-gray-100 p-4">
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-900"><FiCreditCard className="text-blue-600" /> Payment</h3>
+                        <p className="text-sm text-gray-700">Method: <span className="font-semibold capitalize">{selectedBooking.paymentMethod?.replaceAll('_', ' ') || 'Not selected'}</span></p>
+                        <p className="mt-1 text-sm text-gray-700">Status: <span className="font-semibold capitalize">{selectedBooking.paymentStatus?.replaceAll('_', ' ') || 'Pending'}</span></p>
+                        {selectedBooking.razorpayPaymentId && <p className="mt-1 break-all text-xs text-gray-500">Payment ID: {selectedBooking.razorpayPaymentId}</p>}
+                      </section>
+                    </div>
+
+                    <section className="rounded-xl border border-gray-100 p-4">
+                      <h3 className="mb-3 text-sm font-bold text-gray-900">Amount Breakdown</h3>
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
+                        <p className="text-gray-500">Base <span className="float-right font-semibold text-gray-800">{formatAmount(selectedBooking.basePrice)}</span></p>
+                        <p className="text-gray-500">Discount <span className="float-right font-semibold text-gray-800">{formatAmount(selectedBooking.discount)}</span></p>
+                        <p className="text-gray-500">Tax <span className="float-right font-semibold text-gray-800">{formatAmount(selectedBooking.tax)}</span></p>
+                        <p className="text-gray-500">Visit fee <span className="float-right font-semibold text-gray-800">{formatAmount(selectedBooking.visitingCharges)}</span></p>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
+                        <span className="text-sm font-bold text-gray-900">Final Amount</span>
+                        <span className="text-lg font-bold text-blue-700">{formatAmount(selectedBooking.finalAmount)}</span>
+                      </div>
+                    </section>
+
+                    {(selectedBooking.cancellationReason || selectedBooking.vendorNotes || selectedBooking.workerNotes) && (
+                      <section className="rounded-xl border border-gray-100 p-4">
+                        <h3 className="mb-2 text-sm font-bold text-gray-900">Notes</h3>
+                        {selectedBooking.cancellationReason && <p className="text-sm text-red-600">Cancellation: {selectedBooking.cancellationReason}</p>}
+                        {selectedBooking.vendorNotes && <p className="mt-1 text-sm text-gray-700">Vendor: {selectedBooking.vendorNotes}</p>}
+                        {selectedBooking.workerNotes && <p className="mt-1 text-sm text-gray-700">Worker: {selectedBooking.workerNotes}</p>}
+                      </section>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

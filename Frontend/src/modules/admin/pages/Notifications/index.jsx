@@ -149,45 +149,45 @@ const Notifications = () => {
 
           <form onSubmit={sendBroadcast}>
             <div className="space-y-4 p-5">
-            <div>
-              <label htmlFor="broadcast-audience" className="mb-1.5 block text-xs font-semibold text-gray-700">Send to</label>
-              <select
-                id="broadcast-audience"
-                value={broadcast.audience}
-                onChange={(event) => setBroadcast(current => ({ ...current, audience: event.target.value }))}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              >
-                <option value="all">All users and vendors</option>
-                <option value="users">Users only</option>
-                <option value="vendors">Vendors only</option>
-              </select>
-            </div>
+              <div>
+                <label htmlFor="broadcast-audience" className="mb-1.5 block text-xs font-semibold text-gray-700">Send to</label>
+                <select
+                  id="broadcast-audience"
+                  value={broadcast.audience}
+                  onChange={(event) => setBroadcast(current => ({ ...current, audience: event.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="all">All users and vendors</option>
+                  <option value="users">Users only</option>
+                  <option value="vendors">Vendors only</option>
+                </select>
+              </div>
 
-            <div>
-              <label htmlFor="broadcast-title" className="mb-1.5 block text-xs font-semibold text-gray-700">Title</label>
-              <input
-                id="broadcast-title"
-                value={broadcast.title}
-                onChange={(event) => setBroadcast(current => ({ ...current, title: event.target.value }))}
-                maxLength={120}
-                placeholder="Example: Service update"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
+              <div>
+                <label htmlFor="broadcast-title" className="mb-1.5 block text-xs font-semibold text-gray-700">Title</label>
+                <input
+                  id="broadcast-title"
+                  value={broadcast.title}
+                  onChange={(event) => setBroadcast(current => ({ ...current, title: event.target.value }))}
+                  maxLength={120}
+                  placeholder="Example: Service update"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="broadcast-message" className="mb-1.5 block text-xs font-semibold text-gray-700">Message</label>
-              <textarea
-                id="broadcast-message"
-                value={broadcast.message}
-                onChange={(event) => setBroadcast(current => ({ ...current, message: event.target.value }))}
-                maxLength={1000}
-                rows={5}
-                placeholder="Write the announcement your audience should receive."
-                className="w-full resize-y rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-              <p className="mt-1 text-right text-xs text-gray-400">{broadcast.message.length}/1000</p>
-            </div>
+              <div>
+                <label htmlFor="broadcast-message" className="mb-1.5 block text-xs font-semibold text-gray-700">Message</label>
+                <textarea
+                  id="broadcast-message"
+                  value={broadcast.message}
+                  onChange={(event) => setBroadcast(current => ({ ...current, message: event.target.value }))}
+                  maxLength={1000}
+                  rows={5}
+                  placeholder="Write the announcement your audience should receive."
+                  className="w-full resize-y rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+                <p className="mt-1 text-right text-xs text-gray-400">{broadcast.message.length}/1000</p>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 border-t border-gray-100 p-5">
