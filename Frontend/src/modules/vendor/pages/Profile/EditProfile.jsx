@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSave, FiUser, FiBriefcase, FiPhone, FiMail, FiMapPin, FiChevronDown, FiCamera, FiUpload } from 'react-icons/fi';
+import { FiSave, FiUser, FiBriefcase, FiPhone, FiMail, FiMapPin, FiCamera, FiUpload } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
-import { publicCatalogService } from '../../../../services/catalogService';
 import { vendorAuthService } from '../../../../services/authService';
 import AddressSelectionModal from '../../../user/pages/Checkout/components/AddressSelectionModal';
 import { toast } from 'react-hot-toast';
@@ -21,19 +20,10 @@ const vendorProfileSchema = z.object({
     return (typeof val === 'string' && val.trim().length > 0) ||
       (typeof val === 'object' && val !== null && (val.fullAddress || val.addressLine1));
   }, "Address is required"),
-  serviceCategories: z.any().optional(), // Relaxed validation for debugging
 });
 
 const EditProfile = () => {
   const navigate = useNavigate();
-
-  // Helper function to convert hex to rgba
-  const hexToRgba = (hex, alpha) => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -41,7 +31,6 @@ const EditProfile = () => {
     phone: '',
     email: '',
     address: '',
-    serviceCategories: [], // Array for multiple selection
     profilePhoto: '', // URL
     aadharDocument: '', // URL
     serviceRange: 10,
@@ -53,9 +42,6 @@ const EditProfile = () => {
   const [uploading, setUploading] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
-  // Load service categories from admin config (dynamic)
-  const [categories, setCategories] = useState([]);
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [errors, setErrors] = useState({});
   const [isFlutter, setIsFlutter] = useState(flutterBridge.isFlutter);
 
@@ -90,21 +76,6 @@ const EditProfile = () => {
       }
     }
   };
-
-  useEffect(() => {
-    const loadServiceCategories = async () => {
-      try {
-        const catRes = await publicCatalogService.getCategories();
-        if (catRes.success) {
-          setCategories(catRes.categories || []);
-        }
-      } catch (error) {
-        console.error('Error loading service categories:', error);
-      }
-    };
-
-    loadServiceCategories();
-  }, []);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -145,7 +116,6 @@ const EditProfile = () => {
             phone: v.phone || '',
             email: v.email || '',
             address: addressData,
-            serviceCategories: Array.isArray(v.service) ? v.service : (v.service ? [v.service] : []),
             profilePhoto: v.profilePhoto || '',
             aadharDocument: v.aadharDocument || (v.aadhar && v.aadhar.document) || '',
             serviceRange: v.settings?.serviceRange || 10,
@@ -285,24 +255,6 @@ const EditProfile = () => {
     }
   };
 
-  const handleCategoryChange = (val) => {
-    setFormData(prev => {
-      const current = prev.serviceCategories || [];
-      const updated = current.includes(val)
-        ? current.filter(c => c !== val)
-        : [...current, val];
-
-      // When categories change, we might want to filter out skills that no longer apply?
-      // For now, let's keep all skills or clear them if categories become empty.
-      // Better: Keep skills, user can remove them manually.
-      return {
-        ...prev,
-        serviceCategories: updated,
-        // skills: [] // Optional: clear skills on category change? Maybe annoying. Let's keep them.
-      };
-    });
-  };
-
   const handleSubmit = async () => {
     // Zod Validation
     const validationResult = vendorProfileSchema.safeParse({
@@ -311,7 +263,6 @@ const EditProfile = () => {
       phone: formData.phone,
       email: formData.email,
       address: formData.address,
-      serviceCategories: formData.serviceCategories,
     });
 
     if (!validationResult.success) {
@@ -354,7 +305,6 @@ const EditProfile = () => {
         name: formData.name,
         businessName: formData.businessName,
         address: formData.address,
-        serviceCategory: formData.serviceCategories,
         profilePhoto: photoUrl,
         aadharDocument: aadharUrl,
         serviceRange: formData.serviceRange
@@ -573,7 +523,7 @@ const EditProfile = () => {
             {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
           </div>
 
-          {/* Service Category (Multi-Select) */}
+          {/*
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <div
@@ -642,6 +592,7 @@ const EditProfile = () => {
             </div>
             {errors.serviceCategories && <p className="text-red-500 text-sm mt-1">{errors.serviceCategories}</p>}
           </div>
+          */}
 
           {/* Service Range */}
           <div>

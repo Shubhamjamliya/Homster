@@ -144,7 +144,7 @@ const verifyLogin = async (req, res) => {
           email: vendor.email,
           phone: vendor.phone,
           businessName: vendor.businessName,
-          service: vendor.service,
+          service: vendor.categories?.length ? vendor.categories : vendor.service,
           approvalStatus: vendor.approvalStatus
         },
         ...tokens
@@ -249,7 +249,7 @@ const register = async (req, res) => {
 
     const vendor = await Vendor.create({
       name, email, phone,
-      service: [], // Default empty as requested
+      categories: [],
       aadhar: {
         number: aadhar,
         document: aadharUrl,
@@ -421,7 +421,7 @@ const login = async (req, res) => {
         email: vendor.email,
         phone: vendor.phone,
         businessName: vendor.businessName,
-        service: vendor.service
+        service: vendor.categories?.length ? vendor.categories : vendor.service
       },
       ...tokens
     });

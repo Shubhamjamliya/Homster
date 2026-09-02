@@ -35,9 +35,8 @@ const vendorSchema = new mongoose.Schema({
     trim: true
   },
   service: {
-    type: [String], // Changed to array for multiple categories
-    default: [],
-    // required: [true, 'Please provide at least one service category'] 
+    type: [String],
+    default: undefined
   },
   categories: {
     type: [String],

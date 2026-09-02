@@ -18,6 +18,7 @@
     "upload:home-content-images": "node scripts/uploadHomeContentImages.js",
     "update:home-content-images": "node scripts/updateHomeContentImages.js",
     "migrate:category-icons": "node scripts/migrateCategoryIcons.js",
+    "migrate:vendor-categories": "node scripts/migrateVendorCategories.js",
     "upload:icons": "node scripts/uploadIcons.js",
     "upload:home": "node scripts/uploadHomeImages.js",
     "upload:services": "node scripts/uploadServiceImages.js"

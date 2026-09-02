@@ -3,6 +3,21 @@ const Vendor = require('../../models/Vendor');
 const { validationResult } = require('express-validator');
 const cloudinaryService = require('../../services/cloudinaryService');
 
+const normalizeCategories = (input) => {
+  const values = Array.isArray(input)
+    ? input
+    : (typeof input === 'string' ? input.split(',') : []);
+  const uniqueCategories = new Map();
+
+  values.forEach((value) => {
+    if (typeof value !== 'string') return;
+    const category = value.trim();
+    if (category) uniqueCategories.set(category.toLowerCase(), category);
+  });
+
+  return [...uniqueCategories.values()];
+};
+
 /**
  * Get vendor profile
  */
@@ -31,6 +46,7 @@ const getProfile = async (req, res) => {
     const totalJobs = await Booking.countDocuments({ vendorId });
     const completedJobs = await Booking.countDocuments({ vendorId, status: 'completed' });
     const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
+    const serviceCategories = vendor.categories?.length ? vendor.categories : (vendor.service || []);
 
     res.status(200).json({
       success: true,
@@ -40,7 +56,8 @@ const getProfile = async (req, res) => {
         businessName: vendor.businessName || null,
         email: vendor.email,
         phone: vendor.phone,
-        service: vendor.service,
+        service: serviceCategories,
+        categories: serviceCategories,
         skills: vendor.skills || [],
         address: vendor.address || null,
         rating: rating > 0 ? parseFloat(rating.toFixed(1)) : 0,
@@ -142,14 +159,8 @@ const updateProfile = async (req, res) => {
 
     // Handle multiple service categories
     if (serviceCategory !== undefined) {
-      if (Array.isArray(serviceCategory)) {
-        vendor.service = serviceCategory;
-        vendor.categories = serviceCategory; // Sync categories field too
-      } else if (typeof serviceCategory === 'string') {
-        // If string, likely single value or comma separated
-        vendor.service = [serviceCategory];
-        vendor.categories = [serviceCategory];
-      }
+      vendor.categories = normalizeCategories(serviceCategory);
+      vendor.service = undefined;
     }
 
     // Handle service range
@@ -215,6 +226,7 @@ const updateProfile = async (req, res) => {
     }
 
     await vendor.save();
+    const serviceCategories = vendor.categories || [];
 
     res.status(200).json({
       success: true,
@@ -225,7 +237,8 @@ const updateProfile = async (req, res) => {
         businessName: vendor.businessName,
         email: vendor.email,
         phone: vendor.phone,
-        service: vendor.service,
+        service: serviceCategories,
+        categories: serviceCategories,
         address: vendor.address,
         approvalStatus: vendor.approvalStatus,
         isPhoneVerified: vendor.isPhoneVerified,

@@ -24,6 +24,7 @@ const Profile = () => {
     { id: 2, label: 'Wallet', icon: FaWallet, path: '/vendor/wallet' },
     { id: 3, label: 'Refer & Earn', icon: FiGift, path: '/vendor/refer-earn', badge: 'Earn ₹100' },
     { id: 5, label: 'My Ratings', icon: FiStar, path: '/vendor/my-ratings' },
+    { id: 12, label: 'Your Services', icon: FiBriefcase, path: '/vendor/your-services' },
     { id: 6, label: 'Bank Details & QR', icon: FiCreditCard, path: '/vendor/bank-details' },
     { id: 7, label: 'Manage Address', icon: FiMapPin, path: '/vendor/address-management' },
     { id: 8, label: 'Settings', icon: FiSettings, path: '/vendor/settings' },

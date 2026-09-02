@@ -525,7 +525,7 @@ const Dashboard = memo(() => {
               </button>
               <button type="button" onClick={() => {
                 setShowCategoryRequiredModal(false);
-                navigate('/vendor/profile/edit');
+                navigate('/vendor/your-services');
               }}
                 className="rounded-xl px-4 py-3 font-bold text-white shadow-lg transition-colors hover:brightness-95"
                 style={{ backgroundColor: themeColors.button }}>
@@ -627,7 +627,7 @@ const Dashboard = memo(() => {
         {!hasBookingCategory && (
           <div className="px-4 pt-2 -mb-2">
             <div
-              onClick={() => navigate('/vendor/profile')}
+              onClick={() => navigate('/vendor/your-services')}
               className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-orange-100 transition-colors"
             >
               <div className="flex items-center">
