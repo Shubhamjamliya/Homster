@@ -164,6 +164,13 @@ const register = async (req, res) => {
     const { name, email, verificationToken } = req.body;
     let phone = req.body.phone;
 
+    if (req.body.acceptedLegalPolicies !== true) {
+      return res.status(400).json({
+        success: false,
+        message: 'You must accept the Terms and Conditions and Privacy Policy to create an account.'
+      });
+    }
+
     // Verify token if provided (New Flow)
     if (verificationToken) {
       const verifiedPhone = verifyVerificationToken(verificationToken);
@@ -200,7 +207,12 @@ const register = async (req, res) => {
       email: email || null,
       phone,
       isPhoneVerified: true,
-      isEmailVerified: email ? false : true
+      isEmailVerified: email ? false : true,
+      legalAcceptance: {
+        termsAccepted: true,
+        privacyPolicyAccepted: true,
+        acceptedAt: new Date()
+      }
     });
 
     // Send Welcome Email

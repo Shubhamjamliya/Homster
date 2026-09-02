@@ -192,6 +192,13 @@ const register = async (req, res) => {
     const { name, email, verificationToken, aadhar, pan, gstin, referralCode } = req.body;
     let phone = req.body.phone;
 
+    if (req.body.acceptedLegalPolicies !== true) {
+      return res.status(400).json({
+        success: false,
+        message: 'You must accept the Terms and Conditions and Privacy Policy to create an account.'
+      });
+    }
+
     if (verificationToken) {
       const verifiedPhone = verifyVerificationToken(verificationToken);
       if (!verifiedPhone) return res.status(400).json({ success: false, message: 'Invalid verification session.' });
@@ -260,6 +267,11 @@ const register = async (req, res) => {
       otherDocuments: otherUrls,
       approvalStatus: VENDOR_STATUS.PENDING,
       isPhoneVerified: true,
+      legalAcceptance: {
+        termsAccepted: true,
+        privacyPolicyAccepted: true,
+        acceptedAt: new Date()
+      },
       referredBy: referrer ? referrer._id : null
     });
 

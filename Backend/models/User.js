@@ -36,6 +36,20 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  legalAcceptance: {
+    termsAccepted: {
+      type: Boolean,
+      default: false
+    },
+    privacyPolicyAccepted: {
+      type: Boolean,
+      default: false
+    },
+    acceptedAt: {
+      type: Date,
+      default: null
+    }
+  },
   profilePhoto: {
     type: String,
     default: null

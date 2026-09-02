@@ -30,6 +30,20 @@ const vendorSchema = new mongoose.Schema({
     type: String,
     select: false
   },
+  legalAcceptance: {
+    termsAccepted: {
+      type: Boolean,
+      default: false
+    },
+    privacyPolicyAccepted: {
+      type: Boolean,
+      default: false
+    },
+    acceptedAt: {
+      type: Date,
+      default: null
+    }
+  },
   businessName: {
     type: String,
     trim: true

@@ -30,6 +30,7 @@ const Signup = () => {
   const [verificationToken, setVerificationToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [hasAcceptedPolicies, setHasAcceptedPolicies] = useState(false);
 
   // Timer countdown effect
   useEffect(() => {
@@ -74,6 +75,11 @@ const Signup = () => {
   const handleDetailsSubmit = async (e) => {
     e.preventDefault();
 
+    if (!hasAcceptedPolicies) {
+      toast.error('Please accept the Terms and Conditions and Privacy Policy to continue.');
+      return;
+    }
+
     // Zod Validation
     const validationResult = signupSchema.safeParse(formData);
 
@@ -89,6 +95,7 @@ const Signup = () => {
         const response = await userAuthService.register({
           name: formData.name,
           email: formData.email || null,
+          acceptedLegalPolicies: true,
           verificationToken
         });
         if (response.success) {
@@ -177,7 +184,8 @@ const Signup = () => {
         email: formData.email || null,
         phone: formData.phoneNumber,
         otp: otpValue,
-        token: otpToken
+        token: otpToken,
+        acceptedLegalPolicies: true
       });
       if (response.success) {
         setIsLoading(false);
@@ -311,10 +319,29 @@ const Signup = () => {
                 </div>
               )}
 
+              <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasAcceptedPolicies}
+                  onChange={(e) => setHasAcceptedPolicies(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-[#347989] focus:ring-[#347989]"
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link to="/user/policies/user" target="_blank" rel="noreferrer" className="font-semibold text-[#347989] hover:underline">
+                    Terms and Conditions
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/user/policies/privacy" target="_blank" rel="noreferrer" className="font-semibold text-[#347989] hover:underline">
+                    Privacy Policy
+                  </Link>.
+                </span>
+              </label>
+
               <div className="animate-stagger-4 animate-fade-in">
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || !hasAcceptedPolicies}
                   className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white transition-all duration-500 shadow-lg hover:shadow-xl hover:-translate-y-1 transform disabled:opacity-50 disabled:cursor-not-allowed  overflow-hidden"
                   style={{
                     backgroundColor: brandColor,

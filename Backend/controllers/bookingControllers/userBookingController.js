@@ -36,7 +36,8 @@ const createBooking = async (req, res) => {
         $nin: [
           BOOKING_STATUS.COMPLETED,
           BOOKING_STATUS.CANCELLED,
-          BOOKING_STATUS.REJECTED
+          BOOKING_STATUS.REJECTED,
+          BOOKING_STATUS.NO_VENDORS
         ]
       }
     })

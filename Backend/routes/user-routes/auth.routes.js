@@ -32,7 +32,9 @@ const loginValidation = [
 // Relaxed register validation to support either OTP or verificationToken
 const registerValidation = [
   body('name').trim().notEmpty().withMessage('Name is required'),
-  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Please provide a valid email')
+  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Please provide a valid email'),
+  body('acceptedLegalPolicies').custom(value => value === true)
+    .withMessage('Terms and Conditions and Privacy Policy acceptance is required')
   // Phone/OTP/VerificationToken validation handled in controller logic for flexibility
 ];
 

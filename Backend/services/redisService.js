@@ -7,6 +7,7 @@ const Redis = require('ioredis');
 
 let redis = null;
 let isConnected = false;
+let hasLoggedConnectionError = false;
 
 /**
  * Initialize Redis connection
@@ -17,39 +18,49 @@ const initRedis = () => {
     return null;
   }
 
+  if (redis) return redis;
+
   try {
     const redisUrl = process.env.REDIS_URL;
+    const redisOptions = {
+      connectTimeout: 5000,
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
+      retryStrategy: (times) => {
+        if (times > 3) {
+          console.warn('[Redis] Unavailable after 3 retries. Continuing with MongoDB fallbacks.');
+          return null;
+        }
+        return Math.min(times * 500, 2000);
+      }
+    };
 
     if (redisUrl) {
-      redis = new Redis(redisUrl);
+      redis = new Redis(redisUrl, redisOptions);
     } else {
       redis = new Redis({
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT) || 6379,
         password: process.env.REDIS_PASSWORD || undefined,
-        retryStrategy: (times) => {
-          if (times > 3) {
-            console.log('[Redis] Max retries reached, giving up');
-            return null;
-          }
-          return Math.min(times * 200, 2000);
-        }
+        ...redisOptions
       });
     }
 
     redis.on('connect', () => {
       isConnected = true;
+      hasLoggedConnectionError = false;
       console.log('[Redis] ✅ Connected successfully');
     });
 
     redis.on('error', (err) => {
       isConnected = false;
-      console.error('[Redis] ❌ Error:', err.message);
+      if (hasLoggedConnectionError) return;
+      hasLoggedConnectionError = true;
+      console.error('[Redis] Connection error:', err?.message || err?.code || String(err));
     });
 
     redis.on('close', () => {
       isConnected = false;
-      console.log('[Redis] Connection closed');
     });
 
     return redis;

@@ -43,6 +43,7 @@ const VendorSignup = () => {
   const [documentPreview, setDocumentPreview] = useState({});
   const [uploadingDocs, setUploadingDocs] = useState({});
   const [resendTimer, setResendTimer] = useState(0);
+  const [hasAcceptedPolicies, setHasAcceptedPolicies] = useState(false);
 
   // Refs for auto-focus
   const nameInputRef = useRef(null);
@@ -187,6 +188,11 @@ const VendorSignup = () => {
     if (e && e.preventDefault) e.preventDefault();
     setFieldErrors({});
 
+    if (!hasAcceptedPolicies) {
+      toast.error('Please accept the Terms and Conditions and Privacy Policy to continue.');
+      return;
+    }
+
     // Zod Validation
     const validationResult = vendorSignupSchema.safeParse({
       name: formData.name?.trim(),
@@ -233,6 +239,7 @@ const VendorSignup = () => {
           pan: formData.pan.trim(),
           gstin: formData.gstin?.trim() || undefined,
           service: [],
+          acceptedLegalPolicies: true,
           aadharDocument: aadharDoc,
           aadharBackDocument: aadharBackDoc,
           panDocument: panDoc,
@@ -338,7 +345,8 @@ const VendorSignup = () => {
         otherDocuments: otherDocs,
         referralCode: formData.referralCode?.trim() || undefined,
         otp: otpValue,
-        token: otpToken
+        token: otpToken,
+        acceptedLegalPolicies: true
       };
 
       const response = await register(registerData);
@@ -659,10 +667,29 @@ const VendorSignup = () => {
                 </div>
               </div>
 
+              <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasAcceptedPolicies}
+                  onChange={(e) => setHasAcceptedPolicies(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-[#347989] focus:ring-[#347989]"
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link to="/vendor/policies/vendor" target="_blank" rel="noreferrer" className="font-semibold text-[#347989] hover:underline">
+                    Terms and Conditions
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/vendor/policies/privacy" target="_blank" rel="noreferrer" className="font-semibold text-[#347989] hover:underline">
+                    Privacy Policy
+                  </Link>.
+                </span>
+              </label>
+
               <div className="animate-stagger-3 animate-fade-in">
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || !hasAcceptedPolicies}
                   onClick={handleDetailsSubmit}
                   className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-base font-bold rounded-xl text-white transition-all transform hover:-translate-y-1 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden active:scale-98"
                   style={{
