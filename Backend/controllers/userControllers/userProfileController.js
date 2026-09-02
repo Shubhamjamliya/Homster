@@ -184,7 +184,7 @@ const getCheckoutData = async (req, res) => {
     const [user, cart, settings] = await Promise.all([
       User.findById(userId).select('addresses phone name'),
       Cart.findOne({ userId }).populate('items.serviceId', 'title iconUrl slug').populate('items.categoryId', 'title slug'),
-      Settings.findOne({ type: 'global' }).select('visitedCharges serviceGstPercentage partsGstPercentage')
+      Settings.findOne({ type: 'global' }).select('visitedCharges serviceGstPercentage partsGstPercentage searchRadius')
     ]);
 
     if (!user) {
@@ -203,7 +203,7 @@ const getCheckoutData = async (req, res) => {
         addresses: user.addresses || []
       },
       cartItems: cart ? cart.items : [],
-      settings: settings || { visitedCharges: 29, serviceGstPercentage: 18, partsGstPercentage: 18 }
+      settings: settings || { visitedCharges: 29, serviceGstPercentage: 18, partsGstPercentage: 18, searchRadius: 10 }
     });
   } catch (error) {
     console.error('Get checkout data error:', error);

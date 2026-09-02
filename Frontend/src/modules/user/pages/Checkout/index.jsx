@@ -61,6 +61,7 @@ const Checkout = () => {
   const [selectedTime, setSelectedTime] = useState(null);
   const [visitedFee, setVisitedFee] = useState(29);
   const [gstPercentage, setGstPercentage] = useState(18);
+  const [searchRadius, setSearchRadius] = useState(10);
   const [bookingType, setBookingType] = useState('instant'); // 'instant' | 'scheduled'
 
   // Check if Razorpay is loaded (defer to avoid blocking initial render)
@@ -126,6 +127,7 @@ const Checkout = () => {
           if (response.success) {
             setVisitedFee(0); // Plans usually have 0 visitor fee
             setGstPercentage(response.settings?.serviceGstPercentage ?? 18);
+            setSearchRadius(response.settings?.searchRadius ?? 10);
 
             if (response.user?.addresses?.length > 0) {
               const defaultAddr = response.user.addresses.find(a => a.isDefault) || response.user.addresses[0];
@@ -148,6 +150,7 @@ const Checkout = () => {
             // Set Config
             setVisitedFee(response.settings?.visitedCharges ?? 29);
             setGstPercentage(response.settings?.serviceGstPercentage ?? 18);
+            setSearchRadius(response.settings?.searchRadius ?? 10);
 
             // Set Addresses
             if (response.user?.addresses?.length > 0) {
@@ -672,7 +675,7 @@ const Checkout = () => {
       } else {
         // Move to waiting state - alerts sent to nearby vendors
         setCurrentStep('waiting');
-        toast.success('Finding nearby vendors... Alerts sent to vendors within 10km!');
+        toast.success(`Finding nearby vendors... Alerts sent to vendors within ${searchRadius} km!`);
       }
 
       // REMOVED local setCartItems([]) - The summary should remain visible while searching
@@ -1584,6 +1587,7 @@ const Checkout = () => {
         }}
         currentStep={currentStep}
         acceptedVendor={acceptedVendor}
+        searchRadius={searchRadius}
         onRetry={() => {
           handleSearchVendors();
         }}

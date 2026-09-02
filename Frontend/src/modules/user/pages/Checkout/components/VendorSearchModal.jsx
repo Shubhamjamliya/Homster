@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { themeColors } from '../../../../../theme';
 
-const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry }) => {
+const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry, searchRadius = 10 }) => {
   const [dots, setDots] = useState('.');
 
   useEffect(() => {
@@ -76,7 +76,7 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
             <div className="text-center relative z-20 px-4 mb-4">
               <h3 className="text-xl font-black text-gray-900 mb-2">Searching nearby {currentStep === 'waiting' ? 'professionals' : 'experts'}</h3>
               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
-                Searching within 10km radius{dots}
+                Searching within {searchRadius} km radius{dots}
               </p>
             </div>
 
