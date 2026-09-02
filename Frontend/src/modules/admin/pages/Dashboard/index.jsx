@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiBriefcase, FiUsers, FiShoppingBag, FiDollarSign, FiActivity, FiPercent, FiCreditCard, FiFileText, FiTrendingUp } from 'react-icons/fi';
+import { FiUser, FiBriefcase, FiUsers, FiShoppingBag, FiDollarSign, FiActivity, FiCreditCard, FiFileText, FiTrendingUp } from 'react-icons/fi';
 import RevenueLineChart from '../../components/dashboard/RevenueLineChart';
 import BookingsBarChart from '../../components/dashboard/BookingsBarChart';
 import BookingStatusPieChart from '../../components/dashboard/BookingStatusPieChart';
@@ -30,8 +30,14 @@ const AdminDashboard = () => {
     activeBookings: 0,
     completedBookings: 0,
     totalRevenue: 0,
+    totalCustomerPayments: 0,
+    totalAdminRevenue: 0,
     totalPlatformFeeCollected: 0,
     totalVendorEarnings: 0,
+    totalVendorServiceEarnings: 0,
+    totalVendorPartsEarnings: 0,
+    totalVendorPayouts: 0,
+    pendingVendorPayoutAmount: 0,
     totalWorkerEarnings: 0,
     totalGSTCollected: 0,
     todayRevenue: 0,
@@ -82,8 +88,14 @@ const AdminDashboard = () => {
             activeBookings: s.pendingBookings,
             completedBookings: s.completedBookings,
             totalRevenue: s.totalRevenue,
+            totalCustomerPayments: s.totalCustomerPayments || s.totalRevenue || 0,
+            totalAdminRevenue: s.totalAdminRevenue || s.totalPlatformFeeCollected || s.platformCommission || 0,
             totalPlatformFeeCollected: s.totalPlatformFeeCollected || s.platformCommission || 0,
             totalVendorEarnings: s.totalVendorEarnings || 0,
+            totalVendorServiceEarnings: s.totalVendorServiceEarnings || 0,
+            totalVendorPartsEarnings: s.totalVendorPartsEarnings || 0,
+            totalVendorPayouts: s.totalVendorPayouts || 0,
+            pendingVendorPayoutAmount: s.pendingVendorPayoutAmount || 0,
             totalWorkerEarnings: s.totalWorkerEarnings || 0,
             totalGSTCollected: s.totalGSTCollected || 0,
             todayRevenue: 0,
@@ -148,50 +160,28 @@ const AdminDashboard = () => {
     if (booking?._id || booking?.id) navigate(`/admin/bookings/${booking._id || booking.id}`);
   };
 
-  const statsCards = [
+  const adminPaymentCards = [
     {
-      title: period === 'month' ? 'Monthly Revenue' : period === 'year' ? 'Yearly Revenue' : period === 'today' ? 'Today\'s Revenue' : period === 'week' ? 'Weekly Revenue' : 'Revenue',
-      value: formatCurrency(stats.totalRevenue || 0),
+      title: 'Customer Payments Collected',
+      value: formatCurrency(stats.totalCustomerPayments || 0),
       change: 0,
       icon: FiDollarSign,
       color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-green-500 to-emerald-600',
-      cardBg: 'bg-gradient-to-br from-green-50 to-emerald-50',
+      bgColor: 'bg-gradient-to-br from-blue-500 to-indigo-600',
+      cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
       iconBg: 'bg-white/20',
-      link: '/admin/reports/revenue'
+      link: '/admin/payments'
     },
     {
-      title: 'Platform Fee Collected',
-      value: formatCurrency(stats.totalPlatformFeeCollected || 0),
+      title: 'Admin Revenue',
+      value: formatCurrency(stats.totalAdminRevenue || 0),
       change: 0,
-      icon: FiPercent,
+      icon: FiTrendingUp,
       color: 'text-white',
       bgColor: 'bg-gradient-to-br from-emerald-500 to-green-600',
       cardBg: 'bg-gradient-to-br from-emerald-50 to-green-50',
       iconBg: 'bg-white/20',
       link: '/admin/reports/revenue'
-    },
-    {
-      title: 'Vendor Earnings',
-      value: formatCurrency(stats.totalVendorEarnings || 0),
-      change: 0,
-      icon: FiBriefcase,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-cyan-500 to-sky-600',
-      cardBg: 'bg-gradient-to-br from-cyan-50 to-sky-50',
-      iconBg: 'bg-white/20',
-      link: '/admin/vendors/analytics'
-    },
-    {
-      title: 'Worker Earnings',
-      value: formatCurrency(stats.totalWorkerEarnings || 0),
-      change: 0,
-      icon: FiCreditCard,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-fuchsia-500 to-pink-600',
-      cardBg: 'bg-gradient-to-br from-fuchsia-50 to-pink-50',
-      iconBg: 'bg-white/20',
-      link: '/admin/workers/analytics'
     },
     {
       title: 'GST Collected',
@@ -203,7 +193,63 @@ const AdminDashboard = () => {
       cardBg: 'bg-gradient-to-br from-amber-50 to-orange-50',
       iconBg: 'bg-white/20',
       link: '/admin/reports/revenue'
+    }
+  ];
+
+  const vendorPaymentCards = [
+    {
+      title: 'Vendor Total Earnings',
+      value: formatCurrency(stats.totalVendorEarnings || 0),
+      icon: FiBriefcase,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-cyan-500 to-sky-600',
+      cardBg: 'bg-gradient-to-br from-cyan-50 to-sky-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/vendors/analytics'
     },
+    {
+      title: 'Vendor Service Earnings',
+      value: formatCurrency(stats.totalVendorServiceEarnings || 0),
+      icon: FiDollarSign,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-violet-500 to-purple-600',
+      cardBg: 'bg-gradient-to-br from-violet-50 to-purple-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/vendors/analytics'
+    },
+    {
+      title: 'Vendor Parts Earnings',
+      value: formatCurrency(stats.totalVendorPartsEarnings || 0),
+      icon: FiShoppingBag,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-indigo-500 to-blue-600',
+      cardBg: 'bg-gradient-to-br from-indigo-50 to-blue-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/vendors/analytics'
+    },
+    {
+      title: 'Vendor Payouts Completed',
+      value: formatCurrency(stats.totalVendorPayouts || 0),
+      icon: FiCreditCard,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-green-500 to-emerald-600',
+      cardBg: 'bg-gradient-to-br from-green-50 to-emerald-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/payments/vendors'
+    },
+    {
+      title: 'Vendor Payouts Pending',
+      value: formatCurrency(stats.pendingVendorPayoutAmount || 0),
+      icon: FiActivity,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-orange-500 to-amber-600',
+      cardBg: 'bg-gradient-to-br from-orange-50 to-amber-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/payments/vendors'
+    }
+  ];
+
+  const operationalCards = [
     {
       title: 'Pending Bookings',
       value: (stats.activeBookings || 0).toLocaleString(),
@@ -214,6 +260,16 @@ const AdminDashboard = () => {
       cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
       iconBg: 'bg-white/20',
       link: '/admin/reports/bookings'
+    },
+    {
+      title: 'Worker Earnings',
+      value: formatCurrency(stats.totalWorkerEarnings || 0),
+      icon: FiCreditCard,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-fuchsia-500 to-pink-600',
+      cardBg: 'bg-gradient-to-br from-fuchsia-50 to-pink-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/workers/analytics'
     },
     {
       title: 'Completed Bookings',
@@ -261,6 +317,42 @@ const AdminDashboard = () => {
     },
   ];
 
+  const renderStatCards = (cards, title, description) => (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-sm font-bold text-gray-800">{title}</h2>
+        <p className="text-xs text-gray-500">{description}</p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        {cards.map((card, index) => {
+          const Icon = card.icon;
+
+          return (
+            <motion.div
+              key={card.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.08 }}
+              onClick={() => card.link && navigate(card.link)}
+              className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-sm border border-transparent hover:shadow-md transition-all duration-300 relative overflow-hidden cursor-pointer group`}
+            >
+              <div className={`absolute top-0 right-0 w-24 h-24 ${card.bgColor} opacity-10 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform`} />
+              <div className="flex items-center justify-between mb-2 sm:mb-3 relative z-10">
+                <div className={`${card.bgColor} ${card.iconBg} p-1.5 sm:p-2 rounded-lg shadow-sm`}>
+                  <Icon className={`${card.color} text-base sm:text-lg`} />
+                </div>
+              </div>
+              <div className="relative z-10">
+                <h3 className="text-gray-600 text-[10px] sm:text-xs font-medium mb-0.5">{card.title}</h3>
+                <p className="text-gray-800 text-lg sm:text-xl font-bold">{card.value}</p>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </section>
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -279,45 +371,9 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-        {statsCards.map((card, index) => {
-          const Icon = card.icon;
-          const isPositive = (card.change || 0) >= 0;
-
-          return (
-            <motion.div
-              key={card.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.08 }}
-              onClick={() => card.link && navigate(card.link)}
-              className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-sm border border-transparent hover:shadow-md transition-all duration-300 relative overflow-hidden cursor-pointer group`}
-            >
-              <div className={`absolute top-0 right-0 w-24 h-24 ${card.bgColor} opacity-10 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform`} />
-
-              <div className="flex items-center justify-between mb-2 sm:mb-3 relative z-10">
-                <div className={`${card.bgColor} ${card.iconBg} p-1.5 sm:p-2 rounded-lg shadow-sm`}>
-                  <Icon className={`${card.color} text-base sm:text-lg`} />
-                </div>
-                {card.change !== 0 && (
-                  <div
-                    className={`text-[10px] sm:text-xs font-semibold px-1.5 py-0.5 rounded-full ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}
-                  >
-                    {isPositive ? '+' : ''}
-                    {Math.abs(card.change || 0)}%
-                  </div>
-                )}
-              </div>
-
-              <div className="relative z-10">
-                <h3 className="text-gray-600 text-[10px] sm:text-xs font-medium mb-0.5">{card.title}</h3>
-                <p className="text-gray-800 text-lg sm:text-xl font-bold">{card.value}</p>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+      {renderStatCards(adminPaymentCards, 'Admin & Platform Payments', 'Customer collections, platform revenue, and taxes for the selected period.')}
+      {renderStatCards(vendorPaymentCards, 'Vendor Payments', 'Vendor earnings and withdrawal payouts for the selected period.')}
+      {renderStatCards(operationalCards, 'Operations Overview', 'Booking activity, worker payments, and account growth.')}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <RevenueLineChart data={revenueData} period={period} />

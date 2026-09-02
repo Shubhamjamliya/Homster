@@ -60,6 +60,17 @@ const getDashboardStats = async (req, res) => {
       }
     }
 
+    const vendorPayoutDateFilter = {};
+    if (startDate || endDate) {
+      vendorPayoutDateFilter.processedDate = {};
+      if (startDate) vendorPayoutDateFilter.processedDate.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        vendorPayoutDateFilter.processedDate.$lte = end;
+      }
+    }
+
     const [
       totalUsers,
       totalVendors,
@@ -71,6 +82,8 @@ const getDashboardStats = async (req, res) => {
       revenueResult,
       vendorBillRevenueResult,
       workerPaymentResult,
+      approvedVendorPayoutResult,
+      pendingVendorPayoutResult,
       pendingVendors,
       approvedVendors,
       pendingWithdrawals,
@@ -120,8 +133,11 @@ const getDashboardStats = async (req, res) => {
         {
           $group: {
             _id: null,
+            totalCustomerPayments: { $sum: '$grandTotal' },
             totalPlatformFeeCollected: { $sum: '$companyRevenue' },
             totalVendorEarnings: { $sum: '$vendorTotalEarning' },
+            totalVendorServiceEarnings: { $sum: '$vendorServiceEarning' },
+            totalVendorPartsEarnings: { $sum: '$vendorPartsEarning' },
             totalGSTCollected: { $sum: '$totalGST' }
           }
         }
@@ -141,6 +157,34 @@ const getDashboardStats = async (req, res) => {
           }
         }
       ]),
+      Withdrawal.aggregate([
+        {
+          $match: {
+            status: 'approved',
+            ...vendorPayoutDateFilter
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalVendorPayouts: { $sum: { $ifNull: ['$netAmount', '$amount'] } }
+          }
+        }
+      ]),
+      Withdrawal.aggregate([
+        {
+          $match: {
+            status: 'pending',
+            ...dateFilter
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            pendingVendorPayoutAmount: { $sum: '$amount' }
+          }
+        }
+      ]),
       Vendor.countDocuments({ approvalStatus: VENDOR_STATUS.PENDING, ...dateFilter }),
       Vendor.countDocuments({ approvalStatus: VENDOR_STATUS.APPROVED, ...dateFilter }),
       Withdrawal.countDocuments({ status: 'pending', ...dateFilter }),
@@ -156,11 +200,16 @@ const getDashboardStats = async (req, res) => {
 
     const revenue = revenueResult[0] || { totalRevenue: 0, totalBookings: 0 };
     const vendorBillRevenue = vendorBillRevenueResult[0] || {
+      totalCustomerPayments: 0,
       totalPlatformFeeCollected: 0,
       totalVendorEarnings: 0,
+      totalVendorServiceEarnings: 0,
+      totalVendorPartsEarnings: 0,
       totalGSTCollected: 0
     };
     const workerPaymentStats = workerPaymentResult[0] || { totalWorkerEarnings: 0 };
+    const approvedVendorPayouts = approvedVendorPayoutResult[0] || { totalVendorPayouts: 0 };
+    const pendingVendorPayouts = pendingVendorPayoutResult[0] || { pendingVendorPayoutAmount: 0 };
     const platformCommission = vendorBillRevenue.totalPlatformFeeCollected || (revenue.totalRevenue * 0.2);
 
     const recentBookings = recentActivityDocs.map(b => ({
@@ -190,9 +239,15 @@ const getDashboardStats = async (req, res) => {
           completedBookings,
           cancelledBookings,
           totalRevenue: revenue.totalRevenue,
+          totalCustomerPayments: vendorBillRevenue.totalCustomerPayments || revenue.totalRevenue,
+          totalAdminRevenue: vendorBillRevenue.totalPlatformFeeCollected || platformCommission,
           platformCommission,
           totalPlatformFeeCollected: vendorBillRevenue.totalPlatformFeeCollected || 0,
           totalVendorEarnings: vendorBillRevenue.totalVendorEarnings || 0,
+          totalVendorServiceEarnings: vendorBillRevenue.totalVendorServiceEarnings || 0,
+          totalVendorPartsEarnings: vendorBillRevenue.totalVendorPartsEarnings || 0,
+          totalVendorPayouts: approvedVendorPayouts.totalVendorPayouts || 0,
+          pendingVendorPayoutAmount: pendingVendorPayouts.pendingVendorPayoutAmount || 0,
           totalWorkerEarnings: workerPaymentStats.totalWorkerEarnings || 0,
           totalGSTCollected: vendorBillRevenue.totalGSTCollected || 0,
           pendingVendors,

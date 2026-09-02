@@ -1,4 +1,6 @@
 const Notification = require('../../models/Notification');
+const User = require('../../models/User');
+const Vendor = require('../../models/Vendor');
 const { validationResult } = require('express-validator');
 const { sendNotificationToUser, sendNotificationToVendor, sendNotificationToWorker } = require('../../services/firebaseAdmin');
 
@@ -155,6 +157,69 @@ const createNotification = async ({
   } catch (error) {
     console.error('Create notification error:', error);
     return null;
+  }
+};
+
+/**
+ * Send an admin announcement to all active users, vendors, or both.
+ */
+const broadcastNotification = async (req, res) => {
+  try {
+    const { audience, title, message } = req.body;
+    const normalizedAudience = String(audience || '').toLowerCase();
+    const normalizedTitle = String(title || '').trim();
+    const normalizedMessage = String(message || '').trim();
+
+    if (!['users', 'vendors', 'all'].includes(normalizedAudience)) {
+      return res.status(400).json({ success: false, message: 'Choose users, vendors, or both as the audience.' });
+    }
+
+    if (!normalizedTitle || normalizedTitle.length > 120) {
+      return res.status(400).json({ success: false, message: 'Title is required and must be 120 characters or fewer.' });
+    }
+
+    if (!normalizedMessage || normalizedMessage.length > 1000) {
+      return res.status(400).json({ success: false, message: 'Message is required and must be 1000 characters or fewer.' });
+    }
+
+    const [users, vendors] = await Promise.all([
+      normalizedAudience === 'vendors' ? [] : User.find({ isActive: true }).select('_id').lean(),
+      normalizedAudience === 'users' ? [] : Vendor.find({ isActive: true }).select('_id').lean()
+    ]);
+
+    const recipients = [
+      ...users.map(user => ({ userId: user._id })),
+      ...vendors.map(vendor => ({ vendorId: vendor._id }))
+    ];
+
+    // Limit concurrent FCM calls while still delivering large broadcasts promptly.
+    const batchSize = 25;
+    let deliveredCount = 0;
+    for (let index = 0; index < recipients.length; index += batchSize) {
+      const batch = recipients.slice(index, index + batchSize);
+      const results = await Promise.all(batch.map(recipient => createNotification({
+        ...recipient,
+        type: 'general',
+        title: normalizedTitle,
+        message: normalizedMessage,
+        data: {
+          source: 'admin_broadcast',
+          audience: normalizedAudience,
+          sentBy: String(req.user.id)
+        },
+        priority: 'high'
+      })));
+      deliveredCount += results.filter(Boolean).length;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Broadcast sent to ${deliveredCount} recipient${deliveredCount === 1 ? '' : 's'}.`,
+      data: { audience: normalizedAudience, recipientCount: deliveredCount }
+    });
+  } catch (error) {
+    console.error('Broadcast notification error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to send broadcast. Please try again.' });
   }
 };
 
@@ -508,6 +573,7 @@ const deleteAllNotifications = async (req, res) => {
 
 module.exports = {
   createNotification,
+  broadcastNotification,
   getUserNotifications,
   getVendorNotifications,
   getWorkerNotifications,

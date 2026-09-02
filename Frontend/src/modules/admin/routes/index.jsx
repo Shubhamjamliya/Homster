@@ -67,6 +67,7 @@ const AdminRoutes = () => {
           <Route path="payments/*" element={<Payments />} />
           <Route path="reports/*" element={<Reports />} />
           <Route path="notifications/*" element={<Notifications />} />
+          <Route path="broadcast" element={<Notifications />} />
           <Route path="scrap" element={<Scrap />} />
           <Route path="plans" element={<Plans />} />
           <Route path="reviews" element={<Reviews />} />

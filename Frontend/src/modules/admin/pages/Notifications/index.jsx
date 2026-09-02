@@ -1,20 +1,30 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiBell, FiRefreshCw, FiCheck, FiCheckCircle, FiTrash2, FiFilter, FiUser, FiDollarSign, FiUserCheck } from 'react-icons/fi';
+import { FiBell, FiRefreshCw, FiCheck, FiCheckCircle, FiTrash2, FiFilter, FiUser, FiDollarSign, FiUserCheck, FiSend } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import api from '../../../../services/api';
 
 const Notifications = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isBroadcastPage = location.pathname === '/admin/broadcast';
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, unread, read
   const [refreshing, setRefreshing] = useState(false);
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [broadcast, setBroadcast] = useState({
+    audience: 'all',
+    title: '',
+    message: ''
+  });
 
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/notifications', {
+      const res = await api.get('/notifications/admin', {
         params: { limit: 50 }
       });
       if (res.data.success) {
@@ -29,8 +39,8 @@ const Notifications = () => {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    if (!isBroadcastPage) fetchNotifications();
+  }, [fetchNotifications, isBroadcastPage]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -72,6 +82,37 @@ const Notifications = () => {
     }
   };
 
+  const sendBroadcast = async (event) => {
+    event.preventDefault();
+
+    if (!broadcast.title.trim() || !broadcast.message.trim()) {
+      toast.error('Please enter a title and message.');
+      return;
+    }
+
+    setIsSendingBroadcast(true);
+    try {
+      const response = await api.post('/notifications/broadcast', {
+        audience: broadcast.audience,
+        title: broadcast.title.trim(),
+        message: broadcast.message.trim()
+      });
+
+      if (response.data.success) {
+        toast.success(response.data.message);
+        setBroadcast({ audience: 'all', title: '', message: '' });
+        navigate('/admin/notifications');
+      } else {
+        toast.error(response.data.message || 'Failed to send broadcast.');
+      }
+    } catch (error) {
+      console.error('Broadcast error:', error);
+      toast.error(error.response?.data?.message || 'Failed to send broadcast.');
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
   const getIcon = (type) => {
     switch (type) {
       case 'vendor_withdrawal_request':
@@ -92,6 +133,86 @@ const Notifications = () => {
   });
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  if (isBroadcastPage) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mx-auto w-full max-w-lg"
+      >
+        <div className="rounded-2xl bg-white shadow-sm">
+          <div className="border-b border-gray-100 p-5">
+            <h1 className="text-lg font-bold text-gray-900">Send Broadcast</h1>
+            <p className="mt-1 text-xs text-gray-500">This sends an in-app and push notification to the selected audience.</p>
+          </div>
+
+          <form onSubmit={sendBroadcast}>
+            <div className="space-y-4 p-5">
+            <div>
+              <label htmlFor="broadcast-audience" className="mb-1.5 block text-xs font-semibold text-gray-700">Send to</label>
+              <select
+                id="broadcast-audience"
+                value={broadcast.audience}
+                onChange={(event) => setBroadcast(current => ({ ...current, audience: event.target.value }))}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="all">All users and vendors</option>
+                <option value="users">Users only</option>
+                <option value="vendors">Vendors only</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="broadcast-title" className="mb-1.5 block text-xs font-semibold text-gray-700">Title</label>
+              <input
+                id="broadcast-title"
+                value={broadcast.title}
+                onChange={(event) => setBroadcast(current => ({ ...current, title: event.target.value }))}
+                maxLength={120}
+                placeholder="Example: Service update"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="broadcast-message" className="mb-1.5 block text-xs font-semibold text-gray-700">Message</label>
+              <textarea
+                id="broadcast-message"
+                value={broadcast.message}
+                onChange={(event) => setBroadcast(current => ({ ...current, message: event.target.value }))}
+                maxLength={1000}
+                rows={5}
+                placeholder="Write the announcement your audience should receive."
+                className="w-full resize-y rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+              <p className="mt-1 text-right text-xs text-gray-400">{broadcast.message.length}/1000</p>
+            </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-gray-100 p-5">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/notifications')}
+                disabled={isSendingBroadcast}
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSendingBroadcast || !broadcast.title.trim() || !broadcast.message.trim()}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FiSend />
+                {isSendingBroadcast ? 'Sending...' : 'Send Broadcast'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -115,6 +236,13 @@ const Notifications = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/admin/broadcast')}
+              className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1"
+            >
+              <FiSend className="text-sm" />
+              Broadcast
+            </button>
             <button
               onClick={handleRefresh}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
