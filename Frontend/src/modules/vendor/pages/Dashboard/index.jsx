@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight, FiGift } from 'react-icons/fi';
+import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight, FiGift, FiX } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -44,6 +44,7 @@ const Dashboard = memo(() => {
     businessName: 'Business Name',
     photo: null,
     service: [],
+    categories: [],
     isOnline: false
   });
   const [isOnline, setIsOnline] = useState(false);
@@ -52,8 +53,15 @@ const Dashboard = memo(() => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [globalConfig, setGlobalConfig] = useState({ maxSearchTime: 5, waveDuration: 60 });
+  const [showCategoryRequiredModal, setShowCategoryRequiredModal] = useState(false);
 
   const ignoredBookingIds = useRef(new Set());
+  const categoryPopupShown = useRef(false);
+
+  const hasBookingCategory = [
+    ...(Array.isArray(vendorProfile.service) ? vendorProfile.service : []),
+    ...(Array.isArray(vendorProfile.categories) ? vendorProfile.categories : [])
+  ].some(category => typeof category === 'string' && category.trim().length > 0);
 
   // Set background gradient
   useLayoutEffect(() => {
@@ -205,14 +213,25 @@ const Dashboard = memo(() => {
 
     // Load vendor profile from localStorage (once)
     const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
+    const profileHasCategory = [
+      ...(Array.isArray(profile.service) ? profile.service : []),
+      ...(Array.isArray(profile.categories) ? profile.categories : [])
+    ].some(category => typeof category === 'string' && category.trim().length > 0);
+
     setVendorProfile({
       name: profile.name || 'Vendor Name',
       businessName: profile.businessName || 'Business Name',
       photo: profile.profilePhoto || null,
       service: profile.service || [],
+      categories: profile.categories || [],
       isOnline: profile.isOnline || false
     });
     setIsOnline(profile.isOnline || false);
+
+    if (!profileHasCategory && !categoryPopupShown.current) {
+      categoryPopupShown.current = true;
+      setShowCategoryRequiredModal(true);
+    }
   }, []);
 
   // Main data loader - useCallback to prevent recreation
@@ -484,6 +503,39 @@ const Dashboard = memo(() => {
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
       <Header title="Dashboard" showBack={false} notificationCount={stats.pendingAlerts} />
 
+      {showCategoryRequiredModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="category-required-title">
+          <div className="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="relative bg-gradient-to-br from-orange-50 to-amber-50 px-6 pb-6 pt-7">
+              <button type="button" onClick={() => setShowCategoryRequiredModal(false)} aria-label="Close popup"
+                className="absolute right-4 top-4 rounded-full p-2 text-slate-500 transition-colors hover:bg-white/80 hover:text-slate-800">
+                <FiX className="h-5 w-5" />
+              </button>
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-500/25">
+                <FiBriefcase className="h-6 w-6" />
+              </div>
+              <h2 id="category-required-title" className="pr-8 text-xl font-black text-slate-900">Add a service category</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Choose at least one service category to start receiving booking requests from customers.</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 px-6 py-6 sm:grid-cols-2">
+              <button type="button" onClick={() => setShowCategoryRequiredModal(false)}
+                className="rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50">
+                Not now
+              </button>
+              <button type="button" onClick={() => {
+                setShowCategoryRequiredModal(false);
+                navigate('/vendor/profile/edit');
+              }}
+                className="rounded-xl px-4 py-3 font-bold text-white shadow-lg transition-colors hover:brightness-95"
+                style={{ backgroundColor: themeColors.button }}>
+                Add category
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="pt-0">
         {/* Profile Card Section */}
         <div className="px-4 pt-4 pb-2">
@@ -572,7 +624,7 @@ const Dashboard = memo(() => {
         </div>
 
         {/* Incomplete Profile Prompt */}
-        {(!vendorProfile.service || vendorProfile.service.length === 0) && (
+        {!hasBookingCategory && (
           <div className="px-4 pt-2 -mb-2">
             <div
               onClick={() => navigate('/vendor/profile')}

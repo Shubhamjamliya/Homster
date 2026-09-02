@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2, FiCheckCircle, FiInfo } from 'react-icons/fi';
+import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2, FiCheckCircle, FiInfo, FiX } from 'react-icons/fi';
 import { MdStar } from 'react-icons/md';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
@@ -52,6 +52,8 @@ const Checkout = () => {
   const [searchingVendors, setSearchingVendors] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('online'); // 'online' | 'pay_at_home'
+  const [activeBooking, setActiveBooking] = useState(null);
+  const [showActiveBookingModal, setShowActiveBookingModal] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -270,6 +272,18 @@ const Checkout = () => {
     return addressDetails?.components?.find(c => c.types.includes(type))?.long_name || '';
   };
 
+  const handleActiveBookingConflict = (error) => {
+    const conflictBooking = error.response?.data?.activeBooking;
+    if (error.response?.status !== 409 || !conflictBooking) return false;
+
+    setActiveBooking(conflictBooking);
+    setShowActiveBookingModal(true);
+    setCurrentStep('details');
+    setShowVendorModal(false);
+    setSearchingVendors(false);
+    return true;
+  };
+
   const handleProceed = async () => {
     // Validation
     if (bookingType === 'instant') {
@@ -388,7 +402,9 @@ const Checkout = () => {
         }
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to initiate booking request. Please try again.');
+      if (!handleActiveBookingConflict(error)) {
+        toast.error(error.response?.data?.message || 'Failed to initiate booking request. Please try again.');
+      }
       setShowVendorModal(false);
       setSearchingVendors(false);
     }
@@ -665,7 +681,9 @@ const Checkout = () => {
     } catch (error) {
       toast.dismiss();
       console.error('Search vendors error:', error);
-      toast.error(error.response?.data?.message || 'Failed to search for vendors. Please try again.');
+      if (!handleActiveBookingConflict(error)) {
+        toast.error(error.response?.data?.message || 'Failed to search for vendors. Please try again.');
+      }
       setCurrentStep('details');
       setSearchingVendors(false);
       setShowVendorModal(false);
@@ -1570,6 +1588,45 @@ const Checkout = () => {
           handleSearchVendors();
         }}
       />
+
+      {showActiveBookingModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/55 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="active-booking-title">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="relative bg-gradient-to-br from-amber-50 to-orange-50 px-6 pb-6 pt-7">
+              <button type="button" onClick={() => setShowActiveBookingModal(false)} aria-label="Close popup"
+                className="absolute right-4 top-4 rounded-full p-2 text-slate-500 transition-colors hover:bg-white/80 hover:text-slate-800">
+                <FiX className="h-5 w-5" />
+              </button>
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/25">
+                <FiInfo className="h-6 w-6" />
+              </div>
+              <h2 id="active-booking-title" className="pr-8 text-xl font-black text-slate-900">You already have a booking in progress</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Complete your current service before booking another one.</p>
+            </div>
+
+            <div className="space-y-5 px-6 py-6">
+              {activeBooking && (
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Current booking</p>
+                  <p className="mt-1 font-bold text-slate-800">{activeBooking.bookingNumber}</p>
+                  <p className="mt-1 text-sm capitalize text-slate-500">Status: {(activeBooking.status || 'active').replace(/_/g, ' ')}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button type="button" onClick={() => setShowActiveBookingModal(false)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50">
+                  Keep browsing
+                </button>
+                <button type="button" onClick={() => navigate(`/user/booking/${activeBooking?.id || activeBooking?._id}`)}
+                  className="rounded-xl bg-teal-600 px-4 py-3 font-bold text-white shadow-lg shadow-teal-600/20 transition-colors hover:bg-teal-700">
+                  View booking
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contact Details Edit Modal */}
       {showContactModal && (
