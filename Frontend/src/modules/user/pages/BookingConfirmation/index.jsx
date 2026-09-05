@@ -17,11 +17,12 @@ import {
   FiXCircle
 } from 'react-icons/fi';
 import { bookingService } from '../../../../services/bookingService';
+import { configService } from '../../../../services/configService';
 import NotificationBell from '../../components/common/NotificationBell';
 import ConfirmDialog from '../../../../components/common/ConfirmDialog';
 
 // Inline Searching Animation Component
-const SearchingAnimation = () => {
+const SearchingAnimation = ({ searchRadius = 10 }) => {
   const [dots, setDots] = useState('.');
 
   useEffect(() => {
@@ -76,7 +77,7 @@ const SearchingAnimation = () => {
       <div className="text-center relative z-20">
         <h3 className="text-lg font-bold text-gray-900 mb-2">Searching nearby experts</h3>
         <p className="text-gray-500 text-sm max-w-[240px] mx-auto leading-relaxed">
-          Searching within 10km radius{dots}
+          Searching within {searchRadius} km radius{dots}
         </p>
       </div>
 
@@ -98,12 +99,21 @@ const BookingConfirmation = () => {
   const [loading, setLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(!location.state?.noVendorsFound); // Respect passed state
   const [confirmDialog, setConfirmDialog] = useState(false);
+  const [searchRadius, setSearchRadius] = useState(10);
 
   useEffect(() => {
     const loadBooking = async () => {
       try {
         setLoading(true);
-        const response = await bookingService.getById(id);
+        const [response, settingsResponse] = await Promise.all([
+          bookingService.getById(id),
+          configService.getSettings()
+        ]);
+
+        if (settingsResponse.success && settingsResponse.settings?.searchRadius != null) {
+          setSearchRadius(settingsResponse.settings.searchRadius);
+        }
+
         if (response.success) {
           const data = { ...response.data };
           // Calculate notional display values for plan_benefit
@@ -122,7 +132,7 @@ const BookingConfirmation = () => {
           toast.error(response.message || 'Booking not found');
           navigate('/user/my-bookings');
         }
-      } catch (error) {
+      } catch {
         toast.error('Failed to load booking details');
         navigate('/user/my-bookings');
       } finally {
@@ -279,7 +289,7 @@ const BookingConfirmation = () => {
           {/* Searching Animation - Show at top when searching for vendor */}
           {isSearching && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-4 overflow-hidden">
-              <SearchingAnimation />
+              <SearchingAnimation searchRadius={searchRadius} />
             </div>
           )}
 

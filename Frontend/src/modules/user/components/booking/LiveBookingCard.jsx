@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiClock, FiMapPin, FiTool, FiCheckCircle, FiChevronRight, FiNavigation, FiX } from 'react-icons/fi';
 import userBookingService from '../../../../services/bookingService';
-import { userTheme } from '../../../../theme';
+import { configService } from '../../../../services/configService';
 import RatingModal from './RatingModal';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../../context/SocketContext';
@@ -13,14 +13,36 @@ const LiveBookingCard = ({ hasBottomNav }) => {
   const location = useLocation();
   const socket = useSocket();
   const [activeBooking, setActiveBooking] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [dismissedPath, setDismissedPath] = useState(null);
+  const [searchRadius, setSearchRadius] = useState(10);
+  const isDismissed = dismissedPath === location.pathname;
 
-  // Reset dismissed state when location changes (page changes)
-  useEffect(() => {
-    setIsDismissed(false);
-  }, [location.pathname]);
+  async function fetchActiveBooking() {
+    try {
+      // Fetch bookings with active statuses
+      // We manually fetch latest and check status on client or assume API supports status filter array
+      // For now, getting all 'active' look-alikes by assuming 'current' sort order or specific API behaviour
+      // Re-using getUserBookings with a broad status or custom logic if needed.
+      // Actually, relying on getUserBookings default which excludes 'SEARCHING'.
+      // We'll filter client side for the *most relevant* active one.
+
+      const res = await userBookingService.getUserBookings({ limit: 5 });
+      if (res.success && res.data.length > 0) {
+        // Find the first booking that is in an active state (checking both cases to be safe)
+        const ongoing = res.data.find(b => {
+          const s = b.status?.toUpperCase();
+          // Hide LiveBookingCard if status is WORK_DONE and review is already done
+          if (s === 'WORK_DONE' && b.rating) return false;
+
+          return ['ASSIGNED', 'STARTED', 'JOURNEY_STARTED', 'VISITED', 'IN_PROGRESS', 'WORK_DONE', 'SEARCHING', 'REQUESTED'].includes(s);
+        });
+        setActiveBooking(ongoing || null);
+      }
+    } catch {
+      // Failed to fetch active booking
+    }
+  }
 
   // Status mapping for UI
   const getStatusInfo = (status) => {
@@ -39,14 +61,22 @@ const LiveBookingCard = ({ hasBottomNav }) => {
       // New Finding Status
       case 'REQUESTED':
       case 'SEARCHING':
-        return { label: 'Finding Nearby Vendors', icon: FiClock, color: 'bg-teal-500', sub: 'Scanning within 10km...', pulse: true };
+        return { label: 'Finding Nearby Vendors', icon: FiClock, color: 'bg-teal-500', sub: `Scanning within ${searchRadius} km...`, pulse: true };
       default:
         return null;
     }
   };
 
   useEffect(() => {
-    fetchActiveBooking();
+    const fetchSearchRadius = async () => {
+      const response = await configService.getSettings();
+      if (response.success && response.settings?.searchRadius != null) {
+        setSearchRadius(response.settings.searchRadius);
+      }
+    };
+
+    fetchSearchRadius();
+    const initialFetchTimer = setTimeout(fetchActiveBooking, 0);
 
     if (socket) {
       socket.on('booking_updated', fetchActiveBooking);
@@ -56,6 +86,7 @@ const LiveBookingCard = ({ hasBottomNav }) => {
     // Poll every 30 seconds for updates
     const interval = setInterval(fetchActiveBooking, 30000);
     return () => {
+      clearTimeout(initialFetchTimer);
       clearInterval(interval);
       if (socket) {
         socket.off('booking_updated', fetchActiveBooking);
@@ -64,43 +95,16 @@ const LiveBookingCard = ({ hasBottomNav }) => {
     };
   }, [socket]);
 
-  const fetchActiveBooking = async () => {
-    try {
-      // Fetch bookings with active statuses
-      // We manually fetch latest and check status on client or assume API supports status filter array
-      // For now, getting all 'active' look-alikes by assuming 'current' sort order or specific API behaviour
-      // Re-using getUserBookings with a broad status or custom logic if needed. 
-      // Actually, relying on getUserBookings default which excludes 'SEARCHING'. 
-      // We'll filter client side for the *most relevant* active one.
-
-      const res = await userBookingService.getUserBookings({ limit: 5 });
-      if (res.success && res.data.length > 0) {
-        // Find the first booking that is in an active state (checking both cases to be safe)
-        const ongoing = res.data.find(b => {
-          const s = b.status?.toUpperCase();
-          // Hide LiveBookingCard if status is WORK_DONE and review is already done
-          if (s === 'WORK_DONE' && b.rating) return false;
-
-          return ['ASSIGNED', 'STARTED', 'JOURNEY_STARTED', 'VISITED', 'IN_PROGRESS', 'WORK_DONE', 'SEARCHING', 'REQUESTED'].includes(s);
-        });
-        setActiveBooking(ongoing || null);
-      }
-    } catch (error) {
-      // Failed to fetch active booking
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Auto-show rating modal when work is marked done
   useEffect(() => {
     if (activeBooking && activeBooking.status?.toUpperCase() === 'WORK_DONE' && !activeBooking.rating && !showRatingModal) {
       const dismissed = localStorage.getItem(`rating_dismissed_live_${activeBooking._id}`);
       if (!dismissed) {
-        setShowRatingModal(true);
+        const modalTimer = setTimeout(() => setShowRatingModal(true), 0);
+        return () => clearTimeout(modalTimer);
       }
     }
-  }, [activeBooking]);
+  }, [activeBooking, showRatingModal]);
 
   const handleRateSubmit = async (ratingData) => {
     try {
@@ -115,7 +119,7 @@ const LiveBookingCard = ({ hasBottomNav }) => {
       } else {
         toast.error(response.message || 'Failed to submit review');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to submit review');
     }
   };
@@ -154,7 +158,7 @@ const LiveBookingCard = ({ hasBottomNav }) => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setIsDismissed(true);
+              setDismissedPath(location.pathname);
             }}
             className="absolute top-1 right-1 p-1 bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 z-20 pointer-events-auto"
           >
