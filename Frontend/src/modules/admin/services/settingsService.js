@@ -81,3 +81,10 @@ export const toggleAdminStatus = async (id) => {
     throw error;
   }
 };
+
+export const clearBookingActivity = async (confirmation) => {
+  const response = await api.delete('/admin/developer/reset-booking-activity', {
+    data: { confirmation }
+  });
+  return response.data;
+};

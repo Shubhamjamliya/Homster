@@ -175,5 +175,13 @@
       "admin"
     ],
     "children": []
+  },
+  {
+    "title": "Developer Settings",
+    "route": "/admin/developer-settings",
+    "allowedRoles": [
+      "super_admin"
+    ],
+    "children": []
   }
 ]

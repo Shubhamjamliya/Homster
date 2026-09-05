@@ -19,6 +19,7 @@ import {
   FiStar,
   FiGift,
   FiSend,
+  FiCode,
 } from "react-icons/fi";
 import adminMenu from "../../config/adminMenu.json";
 import dashboardService from "../../services/dashboardService";
@@ -43,6 +44,7 @@ const iconMap = {
   Reviews: FiStar,
   Settlements: FiDollarSign,
   Settings: FiSettings,
+  "Developer Settings": FiCode,
   Plans: FiPackage,
 };
 
