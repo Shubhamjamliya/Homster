@@ -151,6 +151,15 @@ const Bookings = () => {
 
   const formatAmount = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en-IN')}`;
 
+  const getBookedCategory = (booking) => (
+    booking?.serviceCategory
+    || booking?.category
+    || booking?.bookedItems?.find(item => item.category || item.serviceCategory)?.category
+    || booking?.bookedItems?.find(item => item.category || item.serviceCategory)?.serviceCategory
+    || booking?.serviceId?.category
+    || 'Category not available'
+  );
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
       {/* Stats Grid */}
@@ -385,6 +394,10 @@ const Bookings = () => {
                         <p className="text-sm font-semibold text-gray-900">{formatDateTime(selectedBooking.scheduledDate)}</p>
                         <p className="mt-1 text-xs text-gray-600">{selectedBooking.scheduledTime || selectedBooking.timeSlot?.start || 'Time not set'}</p>
                         <p className="text-xs capitalize text-gray-600">{selectedBooking.bookingType || 'scheduled'} booking</p>
+                      </div>
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 md:col-span-3">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-bold text-gray-500"><FiShoppingBag /> Category Booked</div>
+                        <p className="text-sm font-semibold text-gray-900">{getBookedCategory(selectedBooking)}</p>
                       </div>
                     </div>
 
