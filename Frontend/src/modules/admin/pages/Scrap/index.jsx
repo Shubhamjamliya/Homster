@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiTrash2, FiSearch, FiFilter, FiDollarSign, FiX, FiCheck, FiClock, FiMapPin, FiPhone, FiUser } from 'react-icons/fi';
+import { FiTrash2, FiSearch, FiFilter, FiDollarSign, FiX, FiCheck, FiClock, FiMapPin, FiPhone, FiUser, FiCopy } from 'react-icons/fi';
 import api from '../../../../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -129,6 +129,19 @@ const AdminScrapPage = () => {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`;
   };
 
+  const handleCopyAddressLink = async (item) => {
+    const mapsUrl = getMapsUrl(item);
+    if (!mapsUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(mapsUrl);
+      toast.success('Address link copied');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to copy address link');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -224,18 +237,29 @@ const AdminScrapPage = () => {
                     </td>
                     <td className="px-4 py-3">
                       {getMapsUrl(item) ? (
-                        <a
-                          href={getMapsUrl(item)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-start gap-1.5 text-[10px] text-blue-600 font-medium max-w-[160px] hover:text-blue-700 hover:underline"
-                          title="Open in Google Maps"
-                        >
-                          <FiMapPin className="w-3 h-3 mt-0.5 shrink-0" />
-                          <span className="line-clamp-2">
-                            {item.address?.addressLine1 ? `${item.address.addressLine1}, ${item.address.city || ''}` : 'Open location'}
-                          </span>
-                        </a>
+                        <div className="flex items-start gap-1.5 max-w-[180px]">
+                          <a
+                            href={getMapsUrl(item)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-start gap-1.5 text-[10px] text-blue-600 font-medium min-w-0 hover:text-blue-700 hover:underline"
+                            title="Open in Google Maps"
+                          >
+                            <FiMapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                            <span className="line-clamp-2">
+                              {item.address?.addressLine1 ? `${item.address.addressLine1}, ${item.address.city || ''}` : 'Open location'}
+                            </span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyAddressLink(item)}
+                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors shrink-0"
+                            title="Copy address link"
+                            aria-label="Copy address link"
+                          >
+                            <FiCopy className="w-3 h-3" />
+                          </button>
+                        </div>
                       ) : (
                         <p className="text-[10px] text-gray-500 font-medium max-w-[160px] line-clamp-2">
                           N/A
