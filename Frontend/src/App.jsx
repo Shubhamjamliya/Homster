@@ -8,8 +8,10 @@ import { CartProvider } from './context/CartContext';
 import { CityProvider } from './context/CityContext';
 import { initializePushNotifications, setupForegroundNotificationHandler } from './services/pushNotificationService';
 import { LocationPermissionChecker } from './components/common';
+import SplashScreen from './components/common/SplashScreen';
 
 function App() {
+  const [showSplash, setShowSplash] = React.useState(true);
   // Initialize push notifications on app load
   useEffect(() => {
     initializePushNotifications();
@@ -76,6 +78,7 @@ function App() {
           </CartProvider>
         </CityProvider>
       </SocketProvider>
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
     </BrowserRouter>
   );
 }
