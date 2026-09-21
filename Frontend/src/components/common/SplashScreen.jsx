@@ -57,13 +57,13 @@ const SplashScreen = ({ onComplete }) => {
                     className={`splash-floating-service ${category.position} ${isActive ? 'is-active' : ''}`}
                     key={category.name}
                     initial={{ opacity: 0, scale: 0.5, y: 15 }}
-                    animate={{ opacity: 1, scale: isActive ? 1.12 : 1, y: 0 }}
+                    animate={{ opacity: 1, scale: isActive ? 1.15 : 1, y: 0 }}
                     transition={{ delay: 0.12 + index * 0.08, duration: 0.5, type: 'spring', stiffness: 180, damping: 15 }}
+                    title={category.name}
                   >
                     <div className="splash-floating-service__icon" style={{ '--service-tone': category.tone }}>
-                      <img src={category.image} alt="" />
+                      <img src={category.image} alt={category.name} />
                     </div>
-                    <span className="splash-floating-service__name">{category.name}</span>
                   </motion.div>
                 );
               })}

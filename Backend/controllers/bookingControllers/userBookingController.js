@@ -11,6 +11,7 @@ const { validationResult } = require('express-validator');
 const { BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 const { createNotification } = require('../notificationControllers/notificationController');
 const { sendNotificationToUser, sendNotificationToVendor, sendNotificationToWorker } = require('../../services/firebaseAdmin');
+const { generateBookingNumber } = require('../../utils/bookingNumber');
 
 /**
  * Create a new booking
@@ -283,7 +284,11 @@ const createBooking = async (req, res) => {
     }
 
     // Create booking
-    const bookingNumber = `BK${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+    const bookingNumber = await generateBookingNumber({
+      name: user.name,
+      phone: user.phone,
+      BookingModel: Booking
+    });
 
     // Improve Category Fetching if ID is missing (Fallback to title match)
     let finalCategory = category;

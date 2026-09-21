@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const { BOOKING_STATUS, PAYMENT_STATUS } = require('../utils/constants');
+const User = require('./User');
+const { generateBookingNumber } = require('../utils/bookingNumber');
 
 /**
  * Booking Model
@@ -419,9 +421,12 @@ const bookingSchema = new mongoose.Schema({
 // Generate unique booking number
 bookingSchema.pre('save', async function (next) {
   if (this.isNew && !this.bookingNumber) {
-    const timestamp = Date.now().toString().slice(-8);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    this.bookingNumber = `BK${timestamp}${random}`;
+    const user = await User.findById(this.userId).select('name phone').lean();
+    this.bookingNumber = await generateBookingNumber({
+      name: user?.name,
+      phone: user?.phone,
+      BookingModel: this.constructor
+    });
   }
   next();
 });
