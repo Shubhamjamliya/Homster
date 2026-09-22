@@ -322,40 +322,44 @@ const Account = () => {
           )}
 
           {/* Quick Actions Grid - Harmonized White Cards */}
-          <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-5">
+          <motion.div variants={itemVariants} className="grid grid-cols-2 gap-2.5 mb-4">
             {/* Wallet Balance Card */}
             <button
               type="button"
               onClick={() => navigate('/user/wallet')}
-              className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all text-left group active:scale-[0.98]"
+              className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all text-left group active:scale-[0.98] flex items-center justify-between gap-2"
             >
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform"
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
                 style={{ backgroundColor: `${themeColors.brand.teal}15`, color: themeColors.brand.teal }}
               >
-                <MdAccountBalanceWallet className="w-5 h-5" />
+                <MdAccountBalanceWallet className="w-4 h-4" />
               </div>
-              <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Wallet Balance</span>
-              <p className={`text-[17px] font-extrabold mt-0.5 ${userProfile.walletBalance < 0 ? 'text-rose-500' : 'text-slate-900'}`}>
-                ₹{Math.abs(userProfile.walletBalance || 0).toLocaleString('en-IN')}
-                {userProfile.walletBalance < 0 && <span className="text-xs font-normal ml-1 text-rose-500">(Penalty)</span>}
-              </p>
+              <div className="text-right">
+                <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">Balance</span>
+                <p className={`text-[15px] font-extrabold mt-0.5 ${userProfile.walletBalance < 0 ? 'text-rose-500' : 'text-slate-900'}`}>
+                  ₹{Math.abs(userProfile.walletBalance || 0).toLocaleString('en-IN')}
+                  {userProfile.walletBalance < 0 && <span className="text-[10px] font-normal ml-1 text-rose-500">(Penalty)</span>}
+                </p>
+              </div>
             </button>
 
             {/* Rewards Card */}
             <button
               type="button"
               onClick={() => navigate('/user/rewards')}
-              className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all text-left group active:scale-[0.98]"
+              className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all text-left group active:scale-[0.98] flex items-center justify-between gap-2"
             >
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform"
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
                 style={{ backgroundColor: `${themeColors.brand.yellow}1A`, color: themeColors.brand.yellow }}
               >
-                <FiGift className="w-5 h-5" />
+                <FiGift className="w-4 h-4" />
               </div>
-              <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Rewards</span>
-              <p className="text-[17px] font-extrabold text-slate-900 mt-0.5">Refer &amp; Earn</p>
+              <div className="text-right">
+                <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">Rewards</span>
+                <p className="text-[15px] font-extrabold text-slate-900 mt-0.5">Refer &amp; Earn</p>
+              </div>
             </button>
           </motion.div>
 

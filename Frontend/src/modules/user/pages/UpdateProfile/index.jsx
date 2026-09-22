@@ -147,7 +147,7 @@ const UpdateProfile = () => {
     }
   };
 
-  const inputBase = 'w-full pl-11 pr-4 py-3.5 rounded-2xl border text-sm font-medium bg-white transition-all duration-200 outline-none placeholder:text-slate-300';
+  const inputBase = 'w-full pl-11 pr-4 py-3 rounded-2xl border text-[13.5px] font-medium bg-white transition-all duration-200 outline-none placeholder:text-slate-300';
 
   return (
     <div className="min-h-screen pb-28 relative" style={{ background: '#f8f9fb' }}>
@@ -164,20 +164,20 @@ const UpdateProfile = () => {
         <h1 className="text-[18px] font-extrabold text-slate-900 tracking-tight">Edit Profile</h1>
       </header>
 
-      <main className="relative z-10 px-4 pt-6 max-w-lg mx-auto">
+      <main className="relative z-10 px-4 pt-5 max-w-lg mx-auto">
 
         {/* Avatar Card */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-          className="bg-white rounded-3xl p-6 shadow-[0_4px_24px_-4px_rgba(52,121,137,0.08)] border border-slate-100 mb-5 flex flex-col items-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-40 h-40 rounded-full -mr-14 -mt-14 blur-2xl opacity-20 pointer-events-none" style={{ backgroundColor: AMBER }} />
-          <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full -ml-16 -mb-16 blur-2xl opacity-20 pointer-events-none" style={{ backgroundColor: TEAL }} />
+          className="bg-white rounded-3xl p-5 shadow-[0_4px_24px_-4px_rgba(52,121,137,0.08)] border border-slate-100 mb-4 flex flex-col items-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-36 h-36 rounded-full -mr-12 -mt-12 blur-2xl opacity-[0.18] pointer-events-none" style={{ backgroundColor: AMBER }} />
+          <div className="absolute bottom-0 left-0 w-36 h-36 rounded-full -ml-14 -mb-14 blur-2xl opacity-[0.18] pointer-events-none" style={{ backgroundColor: TEAL }} />
 
-          <div className="relative mb-3 z-10">
+          <div className="relative mb-2.5 z-10">
             <motion.div
               whileTap={{ scale: 0.96 }}
               onClick={() => setShowSourceSheet(true)}
-              className="w-24 h-24 rounded-[22px] overflow-hidden cursor-pointer"
-              style={{ boxShadow: `0 0 0 3px ${TEAL}30, 0 0 0 6px ${TEAL}12`, border: `2.5px solid ${TEAL}25` }}
+              className="w-22 h-22 sm:w-24 sm:h-24 rounded-[20px] overflow-hidden cursor-pointer"
+              style={{ boxShadow: `0 0 0 3px ${TEAL}28, 0 0 0 6px ${TEAL}10`, border: `2px solid ${TEAL}22` }}
             >
               {photoPreview || formData.profilePhoto ? (
                 <img src={photoPreview || formData.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
@@ -189,65 +189,79 @@ const UpdateProfile = () => {
             </motion.div>
 
             <button type="button" onClick={() => setShowSourceSheet(true)}
-              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-md border-2 border-white active:scale-90 transition-transform"
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-xl flex items-center justify-center text-white shadow-md border-2 border-white active:scale-90 transition-transform"
               style={{ backgroundColor: TEAL }}>
-              <FiCamera className="w-3.5 h-3.5" />
+              <FiCamera className="w-3 h-3" />
             </button>
 
             <input id="user-photo-upload" type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
           </div>
 
-          <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest z-10">Tap to change photo</p>
+          <p className="text-[11.5px] text-slate-400 font-medium z-10">Tap avatar to change photo</p>
         </motion.div>
 
-        {/* Form Fields Card */}
+        {/* Form Fields Card — skeleton while loading */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.08 }}
-          className="bg-white rounded-3xl p-5 shadow-[0_4px_24px_-4px_rgba(52,121,137,0.08)] border border-slate-100 mb-5 space-y-4">
+          className="bg-white rounded-3xl p-4 shadow-[0_4px_24px_-4px_rgba(52,121,137,0.08)] border border-slate-100 mb-4 space-y-3.5">
 
-          {/* Full Name */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 pl-0.5">Full Name</label>
-            <div className="relative">
-              <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors" style={{ color: focusedField === 'name' ? TEAL : '#94a3b8' }} />
-              <input
-                type="text" name="name" value={formData.name} onChange={handleInputChange} disabled={isLoading}
-                onFocus={() => setFocusedField('name')} onBlur={() => setFocusedField(null)}
-                placeholder="Your full name"
-                className={`${inputBase} ${focusedField === 'name' ? 'border-[#347989] shadow-[0_0_0_3px_rgba(52,121,137,0.10)] text-slate-800' : 'border-slate-200 text-slate-800'}`}
-              />
-            </div>
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 pl-0.5">Email Address</label>
-            <div className="relative">
-              <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors" style={{ color: focusedField === 'email' ? TEAL : '#94a3b8' }} />
-              <input
-                type="email" name="email" value={formData.email} onChange={handleInputChange} disabled={isLoading}
-                onFocus={() => setFocusedField('email')} onBlur={() => setFocusedField(null)}
-                placeholder="you@example.com"
-                className={`${inputBase} ${focusedField === 'email' ? 'border-[#347989] shadow-[0_0_0_3px_rgba(52,121,137,0.10)] text-slate-800' : 'border-slate-200 text-slate-800'}`}
-              />
-            </div>
-          </div>
-
-          {/* Phone — locked */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 pl-0.5">Phone Number</label>
-            <div className="relative">
-              <FiPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-              <input
-                type="tel" value={formatPhoneNumber(formData.phone)} disabled
-                className={`${inputBase} border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed`}
-                placeholder="Phone number"
-              />
-              <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                <span className="text-[9px] font-bold text-slate-300 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded-full">Locked</span>
+          {isLoading ? (
+            /* Shimmer skeleton */
+            <>
+              {[0, 1, 2].map(i => (
+                <div key={i}>
+                  <div className="h-3 w-20 bg-slate-100 rounded-full mb-2 animate-pulse" />
+                  <div className="h-11 bg-slate-100 rounded-2xl animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              {/* Full Name */}
+              <div>
+                <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-wider mb-1 pl-0.5">Full Name</label>
+                <div className="relative">
+                  <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors" style={{ color: focusedField === 'name' ? TEAL : '#94a3b8' }} />
+                  <input
+                    type="text" name="name" value={formData.name} onChange={handleInputChange}
+                    onFocus={() => setFocusedField('name')} onBlur={() => setFocusedField(null)}
+                    placeholder="Your full name"
+                    className={`${inputBase} ${focusedField === 'name' ? 'border-[#347989] shadow-[0_0_0_3px_rgba(52,121,137,0.10)] text-slate-800' : 'border-slate-200 text-slate-800'}`}
+                  />
+                </div>
               </div>
-            </div>
-            <p className="text-[10.5px] text-slate-400 mt-1 pl-0.5">Phone number cannot be changed for security</p>
-          </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-wider mb-1 pl-0.5">Email Address</label>
+                <div className="relative">
+                  <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors" style={{ color: focusedField === 'email' ? TEAL : '#94a3b8' }} />
+                  <input
+                    type="email" name="email" value={formData.email} onChange={handleInputChange}
+                    onFocus={() => setFocusedField('email')} onBlur={() => setFocusedField(null)}
+                    placeholder="you@example.com"
+                    className={`${inputBase} ${focusedField === 'email' ? 'border-[#347989] shadow-[0_0_0_3px_rgba(52,121,137,0.10)] text-slate-800' : 'border-slate-200 text-slate-800'}`}
+                  />
+                </div>
+              </div>
+
+              {/* Phone — locked */}
+              <div>
+                <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-wider mb-1 pl-0.5">Phone Number</label>
+                <div className="relative">
+                  <FiPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                  <input
+                    type="tel" value={formatPhoneNumber(formData.phone)} disabled
+                    className={`${inputBase} border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed`}
+                    placeholder="Phone number"
+                  />
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded-full">Locked</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1 pl-0.5">Phone number cannot be changed for security</p>
+              </div>
+            </>
+          )}
         </motion.div>
 
         {/* Save Button */}
@@ -259,12 +273,12 @@ const UpdateProfile = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.14 }}
           whileTap={{ scale: 0.98 }}
-          className="w-full py-4 rounded-2xl text-white font-extrabold text-[15px] tracking-wide transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #2a6270 100%)`, boxShadow: `0 8px 24px -6px ${TEAL}50` }}
+          className="w-full py-3.5 rounded-2xl text-white font-extrabold text-[14px] tracking-wide transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #2a6270 100%)`, boxShadow: `0 6px 20px -6px ${TEAL}50` }}
         >
           {isSaving ? (
             <>
-              <svg className="animate-spin w-5 h-5 text-white/80" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin w-4.5 h-4.5 text-white/80" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
@@ -272,7 +286,7 @@ const UpdateProfile = () => {
             </>
           ) : (
             <>
-              <FiCheck className="w-5 h-5" />
+              <FiCheck className="w-4.5 h-4.5" />
               <span>Save Changes</span>
             </>
           )}
