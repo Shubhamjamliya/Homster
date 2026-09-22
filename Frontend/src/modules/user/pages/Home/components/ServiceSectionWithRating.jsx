@@ -77,17 +77,20 @@ const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeA
     }
   }, []); // Empty deps - only run once on mount
 
+  const cleanTitle = React.useMemo(() => {
+    if (!title) return '';
+    return title.replace(/electricial/gi, 'Electrical');
+  }, [title]);
+
   return (
     <div ref={sectionRef} className="mb-6">
-      <div ref={titleRef} className="px-4 mb-5 flex items-center justify-between" style={{ opacity: 1 }}>
+      <div ref={titleRef} className="px-4 mb-3.5 flex items-center justify-between" style={{ opacity: 1 }}>
         <div>
-          <h2
-            className="text-xl font-bold mb-1 text-gray-900 tracking-tight"
-          >
-            {title}
+          <h2 className="text-[18px] sm:text-[20px] font-extrabold mb-0.5 text-slate-900 tracking-tight">
+            {cleanTitle}
           </h2>
           {subtitle && (
-            <p className="text-sm font-medium text-gray-500">
+            <p className="text-xs font-medium text-slate-400">
               {subtitle}
             </p>
           )}

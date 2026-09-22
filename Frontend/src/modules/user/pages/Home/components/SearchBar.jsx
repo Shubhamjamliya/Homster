@@ -48,7 +48,7 @@ const SearchBar = ({ onInputClick }) => {
             className="w-full pl-11 pr-4 rounded-2xl bg-white border border-slate-200/90 group-hover:border-slate-300 transition-all duration-200 text-slate-800 flex items-center h-12 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]"
           >
             {/* Smooth Vertical Slide Placeholder */}
-            <div className="flex items-center text-[13.5px] sm:text-sm overflow-hidden h-6 leading-6">
+            <div className="flex items-center text-[13.5px] sm:text-sm overflow-hidden h-7 leading-7 w-full">
               <span className="text-slate-400 font-normal shrink-0">Search for&nbsp;</span>
               <AnimatePresence mode="wait">
                 <motion.span

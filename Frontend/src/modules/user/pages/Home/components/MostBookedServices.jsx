@@ -94,11 +94,9 @@ const MostBookedServices = React.memo(({ services, onServiceClick, onAddClick })
 
   return (
     <div ref={sectionRef} className="mb-6">
-      <div ref={titleRef} className="px-4 mb-5" style={{ opacity: 1 }}>
-        <h2
-          className="text-xl font-bold text-gray-900 tracking-tight"
-        >
-          Most booked services
+      <div ref={titleRef} className="px-4 mb-3.5" style={{ opacity: 1 }}>
+        <h2 className="text-[18px] sm:text-[20px] font-extrabold text-slate-900 tracking-tight">
+          Most Booked Services
         </h2>
       </div>
 
