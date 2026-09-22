@@ -9,7 +9,25 @@ const initializeSocket = (server) => {
     pingTimeout: 60000,
     pingInterval: 25000,
     cors: {
-      origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'].filter(Boolean),
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const allowed = [
+          process.env.FRONTEND_URL,
+          'http://localhost:5173',
+          'http://127.0.0.1:5173',
+          'http://localhost:5174',
+          'http://localhost:5050',
+          'http://localhost:3000',
+          'https://www.homster.in',
+          'https://homster.in'
+        ].filter(Boolean);
+        const isDevLocalhost = (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) &&
+          /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+        if (allowed.includes(origin) || isDevLocalhost || origin.includes('.vercel.app')) {
+          return callback(null, true);
+        }
+        callback(null, false);
+      },
       credentials: true,
       methods: ["GET", "POST"]
     },

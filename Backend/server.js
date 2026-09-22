@@ -24,13 +24,16 @@ const app = express();
 
 // Security middleware - allow cross-origin resource loading (images) for user app
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false
 }));
 
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5050',
+  'http://localhost:3000',
   'https://www.homster.in',
   'https://homster.in',
   'https://api.homster.in'
@@ -51,12 +54,16 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
-    // Allow allowedOrigins or any Vercel preview URL for this project
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('.vercel.app')) {
+    // In development mode, allow any localhost or 127.0.0.1 origin
+    const isDevLocalhost = (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) &&
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
+    // Allow allowedOrigins, local development origins, or any Vercel preview URL for this project
+    if (allowedOrigins.indexOf(origin) !== -1 || isDevLocalhost || origin.includes('.vercel.app')) {
       callback(null, true);
     } else {
-      console.log('BLOCKED CORS ORIGIN:', origin);
-      callback(new Error('Not allowed by CORS'));
+      console.warn('BLOCKED CORS ORIGIN:', origin);
+      callback(null, false);
     }
   },
   credentials: true,
