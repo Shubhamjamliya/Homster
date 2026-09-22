@@ -1,8 +1,8 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiHome, FiShoppingCart, FiUser, FiTrash2, FiCalendar } from 'react-icons/fi';
 import { HiHome, HiShoppingCart, HiUser, HiTrash, HiCalendar } from 'react-icons/hi';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useCart } from '../../../../context/CartContext';
 
 // Unified Brand Teal Palette for Premium Cohesion
@@ -16,9 +16,7 @@ const brandNavTheme = {
 const BottomNav = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
-  const navRef = useRef(null);
   const { cartCount } = useCart();
-  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
   const navItems = useMemo(() => [
     { id: 'home', label: 'Home', icon: FiHome, filledIcon: HiHome, path: '/user' },
@@ -38,24 +36,6 @@ const BottomNav = React.memo(() => {
   };
 
   const activeTab = getActiveTab();
-  const activeIndex = navItems.findIndex(item => item.id === activeTab);
-
-  // Update indicator position when active tab changes
-  useEffect(() => {
-    if (navRef.current) {
-      const buttons = navRef.current.querySelectorAll('button');
-      if (buttons[activeIndex]) {
-        const button = buttons[activeIndex];
-        const navRect = navRef.current.getBoundingClientRect();
-        const buttonRect = button.getBoundingClientRect();
-
-        setIndicatorStyle({
-          left: buttonRect.left - navRect.left + (buttonRect.width / 2) - 14,
-          width: 28,
-        });
-      }
-    }
-  }, [activeIndex, activeTab]);
 
   const handleTabClick = (path) => {
     navigate(path);
@@ -63,13 +43,13 @@ const BottomNav = React.memo(() => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 w-full lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-40 w-full lg:hidden select-none"
       style={{
         WebkitBackfaceVisibility: 'hidden',
       }}
     >
       <div
-        className="w-full pb-3 pt-2.5 px-3 rounded-t-[24px]"
+        className="w-full pb-3 pt-2 px-3 rounded-t-[24px]"
         style={{
           background: 'rgba(255, 255, 255, 0.96)',
           backdropFilter: 'blur(24px)',
@@ -78,25 +58,7 @@ const BottomNav = React.memo(() => {
           borderTop: '1px solid rgba(226, 232, 240, 0.8)',
         }}
       >
-        <div ref={navRef} className="flex items-center justify-around max-w-md mx-auto relative">
-          {/* Animated Sliding Indicator */}
-          <motion.div
-            className="absolute -top-2.5 h-[3px] rounded-full"
-            animate={{
-              left: indicatorStyle.left,
-              width: indicatorStyle.width,
-            }}
-            transition={{
-              type: 'spring',
-              stiffness: 400,
-              damping: 32,
-            }}
-            style={{
-              background: brandNavTheme.gradient,
-              boxShadow: `0 2px 8px ${brandNavTheme.shadow}`,
-            }}
-          />
-
+        <div className="flex items-center justify-around max-w-md mx-auto relative">
           {navItems.map((item) => {
             const IconComponent = activeTab === item.id ? item.filledIcon : item.icon;
             const isActive = activeTab === item.id;
@@ -104,27 +66,45 @@ const BottomNav = React.memo(() => {
             return (
               <motion.button
                 key={item.id}
+                type="button"
                 onClick={() => handleTabClick(item.path)}
                 whileTap={{ scale: 0.92 }}
-                className="flex flex-col items-center justify-center w-16 h-13 rounded-2xl transition-all duration-200 relative py-1"
+                className="flex flex-col items-center justify-center w-16 h-13 rounded-2xl transition-colors duration-200 relative py-1 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none [-webkit-tap-highlight-color:transparent]"
               >
-                {/* Active Background Glow */}
-                <AnimatePresence>
-                  {isActive && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.85 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.85 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute inset-x-1 inset-y-0.5 rounded-xl"
-                      style={{
-                        background: brandNavTheme.bg,
-                      }}
-                    />
-                  )}
-                </AnimatePresence>
+                {/* Active Top Sliding Bar Indicator via Framer Motion LayoutId */}
+                {isActive && (
+                  <motion.div
+                    layoutId="bottom-nav-indicator"
+                    className="absolute -top-2 h-[3px] w-7 rounded-full pointer-events-none"
+                    transition={{
+                      type: 'spring',
+                      stiffness: 450,
+                      damping: 35,
+                    }}
+                    style={{
+                      background: brandNavTheme.gradient,
+                      boxShadow: `0 2px 8px ${brandNavTheme.shadow}`,
+                    }}
+                  />
+                )}
 
-                <div className="relative z-10 flex flex-col items-center justify-center">
+                {/* Active Pill Background */}
+                {isActive && (
+                  <motion.div
+                    layoutId="bottom-nav-bg"
+                    className="absolute inset-x-1 inset-y-0.5 rounded-xl pointer-events-none"
+                    transition={{
+                      type: 'spring',
+                      stiffness: 450,
+                      damping: 35,
+                    }}
+                    style={{
+                      background: brandNavTheme.bg,
+                    }}
+                  />
+                )}
+
+                <div className="relative z-10 flex flex-col items-center justify-center pointer-events-none">
                   <motion.div
                     className="relative mb-0.5"
                     animate={{
@@ -140,13 +120,11 @@ const BottomNav = React.memo(() => {
                       }}
                     />
                     {item.isCart && cartCount > 0 && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
+                      <span
                         className="absolute -top-1.5 -right-2.5 bg-rose-500 text-white text-[9px] font-extrabold rounded-full min-w-[17px] h-[17px] flex items-center justify-center border-2 border-white shadow-sm"
                       >
                         {cartCount > 9 ? '9+' : cartCount}
-                      </motion.span>
+                      </span>
                     )}
                   </motion.div>
                   <span
