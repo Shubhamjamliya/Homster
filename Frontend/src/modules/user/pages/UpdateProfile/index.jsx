@@ -158,7 +158,7 @@ const UpdateProfile = () => {
 
       {/* Glassmorphic Header */}
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/70 border-b border-slate-100 px-4 py-3.5 flex items-center gap-3">
-        <button type="button" onClick={() => navigate('/user/account')} className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200/90 active:scale-95 transition-transform">
+        <button type="button" onClick={() => navigate(-1)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200/90 active:scale-95 transition-transform">
           <FiArrowLeft className="w-5 h-5 text-slate-700" />
         </button>
         <h1 className="text-[18px] font-extrabold text-slate-900 tracking-tight">Edit Profile</h1>
