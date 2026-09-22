@@ -1,104 +1,78 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiSearch } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import NotificationBell from '../../../components/common/NotificationBell';
 import { themeColors } from '../../../../../theme';
 
 const SearchBar = ({ onInputClick }) => {
-  const [displayedText, setDisplayedText] = useState('');
-  const [isTyping, setIsTyping] = useState(true);
   const [currentServiceIndex, setCurrentServiceIndex] = useState(0);
 
   const serviceNames = [
-    'AC service and repair',
-    'Washing machine services',
-    'Cooler repair at Home',
-    'R.O. repair installation',
-    'Microwave repair',
-    'Geyser repair',
-    'Bathroom appliance installation',
-    'Fridge at Home'
+    'AC service & repair',
+    'Washing machine care',
+    'R.O. water purifier service',
+    'Microwave & oven repair',
+    'Geyser installation & repair',
+    'Kitchen chimney cleaning',
+    'Home cooling & fridge care'
   ];
 
   useEffect(() => {
-    let timer;
-    const currentFullText = serviceNames[currentServiceIndex];
+    const interval = setInterval(() => {
+      setCurrentServiceIndex((prev) => (prev + 1) % serviceNames.length);
+    }, 3200);
 
-    if (isTyping) {
-      if (displayedText.length < currentFullText.length) {
-        timer = setTimeout(() => {
-          setDisplayedText(currentFullText.slice(0, displayedText.length + 1));
-        }, 150);
-      } else {
-        timer = setTimeout(() => setIsTyping(false), 2000);
-      }
-    } else {
-      if (displayedText.length > 0) {
-        timer = setTimeout(() => {
-          setDisplayedText(currentFullText.slice(0, displayedText.length - 1));
-        }, 100);
-      } else {
-        setCurrentServiceIndex((prev) => (prev + 1) % serviceNames.length);
-        setIsTyping(true);
-      }
-    }
-
-    return () => clearTimeout(timer);
-  }, [displayedText, isTyping, currentServiceIndex]);
+    return () => clearInterval(interval);
+  }, [serviceNames.length]);
 
   return (
-    <div className="flex items-center gap-3 w-full">
+    <div className="flex items-center gap-2.5 w-full">
       <div className="flex-1 relative cursor-pointer" onClick={onInputClick}>
         <div className="relative w-full group">
-          {/* Glow effect on hover */}
+          {/* Subtle Ambient Glow on Hover */}
           <div
-            className="absolute inset-0 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-            style={{ background: `linear-gradient(90deg, ${themeColors.brand.teal}1A, ${themeColors.brand.orange}1A)` }}
+            className="absolute inset-0 rounded-2xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            style={{ background: `linear-gradient(90deg, ${themeColors.brand.teal}15, ${themeColors.brand.orange}15)` }}
           />
 
-          {/* Gradient Definition */}
-          <svg width="0" height="0" className="absolute">
-            <linearGradient id="homestr-search-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={themeColors.brand.teal} />
-              <stop offset="50%" stopColor={themeColors.brand.yellow} />
-              <stop offset="100%" stopColor={themeColors.brand.orange} />
-            </linearGradient>
-          </svg>
-
-          {/* Search icon */}
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+          {/* Search Icon */}
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10">
             <FiSearch
-              className="w-5 h-5 transition-colors duration-300"
-              style={{ stroke: 'url(#homestr-search-gradient)' }}
+              className="w-5 h-5 text-slate-400 group-hover:text-primary-600 transition-colors duration-200"
+              style={{ stroke: themeColors.brand.teal }}
             />
           </div>
 
-          {/* Simulated Input */}
+          {/* Search Input Box */}
           <div
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl text-[15px] bg-white border border-gray-200 transition-all duration-300 text-gray-800 flex items-center h-[52px]"
-            style={{
-              boxShadow: '0 4px 20px -4px rgba(0,0,0,0.05)',
-            }}
+            className="w-full pl-11 pr-4 rounded-2xl bg-white border border-slate-200/90 group-hover:border-slate-300 transition-all duration-200 text-slate-800 flex items-center h-12 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]"
           >
-            {/* Placeholder text with typing animation */}
-            <span className="text-[15px] text-gray-400 tracking-wide font-light">
-              Search for <span
-                className="font-medium inline-block min-w-[2px]"
-                style={{
-                  background: themeColors.gradient,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent'
-                }}
-              >
-                {displayedText}
-                <span className="animate-pulse ml-0.5" style={{ color: themeColors.brand.teal }}>|</span>
-              </span>
-            </span>
+            {/* Smooth Vertical Slide Placeholder */}
+            <div className="flex items-center text-[13.5px] sm:text-sm overflow-hidden h-6 leading-6">
+              <span className="text-slate-400 font-normal shrink-0">Search for&nbsp;</span>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={currentServiceIndex}
+                  initial={{ y: 14, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -14, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: 'easeOut' }}
+                  className="font-semibold truncate"
+                  style={{
+                    background: themeColors.gradient,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  {serviceNames[currentServiceIndex]}
+                </motion.span>
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Notification Bell next to Search Bar */}
+      {/* Notification Bell matching height */}
       <div className="shrink-0">
         <NotificationBell />
       </div>

@@ -70,39 +70,12 @@ const Header = ({ location, onLocationClick }) => {
               <Link to="/user/account" className="text-gray-700 font-semibold hover:text-[#347989] transition-colors">Account</Link>
             </nav>
 
-            {/* Right: City & Location */}
-            <div className="flex flex-col items-end gap-1 flex-1 min-w-0 ml-4">
-
-
-
-              {/* Location Selector */}
-              <div className="flex flex-col items-end cursor-pointer" onClick={onLocationClick}>
-                <div className="flex items-center gap-1 mb-0.5">
-                  {/* Gradient Definition for Icons */}
-                  <svg width="0" height="0" className="absolute">
-                    <linearGradient id="homestr-location-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor={themeColors.brand.teal} />
-                      <stop offset="50%" stopColor={themeColors.brand.yellow} />
-                      <stop offset="100%" stopColor={themeColors.brand.orange} />
-                    </linearGradient>
-                  </svg>
-                  <HiLocationMarker
-                    className="w-4 h-4 shrink-0"
-                    style={{ fill: 'url(#homestr-location-gradient)' }}
-                  />
-                  <span className="text-sm font-bold truncate max-w-[160px]" style={{
-                    background: themeColors.gradient,
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}>
-                    {location && location !== '...' ? location.split('-')[0].trim() : 'Select Location'}
-                  </span>
-                </div>
-                <LocationSelector
-                  location={location}
-                  onLocationClick={onLocationClick}
-                />
-              </div>
+            {/* Right: Location Selector */}
+            <div className="flex items-center justify-end flex-1 min-w-0 ml-3">
+              <LocationSelector
+                location={location}
+                onLocationClick={onLocationClick}
+              />
             </div>
           </div>
         </div>

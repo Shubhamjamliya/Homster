@@ -42,11 +42,7 @@ const NotificationBell = ({ notificationCount = 0 }) => {
   return (
     <div
       ref={bellButtonRef}
-      className="relative rounded-full cursor-pointer active:scale-95 transition-all duration-200 shrink-0"
-      style={{
-        width: '44px',
-        height: '44px',
-      }}
+      className="relative rounded-full cursor-pointer active:scale-95 transition-all duration-200 shrink-0 w-12 h-12"
       onClick={(e) => {
         e.stopPropagation();
         navigate('/user/notifications');
@@ -72,11 +68,11 @@ const NotificationBell = ({ notificationCount = 0 }) => {
       <button
         type="button"
         aria-label="Notifications"
-        className="w-full h-full rounded-full bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.06)] flex items-center justify-center transition-all duration-200 hover:border-gray-200 hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)]"
+        className="w-full h-full rounded-full bg-white border border-slate-200/90 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] flex items-center justify-center transition-all duration-200 hover:border-slate-300 hover:shadow-md"
       >
         <FiBell
           ref={bellRef}
-          className="w-5 h-5 text-gray-700 transition-colors"
+          className="w-5 h-5 text-slate-700 transition-colors"
           strokeWidth={2}
         />
       </button>

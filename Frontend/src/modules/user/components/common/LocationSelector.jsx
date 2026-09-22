@@ -1,46 +1,71 @@
 import React from 'react';
+import { HiLocationMarker } from 'react-icons/hi';
 import { FiChevronDown } from 'react-icons/fi';
+import { themeColors } from '../../../../theme';
 
 const LocationSelector = ({ location, onLocationClick }) => {
-  // Format location to show only city and state, rest with "..."
-  const formatLocation = (loc) => {
-    if (!loc) return '...';
-    
-    // Split by "-" to get parts
-    const parts = loc.split('-').map(part => part.trim()).filter(part => part);
-    
-    // Extract city and state
-    // Format: "Area- City- State- ..."
-    // We want: "City- State..."
-    if (parts.length >= 3) {
-      // parts[0] = Area, parts[1] = City, parts[2] = State
-      const city = parts[1] || '';
-      const state = parts[2] || '';
-      return `${city}- ${state}...`;
-    } else if (parts.length === 2) {
-      // If only 2 parts, assume first is city, second is state
-      return `${parts[0]}- ${parts[1]}...`;
-    } else if (parts.length === 1) {
-      return `${parts[0]}...`;
+  // Parse address parts intelligently whether comma or hyphen delimited
+  const parseLocation = (loc) => {
+    if (!loc || loc === '...' || loc === 'Select Location') {
+      return { primary: 'Select Location', secondary: 'Tap to choose address' };
     }
-    
-    return '...';
+
+    const parts = loc
+      .split(/[,-]/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (parts.length === 0) {
+      return { primary: 'Select Location', secondary: 'Tap to choose address' };
+    }
+
+    const primary = parts[0];
+    const secondary = parts.slice(1, 3).join(', ') || parts[0];
+
+    return { primary, secondary };
   };
 
-  const formattedLocation = formatLocation(location);
+  const { primary, secondary } = parseLocation(location);
 
   return (
-    <div 
-      className="flex items-center gap-1.5 cursor-pointer"
+    <div
+      className="flex flex-col items-end cursor-pointer group select-none max-w-[200px]"
       onClick={onLocationClick}
+      role="button"
+      tabIndex={0}
+      aria-label="Select location"
     >
-      <span className="text-xs text-gray-700 truncate max-w-[140px] leading-tight text-right">
-        {formattedLocation}
+      {/* Top Row: Pin + Primary Area + Dropdown chevron */}
+      <div className="flex items-center gap-1 min-w-0 max-w-full">
+        {/* Brand gradient definition */}
+        <svg width="0" height="0" className="absolute">
+          <linearGradient id="homestr-loc-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={themeColors.brand.teal} />
+            <stop offset="50%" stopColor={themeColors.brand.yellow} />
+            <stop offset="100%" stopColor={themeColors.brand.orange} />
+          </linearGradient>
+        </svg>
+
+        <HiLocationMarker
+          className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110"
+          style={{ fill: 'url(#homestr-loc-gradient)' }}
+        />
+
+        <span className="text-[13px] sm:text-sm font-bold text-slate-900 truncate tracking-tight group-hover:text-primary-600 transition-colors">
+          {primary}
+        </span>
+
+        <FiChevronDown
+          className="w-3.5 h-3.5 shrink-0 text-amber-500 transition-transform duration-200 group-hover:translate-y-0.5"
+        />
+      </div>
+
+      {/* Bottom Subtitle: City / State */}
+      <span className="text-[11px] text-slate-400 font-medium truncate max-w-[170px] text-right -mt-0.5 leading-tight">
+        {secondary}
       </span>
-      <FiChevronDown className="w-3 h-3 flex-shrink-0" style={{ color: '#F59E0B' }} />
     </div>
   );
 };
 
 export default LocationSelector;
-

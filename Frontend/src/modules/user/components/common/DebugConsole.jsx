@@ -35,7 +35,8 @@ const DebugConsole = () => {
     };
   }, []);
 
-  if (import.meta.env.MODE === 'production' && !window.location.search.includes('debug=true')) {
+  // Only show floating debug console when ?debug=true is explicitly in URL
+  if (!window.location.search.includes('debug=true')) {
     return null;
   }
 

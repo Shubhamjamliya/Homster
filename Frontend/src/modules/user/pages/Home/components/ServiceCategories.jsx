@@ -1,11 +1,5 @@
 import React from 'react';
 import CategoryCard from '../../../components/common/CategoryCard';
-import electricianIcon from '../../../../../assets/images/icons/services/electrician.png';
-import womensSalonIcon from '../../../../../assets/images/icons/services/womens-salon-spa-icon.png';
-import massageMenIcon from '../../../../../assets/images/icons/services/massage-men-icon.png';
-import cleaningIcon from '../../../../../assets/images/icons/services/cleaning-icon.png';
-import electricianPlumberIcon from '../../../../../assets/images/icons/services/electrician-plumber-carpenter-icon.png';
-import acApplianceRepairIcon from '../../../../../assets/images/icons/services/ac-appliance-repair-icon.png';
 
 const toAssetUrl = (url) => {
   if (!url) return '';
@@ -16,8 +10,6 @@ const toAssetUrl = (url) => {
 };
 
 const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllClick }) => {
-
-
   if (!Array.isArray(categories) || categories.length === 0) {
     return null;
   }
@@ -28,22 +20,26 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
   }));
 
   return (
-    <div className="px-5">
-      {/* Section Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="px-4 sm:px-5">
+      {/* Section Header with Brand Teal Accent */}
+      <div className="flex items-center justify-between mb-3 px-0.5">
         <div className="flex flex-col">
-          <h2 className="text-[20px] font-black text-gray-900 tracking-tight flex items-center gap-2">
+          <h2 className="text-[18px] sm:text-[20px] font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             Service Categories
-            <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(40,116,240,0.5)]"></div>
+            <span
+              className="w-2 h-2 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,121,137,0.5)]"
+              style={{ backgroundColor: '#347989' }}
+            />
           </h2>
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-[0.15em] -mt-0.5">Premium Home Services</p>
+          <p className="text-[10.5px] text-slate-400 font-bold uppercase tracking-[0.12em] mt-0.5">
+            Premium Home Services
+          </p>
         </div>
-
       </div>
 
-      {/* Professional Grid Layout in White Container */}
-      <div className="bg-white rounded-[24px] p-4 pb-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
-        <div className="grid grid-cols-4 gap-y-6 gap-x-2">
+      {/* Modern Card Container with Refined Spacing */}
+      <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.04)] border border-slate-100">
+        <div className="grid grid-cols-4 gap-y-4 gap-x-1 sm:gap-x-2">
           {serviceCategories.map((category, index) => {
             const iconSrc = toAssetUrl(category.icon || category.image);
             return (
@@ -54,7 +50,7 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
                     <img
                       src={iconSrc}
                       alt={category.title}
-                      className="w-12 h-12 object-contain group-hover:rotate-12 transition-transform duration-500 will-change-transform rounded-full"
+                      className="w-10 h-10 sm:w-11 sm:h-11 object-contain transition-transform duration-300 group-hover:scale-105 rounded-lg"
                       loading="lazy"
                       decoding="async"
                     />
@@ -68,7 +64,6 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
           })}
         </div>
       </div>
-
     </div>
   );
 });
@@ -76,4 +71,3 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
 ServiceCategories.displayName = 'ServiceCategories';
 
 export default ServiceCategories;
-

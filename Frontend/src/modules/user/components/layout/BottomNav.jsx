@@ -1,42 +1,16 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiHome, FiGift, FiShoppingCart, FiUser, FiTrash2, FiCalendar } from 'react-icons/fi';
-import { HiHome, HiGift, HiShoppingCart, HiUser, HiTrash, HiCalendar } from 'react-icons/hi';
+import { FiHome, FiShoppingCart, FiUser, FiTrash2, FiCalendar } from 'react-icons/fi';
+import { HiHome, HiShoppingCart, HiUser, HiTrash, HiCalendar } from 'react-icons/hi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../../../context/CartContext';
 
-// Colorful theme for each nav item
-const navItemColors = {
-  home: {
-    primary: '#3B82F6', // Blue
-    gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
-    bg: 'rgba(59, 130, 246, 0.1)',
-    shadow: 'rgba(59, 130, 246, 0.4)'
-  },
-  bookings: {
-    primary: '#10B981', // Emerald
-    gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-    bg: 'rgba(16, 185, 129, 0.1)',
-    shadow: 'rgba(16, 185, 129, 0.4)'
-  },
-  scrap: {
-    primary: '#F59E0B', // Amber
-    gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-    bg: 'rgba(245, 158, 11, 0.1)',
-    shadow: 'rgba(245, 158, 11, 0.4)'
-  },
-  cart: {
-    primary: '#EC4899', // Pink
-    gradient: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
-    bg: 'rgba(236, 72, 153, 0.1)',
-    shadow: 'rgba(236, 72, 153, 0.4)'
-  },
-  account: {
-    primary: '#8B5CF6', // Violet
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-    bg: 'rgba(139, 92, 246, 0.1)',
-    shadow: 'rgba(139, 92, 246, 0.4)'
-  }
+// Unified Brand Teal Palette for Premium Cohesion
+const brandNavTheme = {
+  primary: '#347989',
+  gradient: 'linear-gradient(135deg, #347989 0%, #27616e 100%)',
+  bg: 'rgba(52, 121, 137, 0.08)',
+  shadow: 'rgba(52, 121, 137, 0.35)',
 };
 
 const BottomNav = React.memo(() => {
@@ -65,9 +39,6 @@ const BottomNav = React.memo(() => {
 
   const activeTab = getActiveTab();
   const activeIndex = navItems.findIndex(item => item.id === activeTab);
-  const activeColor = navItemColors[activeTab];
-
-
 
   // Update indicator position when active tab changes
   useEffect(() => {
@@ -79,8 +50,8 @@ const BottomNav = React.memo(() => {
         const buttonRect = button.getBoundingClientRect();
 
         setIndicatorStyle({
-          left: buttonRect.left - navRect.left + (buttonRect.width / 2) - 16, // Center the 32px indicator
-          width: 32
+          left: buttonRect.left - navRect.left + (buttonRect.width / 2) - 14,
+          width: 28,
         });
       }
     }
@@ -98,58 +69,56 @@ const BottomNav = React.memo(() => {
       }}
     >
       <div
-        className="w-full pb-4 pt-3 px-2 rounded-t-[24px]"
+        className="w-full pb-3 pt-2.5 px-3 rounded-t-[24px]"
         style={{
-          background: 'rgba(255, 255, 255, 0.98)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          boxShadow: '0 -4px 30px rgba(0, 0, 0, 0.08)',
-          borderTop: '1px solid rgba(229, 231, 235, 0.6)',
+          background: 'rgba(255, 255, 255, 0.96)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          boxShadow: '0 -4px 24px rgba(0, 0, 0, 0.05)',
+          borderTop: '1px solid rgba(226, 232, 240, 0.8)',
         }}
       >
         <div ref={navRef} className="flex items-center justify-around max-w-md mx-auto relative">
-
           {/* Animated Sliding Indicator */}
           <motion.div
-            className="absolute -top-3 h-1 rounded-full"
+            className="absolute -top-2.5 h-[3px] rounded-full"
             animate={{
               left: indicatorStyle.left,
               width: indicatorStyle.width,
-              background: activeColor?.gradient || navItemColors.home.gradient,
             }}
             transition={{
-              type: "spring",
-              stiffness: 380,
-              damping: 30
+              type: 'spring',
+              stiffness: 400,
+              damping: 32,
             }}
             style={{
-              boxShadow: `0 2px 12px ${activeColor?.shadow || navItemColors.home.shadow}`,
+              background: brandNavTheme.gradient,
+              boxShadow: `0 2px 8px ${brandNavTheme.shadow}`,
             }}
           />
 
           {navItems.map((item) => {
             const IconComponent = activeTab === item.id ? item.filledIcon : item.icon;
             const isActive = activeTab === item.id;
-            const itemColor = navItemColors[item.id];
 
             return (
               <motion.button
                 key={item.id}
                 onClick={() => handleTabClick(item.path)}
-                whileTap={{ scale: 0.9 }}
-                className="flex flex-col items-center justify-center w-16 h-14 rounded-2xl transition-all duration-200 relative"
+                whileTap={{ scale: 0.92 }}
+                className="flex flex-col items-center justify-center w-16 h-13 rounded-2xl transition-all duration-200 relative py-1"
               >
                 {/* Active Background Glow */}
                 <AnimatePresence>
                   {isActive && (
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
+                      initial={{ opacity: 0, scale: 0.85 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
                       transition={{ duration: 0.2 }}
-                      className="absolute inset-1 rounded-xl"
+                      className="absolute inset-x-1 inset-y-0.5 rounded-xl"
                       style={{
-                        background: itemColor.bg,
+                        background: brandNavTheme.bg,
                       }}
                     />
                   )}
@@ -157,38 +126,36 @@ const BottomNav = React.memo(() => {
 
                 <div className="relative z-10 flex flex-col items-center justify-center">
                   <motion.div
-                    className="relative mb-1"
+                    className="relative mb-0.5"
                     animate={{
-                      scale: isActive ? 1.1 : 1,
-                      y: isActive ? -2 : 0
+                      scale: isActive ? 1.08 : 1,
+                      y: isActive ? -1 : 0,
                     }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 22 }}
                   >
                     <IconComponent
-                      className="w-6 h-6 transition-colors duration-200"
+                      className="w-5.5 h-5.5 transition-colors duration-200"
                       style={{
-                        color: isActive ? itemColor.primary : '#9CA3AF',
+                        color: isActive ? brandNavTheme.primary : '#94A3B8',
                       }}
                     />
                     {item.isCart && cartCount > 0 && (
                       <motion.span
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute -top-1.5 -right-2.5 bg-gradient-to-br from-red-500 to-red-600 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white shadow-lg"
+                        className="absolute -top-1.5 -right-2.5 bg-rose-500 text-white text-[9px] font-extrabold rounded-full min-w-[17px] h-[17px] flex items-center justify-center border-2 border-white shadow-sm"
                       >
                         {cartCount > 9 ? '9+' : cartCount}
                       </motion.span>
                     )}
                   </motion.div>
-                  <motion.span
-                    animate={{
-                      color: isActive ? itemColor.primary : '#6B7280',
-                      fontWeight: isActive ? 600 : 500
-                    }}
-                    className="text-[10px]"
+                  <span
+                    className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                      isActive ? 'font-bold text-[#347989]' : 'font-medium text-slate-500'
+                    }`}
                   >
                     {item.label}
-                  </motion.span>
+                  </span>
                 </div>
               </motion.button>
             );
