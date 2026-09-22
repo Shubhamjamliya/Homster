@@ -95,7 +95,7 @@ const NewAndNoteworthy = React.memo(({ services, onServiceClick }) => {
         </h2>
       </div>
 
-      <div ref={cardsRef} className="flex gap-2 overflow-x-auto px-6 lg:px-4 pb-2 scrollbar-hide lg:grid lg:grid-cols-4 lg:gap-6 lg:overflow-visible">
+      <div ref={cardsRef} className="flex gap-2.5 overflow-x-auto px-4 pb-2 scrollbar-hide lg:grid lg:grid-cols-4 lg:gap-6 lg:overflow-visible">
         {serviceList.map((service, index) => (
           <SimpleServiceCard
             key={service.id || index}

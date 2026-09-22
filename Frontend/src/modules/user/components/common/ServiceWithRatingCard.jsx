@@ -11,13 +11,13 @@ const ServiceWithRatingCard = memo(({ image, title, rating, reviews, price, orig
 
   return (
     <div
-      className="min-w-[175px] w-[175px] sm:min-w-[190px] bg-white rounded-2xl overflow-hidden cursor-pointer border border-slate-100 shadow-[0_2px_12px_-3px_rgba(0,0,0,0.05)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group flex flex-col"
+      className="min-w-[145px] w-[145px] sm:min-w-[160px] sm:w-[160px] bg-white rounded-2xl overflow-hidden cursor-pointer border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group flex flex-col"
       onClick={onClick}
     >
       <div className="relative">
         {discount && (
           <div
-            className="absolute top-2.5 left-2.5 text-white text-[9.5px] font-extrabold px-2 py-0.5 rounded-full shadow-sm z-10 uppercase tracking-wider"
+            className="absolute top-2 left-2 text-white text-[8.5px] font-extrabold px-1.5 py-0.5 rounded-full shadow-sm z-10 uppercase tracking-wider"
             style={{ backgroundColor: themeColors.brand.teal }}
           >
             {discount.toString().toUpperCase().includes('OFF') ? discount : `${discount}% OFF`}
@@ -27,38 +27,38 @@ const ServiceWithRatingCard = memo(({ image, title, rating, reviews, price, orig
           <img
             src={image}
             alt={formattedTitle}
-            className="w-full h-34 sm:h-36 object-cover transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-26 sm:h-28 object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
             decoding="async"
           />
         ) : (
-          <div className="w-full h-34 sm:h-36 flex items-center justify-center bg-slate-50 border-b border-slate-100">
-            <span style={{ color: themeColors.brand.teal }} className="font-medium text-xs">Homster</span>
+          <div className="w-full h-26 sm:h-28 flex items-center justify-center bg-slate-50 border-b border-slate-100">
+            <span style={{ color: themeColors.brand.teal }} className="font-medium text-[11px]">Homster</span>
           </div>
         )}
       </div>
 
-      <div className="p-3 flex flex-col flex-1">
-        <h3 className="text-[13px] font-semibold text-slate-900 leading-snug mb-1 line-clamp-2 min-h-[38px] group-hover:text-primary-700 transition-colors">
+      <div className="p-2.5 flex flex-col flex-1">
+        <h3 className="text-[12px] sm:text-[12.5px] font-semibold text-slate-900 leading-snug mb-1 line-clamp-2 min-h-[32px] group-hover:text-primary-700 transition-colors">
           {formattedTitle}
         </h3>
 
         {rating && (
-          <div className="flex items-center gap-1 mb-2">
-            <AiFillStar className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-xs text-slate-800 font-bold">{rating}</span>
+          <div className="flex items-center gap-1 mb-1.5">
+            <AiFillStar className="w-3 h-3 text-amber-400" />
+            <span className="text-[11px] text-slate-800 font-bold">{rating}</span>
             {reviews && (
-              <span className="text-[10.5px] text-slate-400 font-medium">({reviews})</span>
+              <span className="text-[9.5px] text-slate-400 font-medium truncate max-w-[65px]">({reviews})</span>
             )}
           </div>
         )}
 
         <div className="flex items-center justify-between mt-auto pt-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             {originalPrice && (
-              <span className="text-[11px] text-slate-400 line-through">₹{originalPrice}</span>
+              <span className="text-[10px] text-slate-400 line-through">₹{originalPrice}</span>
             )}
-            <span className="text-[15px] font-bold text-slate-900">
+            <span className="text-[13.5px] font-bold text-slate-900">
               {price && !isNaN(price.toString().replace(/[,]/g, '')) ? `₹${price}` : (price || 'Contact')}
             </span>
           </div>
@@ -68,7 +68,7 @@ const ServiceWithRatingCard = memo(({ image, title, rating, reviews, price, orig
               e.stopPropagation();
               onAddClick?.();
             }}
-            className="px-4 py-1.5 h-8 rounded-xl text-xs font-bold transition-all active:scale-95 border"
+            className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all active:scale-95 border leading-none"
             style={{
               backgroundColor: `${themeColors.brand.teal}0D`,
               color: themeColors.brand.teal,

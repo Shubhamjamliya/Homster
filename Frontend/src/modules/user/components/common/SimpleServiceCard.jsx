@@ -10,13 +10,13 @@ const SimpleServiceCard = memo(({ image, title, onClick }) => {
 
   return (
     <div
-      className="min-w-[155px] w-[155px] sm:min-w-[175px] bg-white rounded-2xl overflow-hidden cursor-pointer border border-slate-100 shadow-[0_2px_12px_-3px_rgba(0,0,0,0.05)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col group active:scale-[0.98]"
+      className="min-w-[140px] w-[140px] sm:min-w-[155px] sm:w-[155px] bg-white rounded-2xl overflow-hidden cursor-pointer border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col group active:scale-[0.98]"
       onClick={onClick}
     >
-      <div className="w-full h-28 bg-slate-50 relative overflow-hidden flex items-center justify-center">
+      <div className="w-full h-24 sm:h-26 bg-slate-50 relative overflow-hidden flex items-center justify-center">
         {image ? (
           <img
-            src={optimizeCloudinaryUrl(image, { width: 320, quality: 'auto' })}
+            src={optimizeCloudinaryUrl(image, { width: 300, quality: 'auto' })}
             alt={formattedTitle}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
@@ -25,7 +25,7 @@ const SimpleServiceCard = memo(({ image, title, onClick }) => {
         ) : (
           <div className="w-full h-full bg-slate-100 flex items-center justify-center">
             <svg
-              className="w-8 h-8 text-slate-300"
+              className="w-7 h-7 text-slate-300"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -34,14 +34,14 @@ const SimpleServiceCard = memo(({ image, title, onClick }) => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={1.5}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
           </div>
         )}
       </div>
-      <div className="p-2.5 flex-1 flex items-center min-h-[44px]">
-        <h3 className="text-[12.5px] sm:text-[13px] font-semibold text-slate-800 leading-snug line-clamp-2 transition-colors group-hover:text-primary-700">
+      <div className="p-2 flex-1 flex items-center min-h-[38px]">
+        <h3 className="text-[11.5px] sm:text-[12px] font-semibold text-slate-800 leading-snug line-clamp-2 transition-colors group-hover:text-primary-700">
           {formattedTitle}
         </h3>
       </div>
