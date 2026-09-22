@@ -468,7 +468,7 @@ const Home = () => {
           </div>
         </motion.div>
 
-        <main className="pt-4 pb-28 space-y-6 max-w-screen-xl mx-auto w-full">
+        <main className="pt-3 pb-28 space-y-4 max-w-screen-xl mx-auto w-full">
           {!isLocationSupported ? (
             <div className="flex flex-col items-center justify-center pt-20 pb-10 px-6 text-center min-h-[60vh]">
               <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6">
@@ -527,7 +527,7 @@ const Home = () => {
               )}
 
               {/* Scrap Promotion Section */}
-              <motion.section variants={itemVariants} className="pt-3 sm:pt-4">
+              <motion.section variants={itemVariants}>
                 <ScrapPromotionCard onClick={() => navigate('/user/scrap')} />
               </motion.section>
 

@@ -83,10 +83,10 @@ const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeA
   }, [title]);
 
   return (
-    <div ref={sectionRef} className="mb-6">
-      <div ref={titleRef} className="px-4 mb-3.5 flex items-center justify-between" style={{ opacity: 1 }}>
+    <div ref={sectionRef} className="mb-4">
+      <div ref={titleRef} className="px-4 mb-2.5 flex items-center justify-between" style={{ opacity: 1 }}>
         <div>
-          <h2 className="text-[18px] sm:text-[20px] font-extrabold mb-0.5 text-slate-900 tracking-tight">
+          <h2 className="text-[16px] sm:text-[18px] font-extrabold mb-0.5 text-slate-900 tracking-tight">
             {cleanTitle}
           </h2>
           {subtitle && (
@@ -97,7 +97,7 @@ const ServiceSectionWithRating = React.memo(({ title, subtitle, services, onSeeA
         </div>
       </div>
 
-      <div ref={cardsRef} className="flex gap-2.5 overflow-x-auto px-4 pb-2 scrollbar-hide lg:grid lg:grid-cols-4 lg:gap-6 lg:overflow-visible">
+      <div ref={cardsRef} className="flex gap-2 overflow-x-auto px-4 pb-1.5 scrollbar-hide lg:grid lg:grid-cols-4 lg:gap-5 lg:overflow-visible">
         {services.map((service) => (
           <ServiceWithRatingCard
             key={service.id}

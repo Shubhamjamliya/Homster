@@ -10,10 +10,10 @@ const SimpleServiceCard = memo(({ image, title, onClick }) => {
 
   return (
     <div
-      className="min-w-[140px] w-[140px] sm:min-w-[155px] sm:w-[155px] bg-white rounded-2xl overflow-hidden cursor-pointer border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col group active:scale-[0.98]"
+      className="min-w-[122px] w-[122px] sm:min-w-[138px] sm:w-[138px] bg-white rounded-2xl overflow-hidden cursor-pointer border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col group active:scale-[0.98]"
       onClick={onClick}
     >
-      <div className="w-full h-24 sm:h-26 bg-slate-50 relative overflow-hidden flex items-center justify-center">
+      <div className="w-full h-20 sm:h-[88px] bg-slate-50 relative overflow-hidden flex items-center justify-center">
         {image ? (
           <img
             src={optimizeCloudinaryUrl(image, { width: 300, quality: 'auto' })}
@@ -40,8 +40,8 @@ const SimpleServiceCard = memo(({ image, title, onClick }) => {
           </div>
         )}
       </div>
-      <div className="p-2 flex-1 flex items-center min-h-[38px]">
-        <h3 className="text-[11.5px] sm:text-[12px] font-semibold text-slate-800 leading-snug line-clamp-2 transition-colors group-hover:text-primary-700">
+      <div className="px-1.5 py-1.5 flex-1 flex items-center min-h-[32px]">
+        <h3 className="text-[10.5px] sm:text-[11px] font-semibold text-slate-800 leading-tight line-clamp-2 transition-colors group-hover:text-primary-700">
           {formattedTitle}
         </h3>
       </div>

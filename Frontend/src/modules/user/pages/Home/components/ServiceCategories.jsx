@@ -22,9 +22,9 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
   return (
     <div className="px-4 sm:px-5">
       {/* Section Header with Brand Teal Accent */}
-      <div className="flex items-center justify-between mb-3 px-0.5">
+      <div className="flex items-center justify-between mb-2 px-0.5">
         <div className="flex flex-col">
-          <h2 className="text-[18px] sm:text-[20px] font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+          <h2 className="text-[16px] sm:text-[18px] font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             Service Categories
             <span
               className="w-2 h-2 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,121,137,0.5)]"
@@ -38,8 +38,8 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
       </div>
 
       {/* Modern Card Container with Refined Spacing */}
-      <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.04)] border border-slate-100">
-        <div className="grid grid-cols-4 gap-y-4 gap-x-1 sm:gap-x-2">
+      <div className="bg-white rounded-3xl p-2.5 sm:p-3.5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.04)] border border-slate-100">
+        <div className="grid grid-cols-4 gap-y-3 gap-x-0.5 sm:gap-x-1.5">
           {serviceCategories.map((category, index) => {
             const iconSrc = toAssetUrl(category.icon || category.image);
             return (
