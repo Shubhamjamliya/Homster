@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
   FiStar,
   FiFilter,
@@ -14,6 +13,7 @@ import {
 import { toast } from 'react-hot-toast';
 import reviewService from '../../services/reviewService';
 import CardShell from '../UserCategories/components/CardShell';
+import Pagination from '../../components/Pagination';
 
 const ReviewsPage = () => {
   const [reviews, setReviews] = useState([]);
@@ -261,28 +261,17 @@ const ReviewsPage = () => {
         </div>
 
         {/* Pagination */}
-        {!loading && pagination.pages > 1 && (
-          <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-              Page {pagination.page} of {pagination.pages}
-            </p>
-            <div className="flex gap-1.5">
-              <button
-                disabled={pagination.page === 1}
-                onClick={() => setFilters({ ...filters, page: pagination.page - 1 })}
-                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-all shadow-sm"
-              >
-                Previous
-              </button>
-              <button
-                disabled={pagination.page === pagination.pages}
-                onClick={() => setFilters({ ...filters, page: pagination.page + 1 })}
-                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-primary-600 text-white disabled:opacity-40 hover:bg-primary-700 transition-all shadow-sm"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+        {!loading && reviews.length > 0 && (
+          <Pagination
+            currentPage={filters.page}
+            totalPages={pagination.pages || 1}
+            totalItems={pagination.total || reviews.length}
+            itemsPerPage={filters.limit || 10}
+            itemName="reviews"
+            onPageChange={(newPage) => setFilters(prev => ({ ...prev, page: newPage }))}
+            onLimitChange={(newLimit) => setFilters(prev => ({ ...prev, limit: newLimit, page: 1 }))}
+            pageSizeOptions={[10, 20, 50, 100]}
+          />
         )}
       </CardShell>
     </div>
