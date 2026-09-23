@@ -1,9 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiCamera, FiCheckCircle, FiImage, FiLoader, FiMapPin, FiX } from 'react-icons/fi';
+import {
+  FiArrowLeft,
+  FiCamera,
+  FiCheckCircle,
+  FiImage,
+  FiLoader,
+  FiMapPin,
+  FiX,
+  FiTag,
+  FiFileText,
+  FiShield,
+  FiDollarSign,
+  FiTruck,
+  FiCheck
+} from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
-import { AnimatePresence, motion } from 'framer-motion';
-import { z } from "zod";
+import { AnimatePresence, motion as Motion } from 'framer-motion';
+import { z } from 'zod';
 
 import api from '../../../../services/api';
 import { themeColors } from '../../../../theme';
@@ -13,24 +27,38 @@ import flutterBridge from '../../../../utils/flutterBridge';
 
 // Zod schema for Scrap
 const scrapSchema = z.object({
-  title: z.string().min(3, "Title too short"),
+  title: z.string().min(3, 'Title too short (min 3 characters)'),
   description: z.string().optional(),
-  address: z.object({
-    addressLine1: z.string().min(5, "Address must be selected"),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    pincode: z.string().optional(),
-    lat: z.any().optional(),
-    lng: z.any().optional()
-  }).refine((data) => data.addressLine1 && data.addressLine1.length > 0, { message: "Pickup address is required" })
+  address: z
+    .object({
+      addressLine1: z.string().min(5, 'Address must be selected'),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      pincode: z.string().optional(),
+      lat: z.any().optional(),
+      lng: z.any().optional()
+    })
+    .refine((data) => data.addressLine1 && data.addressLine1.length > 0, {
+      message: 'Pickup address is required'
+    })
 });
+
+const POPULAR_SUGGESTIONS = [
+  'Old Split AC',
+  'Refrigerator',
+  'Washing Machine',
+  'Newspapers / Books',
+  'Copper & Brass',
+  'Iron / Steel Scrap',
+  'Old Laptop / E-Waste'
+];
 
 const AddScrap = () => {
   const navigate = useNavigate();
 
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [houseNumber, setHouseNumber] = useState('');
-  const [addressDetails, setAddressDetails] = useState(null);
+  const [_addressDetails, setAddressDetails] = useState(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -52,7 +80,7 @@ const AddScrap = () => {
 
   // Sync flutter bridge state
   useEffect(() => {
-    flutterBridge.waitForFlutter().then(ready => {
+    flutterBridge.waitForFlutter().then((ready) => {
       setIsFlutter(ready);
     });
   }, []);
@@ -67,12 +95,13 @@ const AddScrap = () => {
         progress: 0,
         status: 'idle'
       };
-      setSelectedFiles(prev => [...prev, newFile]);
-      flutterBridge.hapticFeedback('success');
+      setSelectedFiles((prev) => [...prev, newFile]);
+      flutterBridge.hapticFeedback?.('success');
     }
   };
 
   const handlePhotoClick = () => {
+    flutterBridge.hapticFeedback?.('light');
     setShowSourceSheet(true);
   };
 
@@ -82,7 +111,7 @@ const AddScrap = () => {
       return toast.error('Maximum 5 images allowed');
     }
 
-    const newFiles = files.map(file => ({
+    const newFiles = files.map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
       file,
       preview: URL.createObjectURL(file),
@@ -90,11 +119,13 @@ const AddScrap = () => {
       status: 'idle'
     }));
 
-    setSelectedFiles(prev => [...prev, ...newFiles]);
+    setSelectedFiles((prev) => [...prev, ...newFiles]);
+    flutterBridge.hapticFeedback?.('selection');
   };
 
   const removeImage = (index) => {
-    setSelectedFiles(prev => {
+    flutterBridge.hapticFeedback?.('light');
+    setSelectedFiles((prev) => {
       const newFiles = [...prev];
       URL.revokeObjectURL(newFiles[index].preview);
       newFiles.splice(index, 1);
@@ -123,18 +154,25 @@ const AddScrap = () => {
       for (let i = 0; i < updatedFiles.length; i++) {
         const item = updatedFiles[i];
         try {
-          // Update status to uploading
-          setSelectedFiles(prev => prev.map(f => f.id === item.id ? { ...f, status: 'uploading' } : f));
+          setSelectedFiles((prev) =>
+            prev.map((f) => (f.id === item.id ? { ...f, status: 'uploading' } : f))
+          );
 
           const url = await uploadToCloudinary(item.file, 'scrap_items', (pct) => {
-            setSelectedFiles(prev => prev.map(f => f.id === item.id ? { ...f, progress: pct } : f));
+            setSelectedFiles((prev) =>
+              prev.map((f) => (f.id === item.id ? { ...f, progress: pct } : f))
+            );
           });
 
           imageUrls.push(url);
-          setSelectedFiles(prev => prev.map(f => f.id === item.id ? { ...f, status: 'done', progress: 100 } : f));
+          setSelectedFiles((prev) =>
+            prev.map((f) => (f.id === item.id ? { ...f, status: 'done', progress: 100 } : f))
+          );
         } catch (err) {
           console.error('Image upload failed', err);
-          setSelectedFiles(prev => prev.map(f => f.id === item.id ? { ...f, status: 'error' } : f));
+          setSelectedFiles((prev) =>
+            prev.map((f) => (f.id === item.id ? { ...f, status: 'error' } : f))
+          );
           toast.error(`Failed to upload image ${i + 1}`);
         }
       }
@@ -154,33 +192,38 @@ const AddScrap = () => {
 
       const res = await api.post('/scrap', finalData);
       if (res.data.success) {
-        toast.success('Scrap item listed!', { id: 'scrap' });
+        flutterBridge.hapticFeedback?.('success');
+        toast.success('Scrap item listed successfully!', { id: 'scrap' });
         navigate(-1);
       }
     } catch (err) {
-      toast.error('Failed to create listing', { id: 'scrap' });
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to create listing', { id: 'scrap' });
+      flutterBridge.hapticFeedback?.('error');
     } finally {
       setIsUploading(false);
     }
   };
 
   const getAddressComponent = (components, type) => {
-    return components?.find(c => c.types.includes(type))?.long_name || '';
+    return components?.find((c) => c.types.includes(type))?.long_name || '';
   };
 
   const handleAddressSave = (savedHouseNumber, locationObj) => {
     setHouseNumber(savedHouseNumber);
     setAddressDetails(locationObj);
 
-    // Update form data with detailed address components
     if (locationObj) {
       const components = locationObj.components;
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         address: {
-          addressLine1: locationObj.address, // Full address string
+          addressLine1: locationObj.address,
           addressLine2: savedHouseNumber,
-          city: getAddressComponent(components, 'locality') || getAddressComponent(components, 'administrative_area_level_2') || '',
+          city:
+            getAddressComponent(components, 'locality') ||
+            getAddressComponent(components, 'administrative_area_level_2') ||
+            '',
           state: getAddressComponent(components, 'administrative_area_level_1') || '',
           pincode: getAddressComponent(components, 'postal_code') || '',
           lat: locationObj.lat,
@@ -189,99 +232,201 @@ const AddScrap = () => {
       }));
     }
     setShowAddressModal(false);
+    flutterBridge.hapticFeedback?.('success');
   };
 
+  const brandTeal = themeColors?.brand?.teal || '#347989';
+  const brandYellow = themeColors?.brand?.yellow || '#D68F35';
+  const brandOrange = themeColors?.brand?.orange || '#BB5F36';
+
   return (
-    <div className="min-h-screen pb-20 relative bg-white">
-      {/* Refined Brand Mesh Gradient Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0"
+    <div className="min-h-screen pb-24 relative bg-slate-50/60">
+      {/* Brand Ambient Background Mesh */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div
+          className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(at 0% 0%, ${themeColors?.brand?.teal || '#347989'}25 0%, transparent 70%),
-              radial-gradient(at 100% 0%, ${themeColors?.brand?.yellow || '#D68F35'}20 0%, transparent 70%),
-              radial-gradient(at 100% 100%, ${themeColors?.brand?.orange || '#BB5F36'}15 0%, transparent 75%),
-              radial-gradient(at 0% 100%, ${themeColors?.brand?.teal || '#347989'}10 0%, transparent 70%),
-              radial-gradient(at 50% 50%, ${themeColors?.brand?.teal || '#347989'}03 0%, transparent 100%),
-              #FFFFFF
+              radial-gradient(at 0% 0%, ${brandTeal}18 0%, transparent 55%),
+              radial-gradient(at 100% 10%, ${brandYellow}14 0%, transparent 60%),
+              radial-gradient(at 80% 90%, ${brandOrange}10 0%, transparent 60%),
+              radial-gradient(at 10% 80%, ${brandTeal}12 0%, transparent 50%),
+              #FAFBFC
             `
           }}
         />
-        {/* Elegant Dot Grid Pattern */}
-        <div className="absolute inset-0 opacity-[0.04]"
+        <div
+          className="absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: `radial-gradient(${themeColors?.brand?.teal || '#347989'} 0.8px, transparent 0.8px)`,
-            backgroundSize: '32px 32px'
+            backgroundImage: `radial-gradient(${brandTeal} 1px, transparent 1px)`,
+            backgroundSize: '24px 24px'
           }}
         />
       </div>
 
       <div className="relative z-10">
-        {/* Modern Glassmorphism Header */}
-        <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/40 border-b border-black/[0.03] px-4 py-4 flex items-center gap-3">
+        {/* Modern Glassmorphic Header */}
+        <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-gray-100 px-4 py-3.5 flex items-center gap-3 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)]">
           <button
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-black/[0.02]"
+            onClick={() => {
+              flutterBridge.hapticFeedback?.('light');
+              navigate(-1);
+            }}
+            className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-xs border border-gray-200/80 active:scale-95 transition-all text-gray-700 hover:text-gray-900"
+            aria-label="Back"
           >
-            <FiArrowLeft className="w-5 h-5 text-gray-800" />
+            <FiArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl font-extrabold text-gray-900">Add Scrap Item</h1>
+          <div>
+            <h1 className="text-lg font-black text-gray-900 tracking-tight">Add Scrap Item</h1>
+            <p className="text-[11px] font-medium text-gray-500">
+              List items for doorstep pickup & instant cash
+            </p>
+          </div>
         </header>
 
-        <form onSubmit={handleCreate} className="p-4 space-y-4 pb-8">
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Item Title</label>
-            <input
-              type="text"
-              className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-1 focus:ring-primary-500"
-              placeholder="e.g. Old LG Split AC, Samsung Fridge"
-              value={formData.title}
-              onChange={e => setFormData({ ...formData, title: e.target.value })}
-              required
-            />
+        <form onSubmit={handleCreate} className="p-4 space-y-4">
+          {/* Card 1: Title & Category Suggestions */}
+          <div className="bg-white/95 rounded-[24px] p-4 border border-gray-150 shadow-xs space-y-3">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
+                style={{ background: `linear-gradient(135deg, ${brandTeal}, #245863)` }}
+              >
+                <FiTag className="w-3.5 h-3.5" />
+              </div>
+              <label className="text-xs font-black text-gray-800 uppercase tracking-wide">
+                Item Title <span className="text-rose-500">*</span>
+              </label>
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                className="w-full px-4 py-3 bg-gray-50/80 rounded-2xl border border-gray-200 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+                placeholder="e.g. Old LG Split AC, Samsung Fridge"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                required
+              />
+              {formData.title && (
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, title: '' })}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Quick Suggestions Chips */}
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                Quick Suggestions:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {POPULAR_SUGGESTIONS.map((item, idx) => {
+                  const isSelected = formData.title === item;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        flutterBridge.hapticFeedback?.('selection');
+                        setFormData({ ...formData, title: item });
+                      }}
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all active:scale-95 ${
+                        isSelected
+                          ? 'bg-teal-700 text-white shadow-xs'
+                          : 'bg-gray-100 hover:bg-gray-200/80 text-gray-600'
+                      }`}
+                      style={
+                        isSelected
+                          ? { backgroundColor: brandTeal }
+                          : {}
+                      }
+                    >
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          {/* Card 2: Description */}
+          <div className="bg-white/95 rounded-[24px] p-4 border border-gray-150 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-amber-50 flex items-center justify-center text-amber-700">
+                  <FiFileText className="w-3.5 h-3.5" />
+                </div>
+                <label className="text-xs font-black text-gray-800 uppercase tracking-wide">
+                  Description <span className="text-gray-400 font-normal normal-case">(Optional)</span>
+                </label>
+              </div>
+              <span className="text-[10px] text-gray-400 font-medium">
+                {formData.description.length}/300
+              </span>
+            </div>
+
             <textarea
-              className="w-full p-3 bg-gray-50 rounded-xl border-none focus:ring-1 focus:ring-primary-500"
+              className="w-full px-4 py-3 bg-gray-50/80 rounded-2xl border border-gray-200 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all resize-none"
               rows="3"
-              placeholder="Condition, model year, etc."
+              maxLength={300}
+              placeholder="Mention item condition, working status, approximate weight or brand model year..."
               value={formData.description}
-              onChange={e => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
 
-          {/* Image Upload Selection */}
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Item Images (Max 5)</label>
-            <div className="grid grid-cols-3 gap-3">
+          {/* Card 3: Image Upload */}
+          <div className="bg-white/95 rounded-[24px] p-4 border border-gray-150 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-blue-50 flex items-center justify-center text-blue-700">
+                  <FiCamera className="w-3.5 h-3.5" />
+                </div>
+                <label className="text-xs font-black text-gray-800 uppercase tracking-wide">
+                  Item Images
+                </label>
+              </div>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-full">
+                {selectedFiles.length}/5 photos
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
               {selectedFiles.map((item, index) => (
-                <div key={item.id || index} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group">
+                <div
+                  key={item.id || index}
+                  className="relative aspect-square rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 shadow-xs group"
+                >
                   <img src={item.preview} alt="Preview" className="w-full h-full object-cover" />
 
                   {/* Upload Progress Overlay */}
                   {item.status === 'uploading' && (
-                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-2">
-                      <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex flex-col items-center justify-center p-2">
+                      <div className="w-full bg-white/30 rounded-full h-1.5 mb-1.5 overflow-hidden">
                         <div
-                          className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                          className="bg-white h-1.5 rounded-full transition-all duration-300"
                           style={{ width: `${item.progress}%` }}
-                        ></div>
+                        />
                       </div>
-                      <span className="text-[8px] text-white font-black">{item.progress}%</span>
+                      <span className="text-[9px] text-white font-black">{item.progress}%</span>
                     </div>
                   )}
 
                   {item.status === 'done' && (
-                    <div className="absolute top-1 left-1 bg-green-500 text-white rounded-full p-0.5">
-                      <FiCheckCircle size={10} />
+                    <div className="absolute top-1.5 left-1.5 bg-emerald-600 text-white rounded-full p-1 shadow-sm">
+                      <FiCheck size={10} />
                     </div>
                   )}
 
                   {item.status === 'error' && (
-                    <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
-                      <FiX className="text-red-500" />
+                    <div className="absolute inset-0 bg-rose-500/30 flex items-center justify-center">
+                      <FiX className="text-white w-5 h-5 drop-shadow-sm" />
                     </div>
                   )}
 
@@ -289,19 +434,26 @@ const AddScrap = () => {
                     type="button"
                     onClick={() => removeImage(index)}
                     disabled={isUploading}
-                    className={`absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center transition-opacity ${isUploading ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/60 hover:bg-black text-white rounded-full flex items-center justify-center transition-all active:scale-90"
+                    aria-label="Remove image"
                   >
-                    <FiX size={14} />
+                    <FiX size={12} />
                   </button>
                 </div>
               ))}
+
               {selectedFiles.length < 5 && !isUploading && (
-                <div
+                <button
+                  type="button"
                   onClick={handlePhotoClick}
-                  className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="aspect-square rounded-2xl border-2 border-dashed border-gray-300 hover:border-teal-600 hover:bg-teal-50/30 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 group"
                 >
-                  <FiCamera className="w-6 h-6 text-gray-400" />
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">Add Photo</span>
+                  <div className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-teal-100 flex items-center justify-center text-gray-500 group-hover:text-teal-700 transition-colors">
+                    <FiCamera className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-black text-gray-500 group-hover:text-teal-800 uppercase tracking-tight">
+                    Add Photo
+                  </span>
                   <input
                     id="add-scrap-photo-upload"
                     type="file"
@@ -311,57 +463,105 @@ const AddScrap = () => {
                     onChange={handleImageSelect}
                     onClick={(e) => e.stopPropagation()}
                   />
-                </div>
+                </button>
               )}
             </div>
           </div>
 
-          {/* Address Section */}
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                <FiMapPin className="text-primary-600" /> Pickup Location
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowAddressModal(true)}
-                className="text-xs font-semibold text-primary-600 hover:text-primary-700"
-                style={{ color: themeColors.button }}
-              >
-                {formData.address.addressLine1 ? 'Change' : 'Select'}
-              </button>
+          {/* Card 4: Pickup Location */}
+          <div className="bg-white/95 rounded-[24px] p-4 border border-gray-150 shadow-xs space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-red-50 flex items-center justify-center text-red-500">
+                  <FiMapPin className="w-3.5 h-3.5" />
+                </div>
+                <h3 className="text-xs font-black text-gray-800 uppercase tracking-wide">
+                  Pickup Location <span className="text-rose-500">*</span>
+                </h3>
+              </div>
+              {formData.address.addressLine1 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddressModal(true)}
+                  className="text-xs font-bold hover:underline"
+                  style={{ color: brandTeal }}
+                >
+                  Change
+                </button>
+              )}
             </div>
 
             {formData.address.addressLine1 ? (
-              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <p className="font-medium text-gray-900 text-sm">{houseNumber ? `${houseNumber}, ` : ''}{formData.address.addressLine1.split(',')[0]}</p>
-                <p className="text-xs text-gray-500 mt-0.5 truncate">{formData.address.addressLine1}</p>
+              <div className="bg-gray-50/90 p-3.5 rounded-2xl border border-gray-200/80 flex items-start gap-3">
+                <div className="w-7 h-7 rounded-xl bg-red-100/70 text-red-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <FiMapPin className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-extrabold text-gray-900 text-xs">
+                    {houseNumber ? `${houseNumber}, ` : ''}
+                    {formData.address.addressLine1.split(',')[0]}
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                    {formData.address.addressLine1}
+                  </p>
+                </div>
               </div>
             ) : (
               <button
                 type="button"
-                onClick={() => setShowAddressModal(true)}
-                className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 text-sm font-medium hover:bg-gray-100 transition-colors"
+                onClick={() => {
+                  flutterBridge.hapticFeedback?.('selection');
+                  setShowAddressModal(true);
+                }}
+                className="w-full py-3.5 border-2 border-dashed border-gray-300 hover:border-teal-600 hover:bg-teal-50/30 rounded-2xl text-gray-600 text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-98"
               >
-                + Select Pickup Address
+                <FiMapPin className="w-4 h-4 text-teal-700" />
+                <span>+ Select Pickup Address</span>
               </button>
             )}
           </div>
 
+          {/* Reassurance Guarantee Banner */}
+          <div className="grid grid-cols-3 gap-2 px-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500">
+              <FiTruck className="w-3 h-3 text-teal-600 shrink-0" />
+              <span>Free Pickup</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500">
+              <FiDollarSign className="w-3 h-3 text-amber-600 shrink-0" />
+              <span>Instant Payment</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500">
+              <FiShield className="w-3 h-3 text-blue-600 shrink-0" />
+              <span>Fair Weighing</span>
+            </div>
+          </div>
+
+          {/* Submit Button */}
           <div className="pt-2">
             <button
               type="submit"
               disabled={!formData.address.addressLine1 || isUploading}
-              className="w-full py-4 rounded-2xl text-white font-bold shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
-              style={{ backgroundColor: themeColors.button }}
+              className="w-full py-4 rounded-2xl text-white font-extrabold text-sm shadow-md active:scale-98 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+              style={{
+                background: `linear-gradient(135deg, ${brandTeal} 0%, #235863 100%)`,
+                boxShadow: !formData.address.addressLine1 || isUploading
+                  ? 'none'
+                  : `0 10px 25px -5px ${brandTeal}50`
+              }}
             >
               {isUploading ? (
                 <>
-                  <FiLoader className="animate-spin" />
-                  <span>Listing Item...</span>
+                  <FiLoader className="animate-spin w-4 h-4" />
+                  <span>Listing Scrap Item...</span>
                 </>
+              ) : !formData.address.addressLine1 ? (
+                <span>Select Pickup Address to Continue</span>
               ) : (
-                'List Item for Pickup'
+                <>
+                  <FiCheckCircle className="w-4 h-4" />
+                  <span>List Item for Pickup</span>
+                </>
               )}
             </button>
           </div>
@@ -381,32 +581,36 @@ const AddScrap = () => {
       <AnimatePresence>
         {showSourceSheet && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowSourceSheet(false)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+              className="absolute inset-0 bg-black/50 backdrop-blur-xs"
             />
-            <motion.div
-              initial={{ y: "100%" }}
+            <Motion.div
+              initial={{ y: '100%' }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative bg-white w-full rounded-t-[32px] p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-10"
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+              className="relative bg-white w-full rounded-t-[32px] p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] z-10"
             >
               <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
               <div className="flex justify-between items-center mb-6">
-                <h4 className="font-bold text-gray-900 text-lg">Select Photo Source</h4>
-                <button 
+                <div>
+                  <h4 className="font-extrabold text-gray-900 text-base">Select Photo Source</h4>
+                  <p className="text-[11px] text-gray-500">Take a photo or choose from gallery</p>
+                </div>
+                <button
+                  type="button"
                   onClick={() => setShowSourceSheet(false)}
-                  className="p-2 bg-gray-100 rounded-full text-gray-500"
+                  className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
                 >
-                  <FiX />
+                  <FiX className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3.5">
                 {/* Camera Option */}
                 <button
                   type="button"
@@ -418,15 +622,19 @@ const AddScrap = () => {
                       document.getElementById('add-scrap-photo-upload')?.click();
                     }
                   }}
-                  className="flex flex-col items-center gap-3 p-6 rounded-2xl border border-teal-100 active:scale-95 transition-all"
-                  style={{ backgroundColor: `${themeColors.button}10` }}
+                  className="flex flex-col items-center gap-3 p-5 rounded-2xl border border-teal-100 hover:border-teal-300 active:scale-95 transition-all text-center"
+                  style={{ backgroundColor: `${brandTeal}0D` }}
                 >
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg"
-                    style={{ backgroundColor: themeColors.button }}
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-md"
+                    style={{ backgroundColor: brandTeal }}
                   >
                     <FiCamera className="w-6 h-6" />
                   </div>
-                  <span className="font-bold text-teal-800 text-sm">Take Photo</span>
+                  <div>
+                    <span className="font-extrabold text-gray-900 text-xs block">Take Photo</span>
+                    <span className="text-[10px] text-gray-500">Use device camera</span>
+                  </div>
                 </button>
 
                 {/* Gallery Option */}
@@ -436,15 +644,18 @@ const AddScrap = () => {
                     setShowSourceSheet(false);
                     document.getElementById('add-scrap-photo-upload')?.click();
                   }}
-                  className="flex flex-col items-center gap-3 p-6 bg-blue-50 rounded-2xl border border-blue-100 active:scale-95 transition-all"
+                  className="flex flex-col items-center gap-3 p-5 bg-blue-50/70 hover:bg-blue-50 rounded-2xl border border-blue-100 hover:border-blue-300 active:scale-95 transition-all text-center"
                 >
-                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                  <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-md shadow-blue-200">
                     <FiImage className="w-6 h-6" />
                   </div>
-                  <span className="font-bold text-blue-800 text-sm">Gallery</span>
+                  <div>
+                    <span className="font-extrabold text-gray-900 text-xs block">Gallery</span>
+                    <span className="text-[10px] text-gray-500">Upload from device</span>
+                  </div>
                 </button>
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>
