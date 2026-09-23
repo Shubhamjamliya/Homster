@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Cart = require('../../models/Cart');
 const Service = require('../../models/UserService');
 const { validationResult } = require('express-validator');
@@ -149,20 +150,12 @@ const addToCart = async (req, res) => {
  */
 const updateCartItem = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
     const userId = req.user.id;
     const { itemId } = req.params;
     const { serviceCount } = req.body;
 
-    if (serviceCount < 1) {
+    const count = parseInt(serviceCount, 10);
+    if (isNaN(count) || count < 1) {
       return res.status(400).json({
         success: false,
         message: 'Quantity must be at least 1'
@@ -177,7 +170,18 @@ const updateCartItem = async (req, res) => {
       });
     }
 
-    const item = cart.items.id(itemId);
+    let item = null;
+    if (mongoose.Types.ObjectId.isValid(itemId)) {
+      item = cart.items.id(itemId);
+    }
+    if (!item) {
+      item = cart.items.find(i => 
+        (i._id && i._id.toString() === itemId) || 
+        (i.serviceId && i.serviceId.toString() === itemId) ||
+        (i.id && i.id.toString() === itemId)
+      );
+    }
+
     if (!item) {
       return res.status(404).json({
         success: false,
@@ -185,8 +189,9 @@ const updateCartItem = async (req, res) => {
       });
     }
 
-    item.serviceCount = serviceCount;
-    item.price = item.unitPrice * serviceCount;
+    item.serviceCount = count;
+    const unitPrice = item.unitPrice || (item.price && item.serviceCount ? item.price / item.serviceCount : item.price) || 0;
+    item.price = unitPrice * count;
     await cart.save();
 
     res.status(200).json({
@@ -198,7 +203,7 @@ const updateCartItem = async (req, res) => {
     console.error('Update cart item error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update cart item. Please try again.'
+      message: error.message || 'Failed to update cart item. Please try again.'
     });
   }
 };
@@ -219,7 +224,12 @@ const removeFromCart = async (req, res) => {
       });
     }
 
-    cart.items = cart.items.filter(item => item._id.toString() !== itemId);
+    cart.items = cart.items.filter(item => {
+      const matchId = (item._id && item._id.toString() === itemId) ||
+                      (item.serviceId && item.serviceId.toString() === itemId) ||
+                      (item.id && item.id.toString() === itemId);
+      return !matchId;
+    });
     await cart.save();
 
     res.status(200).json({

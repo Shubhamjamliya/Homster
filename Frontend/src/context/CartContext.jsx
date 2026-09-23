@@ -69,10 +69,14 @@ export const CartProvider = ({ children }) => {
       const response = await cartService.addToCart(itemData);
 
       if (response.success && response.data) {
-        // Replace temp item with real item from server, but preserve local fields (like category) just in case
-        setCartItems(prev => prev.map(item =>
-          item._id === tempId ? { ...item, ...response.data } : item
-        ));
+        if (Array.isArray(response.data)) {
+          setCartItems(response.data);
+          setCartCount(response.data.length);
+        } else {
+          setCartItems(prev => prev.map(item =>
+            item._id === tempId ? { ...item, ...response.data } : item
+          ));
+        }
       } else {
         // Revert on failure (if success false but no throw)
         setCartItems(prev => prev.filter(item => item._id !== tempId));
@@ -107,10 +111,14 @@ export const CartProvider = ({ children }) => {
     try {
       const response = await cartService.updateItem(itemId, serviceCount);
       if (response.success && response.data) {
-        // Replace with server data to ensure correctness
-        setCartItems(prev =>
-          prev.map(item => item._id === itemId ? response.data : item)
-        );
+        if (Array.isArray(response.data)) {
+          setCartItems(response.data);
+          setCartCount(response.data.length);
+        } else {
+          setCartItems(prev =>
+            prev.map(item => (item._id === itemId || item.id === itemId) ? { ...item, ...response.data } : item)
+          );
+        }
       } else {
         fetchCart();
       }
@@ -129,7 +137,12 @@ export const CartProvider = ({ children }) => {
 
     try {
       const response = await cartService.removeItem(itemId);
-      if (!response.success) {
+      if (response.success && response.data) {
+        if (Array.isArray(response.data)) {
+          setCartItems(response.data);
+          setCartCount(response.data.length);
+        }
+      } else if (!response.success) {
         // Re-fetch on failure to ensure correct state
         fetchCart();
       }
@@ -151,7 +164,12 @@ export const CartProvider = ({ children }) => {
 
     try {
       const response = await cartService.removeCategoryItems(category);
-      if (!response.success) {
+      if (response.success && response.data) {
+        if (Array.isArray(response.data)) {
+          setCartItems(response.data);
+          setCartCount(response.data.length);
+        }
+      } else if (!response.success) {
         fetchCart();
       }
       return response;
