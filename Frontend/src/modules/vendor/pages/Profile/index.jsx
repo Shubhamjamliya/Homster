@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiSettings, FiChevronRight, FiCreditCard, FiLogOut, FiGift, FiShield, FiFileText } from 'react-icons/fi';
+import { FiUser, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiSettings, FiChevronRight, FiCreditCard, FiLogOut, FiGift, FiShield, FiFileText, FiTag } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
@@ -25,6 +25,7 @@ const Profile = () => {
     { id: 3, label: 'Refer & Earn', icon: FiGift, path: '/vendor/refer-earn', badge: 'Earn ₹100' },
     { id: 5, label: 'My Ratings', icon: FiStar, path: '/vendor/my-ratings' },
     { id: 12, label: 'Your Services', icon: FiBriefcase, path: '/vendor/your-services' },
+    { id: 13, label: 'Pricing', icon: FiTag, path: '/vendor/pricing', badge: 'Rate Card' },
     { id: 6, label: 'Bank Details & QR', icon: FiCreditCard, path: '/vendor/bank-details' },
     { id: 7, label: 'Manage Address', icon: FiMapPin, path: '/vendor/address-management' },
     { id: 8, label: 'Settings', icon: FiSettings, path: '/vendor/settings' },
@@ -441,7 +442,7 @@ const Profile = () => {
                 await vendorAuthService.logout();
                 toast.success('Logged out successfully');
                 navigate('/vendor/login');
-              } catch (error) {
+              } catch {
                 localStorage.removeItem('vendorAccessToken');
                 localStorage.removeItem('vendorRefreshToken');
                 localStorage.removeItem('vendorData');
