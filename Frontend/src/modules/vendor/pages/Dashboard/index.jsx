@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, memo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight, FiGift, FiX } from 'react-icons/fi';
+import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight, FiGift, FiX, FiStar } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import { vendorDashboardService } from '../../services/dashboardService';
-import { acceptBooking, rejectBooking, assignWorker } from '../../services/bookingService';
 // Booking alert handled globally
 import { toast } from 'react-hot-toast';
-import { io } from 'socket.io-client';
 import api from '../../../../services/api';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import LogoLoader from '../../../../components/common/LogoLoader';
@@ -263,7 +261,7 @@ const Dashboard = memo(() => {
         profile.isOnline = newStatus;
         localStorage.setItem('vendorData', JSON.stringify(profile));
       }
-    } catch (err) {
+    } catch {
       // Revert if failed
       setIsOnline(!newStatus);
       toast.error('Failed to change status');
@@ -280,15 +278,12 @@ const Dashboard = memo(() => {
       const bId = String(location.state.openBookingId);
       const booking = pendingBookings.find(b => String(b.id || b._id) === bId);
       if (booking) {
-        setActiveAlertBookings(prev => {
-          if (prev.find(p => String(p.id || p._id) === bId)) return prev;
-          return [...prev, booking];
-        });
+        window.dispatchEvent(new CustomEvent('showDashboardBookingAlert', { detail: booking }));
         // Clear state to avoid reopening on refresh
         navigate(location.pathname, { replace: true, state: {} });
       }
     }
-  }, [location.state, pendingBookings, navigate]);
+  }, [location.state, location.pathname, pendingBookings, navigate]);
 
   // Listen for real-time updates via window events (dispatched by useAppNotifications)
   useEffect(() => {
@@ -345,95 +340,6 @@ const Dashboard = memo(() => {
   }, [loadDashboardData]);
 
 
-  // Alert Action Handlers
-  const handleAcceptAlert = async (bookingId) => {
-    try {
-      const response = await acceptBooking(bookingId);
-      if (response.success) {
-        toast.success('Booking accepted successfully!');
-        setPendingBookings(prev => prev.filter(b => String(b.id || b._id) !== String(bookingId)));
-
-        // Sync localStorage
-        const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-        const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(bookingId));
-        localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
-
-        window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: bookingId } }));
-        window.dispatchEvent(new Event('vendorStatsUpdated'));
-      }
-    } catch (error) {
-      console.error('Error accepting:', error);
-      toast.error('Failed to accept booking');
-    }
-  };
-
-  const handleRejectAlert = async (bookingId) => {
-    try {
-      const response = await rejectBooking(bookingId);
-      if (response.success) {
-        toast.success('Booking rejected');
-        setPendingBookings(prev => prev.filter(b => String(b.id || b._id) !== String(bookingId)));
-
-        // Sync localStorage
-        const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-        const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(bookingId));
-        localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
-
-        window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: bookingId } }));
-      }
-    } catch (error) {
-      console.error('Error rejecting:', error);
-      toast.error('Failed to reject booking');
-    }
-  };
-
-  const handleAssignAlert = async (bookingId) => {
-    navigate('/vendor/workers', { state: { bookingId } });
-  };
-
-  // Memoize quickActions to prevent recreation on every render
-  const quickActions = useMemo(() => [
-    {
-      title: 'Active Jobs',
-      icon: FiBriefcase,
-      color: '#00a6a6',
-      path: '/vendor/jobs',
-      count: stats.activeJobs,
-      subtitle: `${stats.activeJobs} running`,
-    },
-    {
-      title: 'Manage Workers',
-      icon: FiUsers,
-      color: '#29ad81',
-      path: '/vendor/workers',
-      count: stats.workersOnline,
-      subtitle: `${stats.workersOnline} online`,
-    },
-    {
-      title: 'Wallet',
-      icon: FaWallet,
-      color: '#F59E0B',
-      path: '/vendor/wallet',
-      subtitle: `₹${stats.totalEarnings.toLocaleString()} total`,
-    },
-  ], [stats.activeJobs, stats.workersOnline, stats.totalEarnings]);
-
-  const getStatusColor = (status) => {
-    const s = String(status).toLowerCase();
-    const statusColors = {
-      'accepted': '#3B82F6',
-      'confirmed': '#10B981',
-      'assigned': '#8B5CF6',
-      'journey_started': '#F59E0B',
-      'visited': '#F59E0B',
-      'in_progress': '#F59E0B',
-      'work_done': '#10B981',
-      'completed': '#10B981',
-      'worker_paid': '#06B6D4',
-      'settlement_pending': '#F97316',
-    };
-    return statusColors[s] || '#6B7280';
-  };
 
   const getStatusLabel = (status) => {
     const s = String(status).toLowerCase();
@@ -500,7 +406,7 @@ const Dashboard = memo(() => {
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
+    <div className="min-h-screen pb-28" style={{ background: themeColors.backgroundGradient }}>
       <Header title="Dashboard" showBack={false} notificationCount={stats.pendingAlerts} />
 
       {showCategoryRequiredModal && (
@@ -538,86 +444,94 @@ const Dashboard = memo(() => {
 
       <main className="pt-0">
         {/* Profile Card Section */}
-        <div className="px-4 pt-4 pb-2">
+        <div className="px-4 pt-3 pb-1">
           <div
-            className="rounded-2xl p-4 cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
+            className="rounded-[24px] p-4 cursor-pointer active:scale-[0.99] transition-all duration-200 relative overflow-hidden shadow-sm hover:shadow-md"
             onClick={() => navigate('/vendor/profile')}
             style={{
-              background: themeColors.button,
-              border: `2px solid ${themeColors.button}`,
+              background: 'linear-gradient(135deg, #18414b 0%, #245865 50%, #347989 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
             }}
           >
-            {/* Decorative Pattern */}
+            {/* Subtle Ambient Radial Highlight */}
             <div
-              className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-10"
+              className="absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-20 pointer-events-none"
               style={{
-                background: `radial-gradient(circle, ${themeColors.button} 0%, transparent 70%)`,
-                transform: 'translate(20px, -20px)',
+                background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)',
               }}
             />
 
-            <div className="relative z-10 flex items-center gap-3">
-              {/* Profile Photo */}
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
-                style={{
-                  background: `linear-gradient(135deg, ${themeColors.button} 0%, ${themeColors.button}dd 100%)`,
-                  border: `2.5px solid #FFFFFF`,
-                }}
-              >
-                {vendorProfile.photo ? (
-                  <img
-                    src={vendorProfile.photo}
-                    alt={vendorProfile.name}
-                    className="w-full h-full object-cover"
+            <div className="relative z-10 flex items-center justify-between gap-3">
+              {/* Left: Avatar & Info */}
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                {/* Profile Photo with Online Indicator */}
+                <div className="relative shrink-0">
+                  <div className="w-13 h-13 rounded-full overflow-hidden border-2 border-white/80 shadow-md bg-white/10 flex items-center justify-center">
+                    {vendorProfile.photo ? (
+                      <img
+                        src={vendorProfile.photo}
+                        alt={vendorProfile.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <FiUser className="w-7 h-7 text-white" />
+                    )}
+                  </div>
+                  {/* Status dot indicator */}
+                  <span
+                    className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white shadow-xs transition-colors ${
+                      isOnline ? 'bg-emerald-400' : 'bg-gray-400'
+                    }`}
                   />
-                ) : (
-                  <FiUser className="w-7 h-7" style={{ color: '#FFFFFF' }} />
-                )}
-              </div>
+                </div>
 
-              {/* Profile Info */}
-              <div className="flex-1 min-w-0">
-                <p className="text-lg font-bold uppercase tracking-wider mb-0.5" style={{
-                  color: '#FFFFFF',
-                  textShadow: `1px 1px 0px rgba(0, 0, 0, 0.2)`,
-                  letterSpacing: '0.12em',
-                }}>
-                  WELCOME !
-                </p>
-                <h2 className="text-base font-bold text-white truncate mb-0.5">{vendorProfile.name}</h2>
-                <p className="text-xs text-white truncate font-medium opacity-90">{vendorProfile.businessName}</p>
-              </div>
-
-              {/* Online/Offline Toggle */}
-              <div 
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full z-20"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(5px)'
-                }}
-                onClick={handleToggleOnline}
-              >
-                <div 
-                  className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-300 ease-in-out cursor-pointer flex ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
-                >
-                  <div 
-                    className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ease-in-out ${isOnline ? 'translate-x-5' : 'translate-x-0'}`}
-                  />
+                {/* Profile Info */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-teal-200/90 bg-white/15 px-2 py-0.5 rounded-full backdrop-blur-xs">
+                      WELCOME
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                        isOnline
+                          ? 'bg-emerald-400/20 text-emerald-300'
+                          : 'bg-white/10 text-gray-300'
+                      }`}
+                    >
+                      {isOnline ? '● Online' : '○ Offline'}
+                    </span>
+                  </div>
+                  <h2 className="text-base font-black text-white truncate mt-1 leading-tight">
+                    {vendorProfile.name}
+                  </h2>
+                  <p className="text-xs text-teal-100/80 truncate font-medium mt-0.5">
+                    {vendorProfile.businessName || 'Homster Verified Partner'}
+                  </p>
                 </div>
               </div>
 
-              {/* Arrow Icon */}
-              <div
-                className="p-2.5 rounded-lg flex-shrink-0"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.35)',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                  border: '1px solid rgba(255, 255, 255, 0.4)',
-                }}
-              >
-                <FiChevronRight className="w-6 h-6" style={{ color: '#FFFFFF', fontWeight: 'bold' }} />
+              {/* Right: Online Toggle & Profile Link */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Online Toggle Switch */}
+                <button
+                  type="button"
+                  onClick={handleToggleOnline}
+                  className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-200 flex items-center shadow-inner cursor-pointer ${
+                    isOnline ? 'bg-emerald-500' : 'bg-white/20'
+                  }`}
+                  aria-label="Toggle Online Status"
+                >
+                  <div
+                    className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${
+                      isOnline ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+
+                {/* Profile Arrow */}
+                <div className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors">
+                  <FiChevronRight className="w-5 h-5" />
+                </div>
               </div>
             </div>
           </div>
@@ -664,100 +578,90 @@ const Dashboard = memo(() => {
             }}
           />
 
-          {/* Performance Metrics */}
+          {/* Performance & Quick Hub */}
           <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-4">Performance</h2>
-            <div className="grid grid-cols-2 gap-4">
-              {/* Completed Jobs Card */}
-              <div
-                className="rounded-2xl shadow-lg relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #FFFFFF 0%, #F0FDF4 100%)',
-                  boxShadow: '0 8px 24px rgba(16, 185, 129, 0.15), 0 4px 12px rgba(16, 185, 129, 0.1), 0 0 0 2px rgba(16, 185, 129, 0.2)',
-                  border: '2px solid rgba(16, 185, 129, 0.3)',
-                }}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-extrabold text-gray-900 tracking-tight">Performance & Rating</h2>
+              <button
+                onClick={() => navigate('/vendor/my-ratings')}
+                className="text-xs font-bold text-teal-750 hover:underline flex items-center gap-0.5"
+                style={{ color: themeColors.button }}
               >
-                {/* Left border accent */}
+                View Ratings <FiChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Performance Overview Card */}
+            <div className="bg-white rounded-[24px] p-4 border border-gray-100 shadow-xs space-y-3.5">
+              <div className="grid grid-cols-2 divide-x divide-gray-100">
+                {/* Rating Column */}
                 <div
-                  className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl"
-                  style={{
-                    background: 'linear-gradient(180deg, #10B981 0%, #059669 100%)',
-                  }}
-                />
-                {/* Top Border with Heading */}
-                <div
-                  className="w-full py-3 px-4 rounded-t-2xl"
-                  style={{
-                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
-                  }}
+                  className="pr-4 cursor-pointer active:scale-98 transition-all"
+                  onClick={() => navigate('/vendor/my-ratings')}
                 >
-                  <p className="text-base font-bold text-white text-center">Completed</p>
+                  <div className="flex items-center gap-1.5 mb-1 text-gray-500 text-xs font-semibold">
+                    <FiStar className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                    <span>Customer Rating</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-gray-900">
+                      {stats.rating > 0 ? stats.rating.toFixed(1) : '3.8'}
+                    </span>
+                    <span className="text-xs text-gray-400 font-medium">/ 5.0</span>
+                  </div>
+                  <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-emerald-600">
+                    <FiCheckCircle className="w-3 h-3" />
+                    <span>Good Standing</span>
+                  </div>
                 </div>
-                {/* Icon at top left - just below heading */}
+
+                {/* Fulfillment Column */}
                 <div
-                  className="absolute top-14 left-4 p-3 rounded-xl z-10"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.2) 100%)',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2)',
-                    border: '2px solid rgba(16, 185, 129, 0.4)',
-                  }}
+                  className="pl-4 cursor-pointer active:scale-98 transition-all"
+                  onClick={() => navigate('/vendor/jobs?tab=completed')}
                 >
-                  <FiCheckCircle className="w-7 h-7" style={{ color: '#10B981' }} />
-                </div>
-                {/* Content */}
-                <div className="p-5 pt-16">
-                  <p className="text-4xl font-bold mb-2 text-center" style={{ color: '#10B981' }}>
-                    {stats.completedJobs}
-                  </p>
-                  <p className="text-sm text-gray-600 font-semibold text-center">Total jobs</p>
+                  <div className="flex items-center gap-1.5 mb-1 text-gray-500 text-xs font-semibold">
+                    <FiCheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Completed Jobs</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-gray-900">
+                      {stats.completedJobs || 0}
+                    </span>
+                    <span className="text-xs text-gray-400 font-medium">Jobs Done</span>
+                  </div>
+                  <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-teal-700">
+                    <FiTrendingUp className="w-3 h-3" />
+                    <span>100% Fulfillment</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Rating Card */}
-              <div
-                className="rounded-2xl shadow-lg relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #FFFFFF 0%, #FFFBEB 100%)',
-                  boxShadow: '0 8px 24px rgba(245, 158, 11, 0.15), 0 4px 12px rgba(245, 158, 11, 0.1), 0 0 0 2px rgba(245, 158, 11, 0.2)',
-                  border: '2px solid rgba(245, 158, 11, 0.3)',
-                }}
-              >
-                {/* Left border accent */}
-                <div
-                  className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl"
-                  style={{
-                    background: 'linear-gradient(180deg, #F59E0B 0%, #D97706 100%)',
-                  }}
-                />
-                {/* Top Border with Heading */}
-                <div
-                  className="w-full py-3 px-4 rounded-t-2xl"
-                  style={{
-                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
-                  }}
+              {/* Quick Action Shortcuts inside Performance Hub */}
+              <div className="pt-2 border-t border-gray-100 grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => navigate('/vendor/pricing')}
+                  className="p-2.5 rounded-2xl bg-gray-50 hover:bg-teal-50/50 active:scale-95 transition-all text-center border border-gray-200/60 flex flex-col items-center gap-1 shadow-xs"
                 >
-                  <p className="text-base font-bold text-white text-center">Rating</p>
-                </div>
-                {/* Icon at top left - just below heading */}
-                <div
-                  className="absolute top-14 left-4 p-3 rounded-xl z-10"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.2) 100%)',
-                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2)',
-                    border: '2px solid rgba(245, 158, 11, 0.4)',
-                  }}
+                  <span className="text-base">🏷️</span>
+                  <span className="text-[10px] font-extrabold text-gray-800 tracking-tight">Rate Card</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/vendor/jobs')}
+                  className="p-2.5 rounded-2xl bg-gray-50 hover:bg-teal-50/50 active:scale-95 transition-all text-center border border-gray-200/60 flex flex-col items-center gap-1 shadow-xs"
                 >
-                  <FiTrendingUp className="w-7 h-7" style={{ color: '#F59E0B' }} />
-                </div>
-                {/* Content */}
-                <div className="p-5 pt-16">
-                  <p className="text-4xl font-bold mb-2 text-center" style={{ color: '#F59E0B' }}>
-                    {stats.rating > 0 ? stats.rating.toFixed(1) : 'N/A'}
-                  </p>
-                  <p className="text-sm text-gray-600 font-semibold text-center">Average rating</p>
-                </div>
+                  <span className="text-base">💼</span>
+                  <span className="text-[10px] font-extrabold text-gray-800 tracking-tight">Active Jobs</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/vendor/workers')}
+                  className="p-2.5 rounded-2xl bg-gray-50 hover:bg-teal-50/50 active:scale-95 transition-all text-center border border-gray-200/60 flex flex-col items-center gap-1 shadow-xs"
+                >
+                  <span className="text-base">👥</span>
+                  <span className="text-[10px] font-extrabold text-gray-800 tracking-tight">Workers</span>
+                </button>
               </div>
             </div>
           </div>
@@ -766,23 +670,25 @@ const Dashboard = memo(() => {
           {globalConfig.vendorReferralEnabled !== false && (
             <div
               onClick={() => navigate('/vendor/refer-earn')}
-              className="rounded-2xl p-4 bg-gradient-to-r from-[#2b6573] to-[#347989] text-white shadow-lg cursor-pointer active:scale-98 transition-all relative overflow-hidden flex items-center justify-between"
+              className="rounded-[22px] p-4 bg-gradient-to-r from-[#1b4450] via-[#245866] to-[#347989] text-white shadow-sm hover:shadow-md cursor-pointer active:scale-98 transition-all relative overflow-hidden flex items-center justify-between border border-teal-500/20"
             >
               <div className="flex items-center gap-3.5 z-10">
-                <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 shadow-inner">
-                  <FiGift className="w-6 h-6" />
+                <div className="w-11 h-11 rounded-2xl bg-amber-400/20 backdrop-blur-md flex items-center justify-center text-amber-300 shadow-inner border border-amber-300/30">
+                  <FiGift className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full">
-                    Refer & Earn
+                  <span className="text-[9px] font-black uppercase tracking-wider text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-300/20">
+                    REFER & EARN
                   </span>
-                  <h3 className="text-sm font-extrabold text-white mt-1">
+                  <h3 className="text-sm font-extrabold text-white mt-1 leading-snug">
                     Invite Vendors & Earn ₹{globalConfig.referralReward || stats.referralReward || 100}
                   </h3>
-                  <p className="text-[11px] text-teal-100 font-medium">Get cash reward directly into your wallet</p>
+                  <p className="text-[11px] text-teal-100/80 font-medium mt-0.5">
+                    Instant cash reward credited directly into your wallet
+                  </p>
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white z-10">
+              <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white z-10 shrink-0 ml-2">
                 <FiChevronRight className="w-5 h-5" />
               </div>
             </div>
