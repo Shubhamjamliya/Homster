@@ -71,47 +71,47 @@ const StatsCards = memo(({ stats = {} }) => {
   ];
 
   return (
-    <div className="px-4 pt-3 space-y-3">
+    <div className="px-4 pt-2.5 space-y-2.5">
       {/* Top Main Cards: Total & Monthly Earnings */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2.5">
         {topCards.map((card, idx) => {
           const IconComp = card.icon;
           return (
             <div
               key={idx}
               onClick={card.onClick}
-              className="rounded-[22px] p-4 relative overflow-hidden cursor-pointer active:scale-98 transition-all shadow-sm hover:shadow-md border border-white/10"
+              className="rounded-[20px] p-3.5 relative overflow-hidden cursor-pointer active:scale-98 transition-all shadow-xs hover:shadow-sm border border-white/10"
               style={{ background: card.gradient }}
             >
               {/* Radial Highlight */}
               <div
-                className="absolute top-0 right-0 w-28 h-28 rounded-full opacity-15 pointer-events-none"
+                className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-15 pointer-events-none"
                 style={{
                   background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)',
-                  transform: 'translate(20px, -20px)',
+                  transform: 'translate(15px, -15px)',
                 }}
               />
 
               <div className="relative z-10 flex flex-col justify-between h-full">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-black tracking-wider text-teal-200/80 uppercase">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[9px] font-black tracking-wider text-teal-200/80 uppercase">
                     {card.title}
                   </span>
                   <div
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center backdrop-blur-md border ${card.badgeBorder}`}
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center backdrop-blur-md border ${card.badgeBorder}`}
                     style={{ backgroundColor: card.iconBg }}
                   >
-                    <IconComp className={`w-3.5 h-3.5 ${card.iconColor}`} />
+                    <IconComp className={`w-3 h-3 ${card.iconColor}`} />
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-xl sm:text-2xl font-black text-white tracking-tight leading-none">
+                  <div className="text-lg sm:text-xl font-extrabold text-white tracking-tight leading-none">
                     {card.value}
                   </div>
-                  <div className="text-[10px] text-teal-200/70 font-medium mt-1.5 flex items-center justify-between">
+                  <div className="text-[9.5px] text-teal-200/70 font-medium mt-1.5 flex items-center justify-between">
                     <span>{card.subtext}</span>
-                    <FiArrowUpRight className="w-3 h-3 text-teal-300 opacity-60" />
+                    <FiArrowUpRight className="w-2.5 h-2.5 text-teal-300 opacity-60" />
                   </div>
                 </div>
               </div>
@@ -121,24 +121,24 @@ const StatsCards = memo(({ stats = {} }) => {
       </div>
 
       {/* Sub Analytics Cards: Rating, Completed, Pending */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2">
         {subCards.map((card, idx) => {
           const IconComp = card.icon;
           return (
             <div
               key={idx}
               onClick={card.onClick}
-              className={`rounded-2xl p-3 border ${card.border} ${card.bg} cursor-pointer active:scale-95 transition-all shadow-xs hover:shadow-sm flex flex-col justify-between`}
+              className={`rounded-xl p-2.5 border ${card.border} ${card.bg} cursor-pointer active:scale-95 transition-all shadow-xs hover:shadow-sm flex flex-col justify-between`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[9px] font-black text-gray-500 uppercase tracking-tight">
+                <span className="text-[8.5px] font-black text-gray-500 uppercase tracking-tight">
                   {card.title}
                 </span>
-                <div className={`p-1 rounded-lg ${card.badgeBg}`}>
-                  <IconComp className={`w-3 h-3 ${card.color}`} />
+                <div className={`p-1 rounded-md ${card.badgeBg}`}>
+                  <IconComp className={`w-2.5 h-2.5 ${card.color}`} />
                 </div>
               </div>
-              <div className={`text-lg font-black tracking-tight ${card.color}`}>
+              <div className={`text-base font-black tracking-tight ${card.color}`}>
                 {card.value}
               </div>
             </div>

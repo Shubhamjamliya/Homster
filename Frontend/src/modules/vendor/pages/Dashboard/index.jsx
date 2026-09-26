@@ -444,9 +444,9 @@ const Dashboard = memo(() => {
 
       <main className="pt-0">
         {/* Profile Card Section */}
-        <div className="px-4 pt-3 pb-1">
+        <div className="px-4 pt-2.5 pb-1">
           <div
-            className="rounded-[24px] p-4 cursor-pointer active:scale-[0.99] transition-all duration-200 relative overflow-hidden shadow-sm hover:shadow-md"
+            className="rounded-[20px] p-3.5 cursor-pointer active:scale-[0.99] transition-all duration-200 relative overflow-hidden shadow-xs hover:shadow-sm"
             onClick={() => navigate('/vendor/profile')}
             style={{
               background: 'linear-gradient(135deg, #18414b 0%, #245865 50%, #347989 100%)',
@@ -455,18 +455,18 @@ const Dashboard = memo(() => {
           >
             {/* Subtle Ambient Radial Highlight */}
             <div
-              className="absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-20 pointer-events-none"
+              className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-20 pointer-events-none"
               style={{
                 background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)',
               }}
             />
 
-            <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="relative z-10 flex items-center justify-between gap-2.5">
               {/* Left: Avatar & Info */}
-              <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 {/* Profile Photo with Online Indicator */}
                 <div className="relative shrink-0">
-                  <div className="w-13 h-13 rounded-full overflow-hidden border-2 border-white/80 shadow-md bg-white/10 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/80 shadow-xs bg-white/10 flex items-center justify-center">
                     {vendorProfile.photo ? (
                       <img
                         src={vendorProfile.photo}
@@ -474,12 +474,12 @@ const Dashboard = memo(() => {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <FiUser className="w-7 h-7 text-white" />
+                      <FiUser className="w-6 h-6 text-white" />
                     )}
                   </div>
                   {/* Status dot indicator */}
                   <span
-                    className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white shadow-xs transition-colors ${
+                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white shadow-xs transition-colors ${
                       isOnline ? 'bg-emerald-400' : 'bg-gray-400'
                     }`}
                   />
@@ -487,12 +487,12 @@ const Dashboard = memo(() => {
 
                 {/* Profile Info */}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-teal-200/90 bg-white/15 px-2 py-0.5 rounded-full backdrop-blur-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-teal-200/90 bg-white/15 px-1.5 py-0.5 rounded-full backdrop-blur-xs">
                       WELCOME
                     </span>
                     <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
                         isOnline
                           ? 'bg-emerald-400/20 text-emerald-300'
                           : 'bg-white/10 text-gray-300'
@@ -501,10 +501,10 @@ const Dashboard = memo(() => {
                       {isOnline ? '● Online' : '○ Offline'}
                     </span>
                   </div>
-                  <h2 className="text-base font-black text-white truncate mt-1 leading-tight">
+                  <h2 className="text-sm font-black text-white truncate mt-0.5 leading-tight">
                     {vendorProfile.name}
                   </h2>
-                  <p className="text-xs text-teal-100/80 truncate font-medium mt-0.5">
+                  <p className="text-[11px] text-teal-100/80 truncate font-medium mt-0.5">
                     {vendorProfile.businessName || 'Homster Verified Partner'}
                   </p>
                 </div>
@@ -516,21 +516,21 @@ const Dashboard = memo(() => {
                 <button
                   type="button"
                   onClick={handleToggleOnline}
-                  className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-200 flex items-center shadow-inner cursor-pointer ${
+                  className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 flex items-center shadow-inner cursor-pointer ${
                     isOnline ? 'bg-emerald-500' : 'bg-white/20'
                   }`}
                   aria-label="Toggle Online Status"
                 >
                   <div
-                    className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${
-                      isOnline ? 'translate-x-5' : 'translate-x-0'
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${
+                      isOnline ? 'translate-x-4' : 'translate-x-0'
                     }`}
                   />
                 </button>
 
                 {/* Profile Arrow */}
-                <div className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors">
-                  <FiChevronRight className="w-5 h-5" />
+                <div className="w-7 h-7 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors">
+                  <FiChevronRight className="w-4 h-4" />
                 </div>
               </div>
             </div>
@@ -542,15 +542,15 @@ const Dashboard = memo(() => {
           <div className="px-4 pt-2 -mb-2">
             <div
               onClick={() => navigate('/vendor/your-services')}
-              className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-orange-100 transition-colors"
+              className="bg-orange-50 border-l-4 border-orange-500 p-3 rounded-r shadow-xs cursor-pointer hover:bg-orange-100 transition-colors"
             >
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <FiClock className="h-5 w-5 text-orange-500" />
+                  <FiClock className="h-4 w-4 text-orange-500" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-bold text-orange-700">Profile Incomplete</p>
-                  <p className="text-sm text-orange-600">
+                <div className="ml-2.5">
+                  <p className="text-xs font-bold text-orange-700">Profile Incomplete</p>
+                  <p className="text-[11px] text-orange-600">
                     Add services to your profile to start receiving bookings.
                   </p>
                 </div>
@@ -566,7 +566,7 @@ const Dashboard = memo(() => {
         <StatsCards stats={stats} />
 
         {/* Content Section (below gradient) */}
-        <div className="px-4 py-4 space-y-4">
+        <div className="px-4 py-3 space-y-3.5">
           {/* Pending Booking Alerts - Optimized Component */}
           <PendingBookings
             bookings={pendingBookings}
@@ -580,36 +580,36 @@ const Dashboard = memo(() => {
 
           {/* Performance & Quick Hub */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-extrabold text-gray-900 tracking-tight">Performance & Rating</h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-black uppercase tracking-wider text-gray-500">Performance & Rating</h2>
               <button
                 onClick={() => navigate('/vendor/my-ratings')}
-                className="text-xs font-bold text-teal-750 hover:underline flex items-center gap-0.5"
+                className="text-[11px] font-bold text-teal-750 hover:underline flex items-center gap-0.5"
                 style={{ color: themeColors.button }}
               >
-                View Ratings <FiChevronRight className="w-3.5 h-3.5" />
+                View Ratings <FiChevronRight className="w-3 h-3" />
               </button>
             </div>
 
             {/* Performance Overview Card */}
-            <div className="bg-white rounded-[24px] p-4 border border-gray-100 shadow-xs space-y-3.5">
+            <div className="bg-white rounded-[20px] p-3.5 border border-gray-100 shadow-xs space-y-3">
               <div className="grid grid-cols-2 divide-x divide-gray-100">
                 {/* Rating Column */}
                 <div
-                  className="pr-4 cursor-pointer active:scale-98 transition-all"
+                  className="pr-3.5 cursor-pointer active:scale-98 transition-all"
                   onClick={() => navigate('/vendor/my-ratings')}
                 >
-                  <div className="flex items-center gap-1.5 mb-1 text-gray-500 text-xs font-semibold">
+                  <div className="flex items-center gap-1.5 mb-1 text-gray-500 text-[11px] font-semibold">
                     <FiStar className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                     <span>Customer Rating</span>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-gray-900">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-black text-gray-900">
                       {stats.rating > 0 ? stats.rating.toFixed(1) : '3.8'}
                     </span>
-                    <span className="text-xs text-gray-400 font-medium">/ 5.0</span>
+                    <span className="text-[11px] text-gray-400 font-medium">/ 5.0</span>
                   </div>
-                  <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-emerald-600">
+                  <div className="flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600">
                     <FiCheckCircle className="w-3 h-3" />
                     <span>Good Standing</span>
                   </div>
@@ -617,20 +617,20 @@ const Dashboard = memo(() => {
 
                 {/* Fulfillment Column */}
                 <div
-                  className="pl-4 cursor-pointer active:scale-98 transition-all"
+                  className="pl-3.5 cursor-pointer active:scale-98 transition-all"
                   onClick={() => navigate('/vendor/jobs?tab=completed')}
                 >
-                  <div className="flex items-center gap-1.5 mb-1 text-gray-500 text-xs font-semibold">
+                  <div className="flex items-center gap-1.5 mb-1 text-gray-500 text-[11px] font-semibold">
                     <FiCheckCircle className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Completed Jobs</span>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-gray-900">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-black text-gray-900">
                       {stats.completedJobs || 0}
                     </span>
-                    <span className="text-xs text-gray-400 font-medium">Jobs Done</span>
+                    <span className="text-[11px] text-gray-400 font-medium">Jobs Done</span>
                   </div>
-                  <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-teal-700">
+                  <div className="flex items-center gap-1 mt-1 text-[10px] font-bold text-teal-700">
                     <FiTrendingUp className="w-3 h-3" />
                     <span>100% Fulfillment</span>
                   </div>
@@ -641,26 +641,26 @@ const Dashboard = memo(() => {
               <div className="pt-2 border-t border-gray-100 grid grid-cols-3 gap-2">
                 <button
                   onClick={() => navigate('/vendor/pricing')}
-                  className="p-2.5 rounded-2xl bg-gray-50 hover:bg-teal-50/50 active:scale-95 transition-all text-center border border-gray-200/60 flex flex-col items-center gap-1 shadow-xs"
+                  className="p-2 rounded-xl bg-gray-50 hover:bg-teal-50/50 active:scale-95 transition-all text-center border border-gray-200/60 flex flex-col items-center gap-1 shadow-xs"
                 >
-                  <span className="text-base">🏷️</span>
-                  <span className="text-[10px] font-extrabold text-gray-800 tracking-tight">Rate Card</span>
+                  <span className="text-sm">🏷️</span>
+                  <span className="text-[9px] font-extrabold text-gray-800 tracking-tight">Rate Card</span>
                 </button>
 
                 <button
                   onClick={() => navigate('/vendor/jobs')}
-                  className="p-2.5 rounded-2xl bg-gray-50 hover:bg-teal-50/50 active:scale-95 transition-all text-center border border-gray-200/60 flex flex-col items-center gap-1 shadow-xs"
+                  className="p-2 rounded-xl bg-gray-50 hover:bg-teal-50/50 active:scale-95 transition-all text-center border border-gray-200/60 flex flex-col items-center gap-1 shadow-xs"
                 >
-                  <span className="text-base">💼</span>
-                  <span className="text-[10px] font-extrabold text-gray-800 tracking-tight">Active Jobs</span>
+                  <span className="text-sm">💼</span>
+                  <span className="text-[9px] font-extrabold text-gray-800 tracking-tight">Active Jobs</span>
                 </button>
 
                 <button
                   onClick={() => navigate('/vendor/workers')}
-                  className="p-2.5 rounded-2xl bg-gray-50 hover:bg-teal-50/50 active:scale-95 transition-all text-center border border-gray-200/60 flex flex-col items-center gap-1 shadow-xs"
+                  className="p-2 rounded-xl bg-gray-50 hover:bg-teal-50/50 active:scale-95 transition-all text-center border border-gray-200/60 flex flex-col items-center gap-1 shadow-xs"
                 >
-                  <span className="text-base">👥</span>
-                  <span className="text-[10px] font-extrabold text-gray-800 tracking-tight">Workers</span>
+                  <span className="text-sm">👥</span>
+                  <span className="text-[9px] font-extrabold text-gray-800 tracking-tight">Workers</span>
                 </button>
               </div>
             </div>
@@ -670,50 +670,48 @@ const Dashboard = memo(() => {
           {globalConfig.vendorReferralEnabled !== false && (
             <div
               onClick={() => navigate('/vendor/refer-earn')}
-              className="rounded-[22px] p-4 bg-gradient-to-r from-[#1b4450] via-[#245866] to-[#347989] text-white shadow-sm hover:shadow-md cursor-pointer active:scale-98 transition-all relative overflow-hidden flex items-center justify-between border border-teal-500/20"
+              className="rounded-[20px] p-3.5 bg-gradient-to-r from-[#1b4450] via-[#245866] to-[#347989] text-white shadow-xs hover:shadow-sm cursor-pointer active:scale-98 transition-all relative overflow-hidden flex items-center justify-between border border-teal-500/20"
             >
-              <div className="flex items-center gap-3.5 z-10">
-                <div className="w-11 h-11 rounded-2xl bg-amber-400/20 backdrop-blur-md flex items-center justify-center text-amber-300 shadow-inner border border-amber-300/30">
-                  <FiGift className="w-5 h-5" />
+              <div className="flex items-center gap-3 z-10">
+                <div className="w-9 h-9 rounded-xl bg-amber-400/20 backdrop-blur-md flex items-center justify-center text-amber-300 shadow-inner border border-amber-300/30">
+                  <FiGift className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[9px] font-black uppercase tracking-wider text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-300/20">
+                  <span className="text-[8px] font-black uppercase tracking-wider text-amber-300 bg-amber-400/20 px-1.5 py-0.5 rounded-full border border-amber-300/20">
                     REFER & EARN
                   </span>
-                  <h3 className="text-sm font-extrabold text-white mt-1 leading-snug">
+                  <h3 className="text-xs font-black text-white mt-0.5 leading-snug">
                     Invite Vendors & Earn ₹{globalConfig.referralReward || stats.referralReward || 100}
                   </h3>
-                  <p className="text-[11px] text-teal-100/80 font-medium mt-0.5">
+                  <p className="text-[10px] text-teal-100/80 font-medium mt-0.5">
                     Instant cash reward credited directly into your wallet
                   </p>
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white z-10 shrink-0 ml-2">
-                <FiChevronRight className="w-5 h-5" />
+              <div className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center text-white z-10 shrink-0 ml-2">
+                <FiChevronRight className="w-4 h-4" />
               </div>
             </div>
           )}
 
           {/* Recent Jobs - List View */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-800">Active Jobs</h2>
+            <div className="flex items-center justify-between mb-2.5">
+              <h2 className="text-sm font-black text-gray-900 tracking-tight">Active Jobs</h2>
               {recentJobs.length > 0 && (
                 <button
                   onClick={() => navigate('/vendor/jobs')}
-                  className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 active:scale-95"
+                  className="px-3 py-1 rounded-lg font-bold text-xs transition-all duration-300 active:scale-95"
                   style={{
                     background: `linear-gradient(135deg, ${themeColors.button} 0%, ${themeColors.button}dd 100%)`,
                     color: '#FFFFFF',
-                    boxShadow: `0 4px 12px ${hexToRgba(themeColors.button, 0.3)}, 0 2px 6px ${hexToRgba(themeColors.button, 0.2)}`,
+                    boxShadow: `0 3px 10px ${hexToRgba(themeColors.button, 0.25)}`,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = `0 6px 16px ${hexToRgba(themeColors.button, 0.4)}, 0 3px 8px ${hexToRgba(themeColors.button, 0.3)}`;
+                    e.currentTarget.style.transform = 'translateY(-1px)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = `0 4px 12px ${hexToRgba(themeColors.button, 0.3)}, 0 2px 6px ${hexToRgba(themeColors.button, 0.2)}`;
                   }}
                 >
                   View All

@@ -1,6 +1,7 @@
 import React, { memo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiBell, FiSearch } from 'react-icons/fi';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Logo from '../../../../components/common/Logo';
@@ -15,14 +16,7 @@ const Header = memo(({
   notificationCount = 0
 }) => {
   const navigate = useNavigate();
-  const [count, setCount] = useState(notificationCount);
-
-  // Sync prop changes
-  useEffect(() => {
-    if (typeof notificationCount !== 'undefined') {
-      setCount(notificationCount);
-    }
-  }, [notificationCount]);
+  const [fetchedCount, setFetchedCount] = useState(0);
 
   // Fetch unread count
   useEffect(() => {
@@ -30,9 +24,9 @@ const Header = memo(({
       try {
         const res = await api.get('/notifications/vendor');
         if (res.data.success && typeof res.data.unreadCount === 'number') {
-          setCount(res.data.unreadCount);
+          setFetchedCount(res.data.unreadCount);
         }
-      } catch (error) {
+      } catch {
         // Silent fail
       }
     };
@@ -43,6 +37,8 @@ const Header = memo(({
       return () => clearInterval(interval);
     }
   }, [showNotifications]);
+
+  const count = notificationCount || fetchedCount;
 
   const handleBack = () => {
     if (onBack) {
@@ -61,22 +57,14 @@ const Header = memo(({
   };
 
   return (
-    <header
-      className="sticky top-0 z-40 w-full bg-white"
-      style={{
-        borderBottom: '2px solid rgba(156, 163, 175, 0.3)',
-        borderBottomLeftRadius: '20px',
-        borderBottomRightRadius: '20px',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.08)',
-      }}
-    >
-      <div className="px-4 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-gray-100/90 shadow-xs">
+      <div className="px-4 py-2.5 flex items-center justify-between">
         {/* Left: Back button or Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {showBack ? (
             <motion.button
               onClick={handleBack}
-              className="p-2 rounded-full hover:bg-white/30 transition-colors"
+              className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
               whileTap={{ scale: 0.95 }}
             >
               <FiArrowLeft className="w-5 h-5" style={{ color: themeColors.button }} />
@@ -85,53 +73,52 @@ const Header = memo(({
             <motion.div
               className="cursor-pointer"
               onClick={handleLogoClick}
-              initial={{ opacity: 0, scale: 0.8 }}
+              initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.1 }}
+              whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               transition={{ duration: 0.2 }}
             >
-              <Logo className="h-12 w-auto" />
+              <Logo className="h-8 w-auto" />
             </motion.div>
           )}
-          {showBack && <h1 className="text-lg font-bold text-gray-800">{title || 'Vendor'}</h1>}
+          {showBack && <h1 className="text-base font-bold text-gray-800 tracking-tight">{title || 'Vendor'}</h1>}
         </div>
 
         {/* Right: Search and Notifications */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {showSearch && (
             <button
-              className="p-2 rounded-full hover:bg-white/30 transition-colors active:scale-95"
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors active:scale-95"
               onClick={() => navigate('/vendor/jobs')}
             >
-              <FiSearch className="w-5 h-5" style={{ color: themeColors.button }} />
+              <FiSearch className="w-4.5 h-4.5" style={{ color: themeColors.button }} />
             </button>
           )}
           {showNotifications && (
             <motion.div
               className="relative rounded-full cursor-pointer"
               style={{
-                width: '42px',
-                height: '42px',
+                width: '36px',
+                height: '36px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '2px'
               }}
-              whileHover={{ scale: 1.1 }}
+              whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.95 }}
             >
               {/* 1. Animated Running Border */}
               <div
-                className="absolute inset-[-2px] rounded-full z-0"
+                className="absolute inset-[-1.5px] rounded-full z-0"
                 style={{
                   background: themeColors.brand.conic,
                   animation: 'spin 2s linear infinite',
-                  boxShadow: `0 0 8px ${themeColors.brand.orange}26`
+                  boxShadow: `0 0 6px ${themeColors.brand.orange}20`
                 }}
               />
 
-              {/* 2. White Mask (to hide center of conic gradient) */}
+              {/* 2. White Mask */}
               <div className="absolute inset-[1px] rounded-full bg-white z-0" />
 
               {/* 3. Inner Button */}
@@ -140,11 +127,11 @@ const Header = memo(({
                 className="relative z-10 w-full h-full rounded-full flex items-center justify-center overflow-hidden"
                 style={{
                   background: count > 0
-                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.12) 100%)'
-                    : 'linear-gradient(135deg, rgba(52, 121, 137, 0.1) 0%, rgba(187, 95, 54, 0.1) 100%)',
+                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.08) 100%)'
+                    : 'linear-gradient(135deg, rgba(52, 121, 137, 0.08) 0%, rgba(187, 95, 54, 0.08) 100%)',
                   boxShadow: count > 0
-                    ? '0 3px 12px rgba(239, 68, 68, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4)'
-                    : '0 2px 6px rgba(52, 121, 137, 0.15)',
+                    ? '0 2px 8px rgba(239, 68, 68, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)'
+                    : '0 1px 4px rgba(52, 121, 137, 0.12)',
                 }}
               >
                 {/* Define Gradient for Icon */}
@@ -157,31 +144,31 @@ const Header = memo(({
                 </svg>
 
                 <motion.div
-                  whileHover={{ rotate: 15 }}
+                  whileHover={{ rotate: 12 }}
                   transition={{ duration: 0.2 }}
                 >
                   <FiBell
-                    className="w-5 h-5"
+                    className="w-4 h-4"
                     style={{
                       stroke: count > 0 ? '#EF4444' : 'url(#homestr-bell-gradient)',
                       strokeWidth: '2.5',
                       color: 'transparent',
                       filter: count > 0
-                        ? 'drop-shadow(0 2px 6px rgba(239, 68, 68, 0.4))'
-                        : 'drop-shadow(0 1px 3px rgba(52, 121, 137, 0.3))',
+                        ? 'drop-shadow(0 1px 4px rgba(239, 68, 68, 0.35))'
+                        : 'drop-shadow(0 1px 2px rgba(52, 121, 137, 0.25))',
                     }}
                   />
                 </motion.div>
               </motion.button>
-              {/* 4. Active Badge (Moved outside for robustness and to prevent clipping) */}
+              {/* 4. Active Badge */}
               {count > 0 && (
                 <span
-                  className="absolute -top-1.5 -right-1.5 bg-gradient-to-br from-red-500 to-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center z-20"
+                  className="absolute -top-1 -right-1 bg-gradient-to-br from-red-500 to-red-600 text-white text-[9px] font-black rounded-full flex items-center justify-center z-20"
                   style={{
-                    minWidth: '20px',
-                    height: '20px',
-                    boxShadow: '0 3px 8px rgba(239, 68, 68, 0.5), 0 0 0 2px #fff',
-                    border: '2px solid #fff'
+                    minWidth: '17px',
+                    height: '17px',
+                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4), 0 0 0 1.5px #fff',
+                    border: '1.5px solid #fff'
                   }}
                 >
                   {count > 9 ? '9+' : count}
